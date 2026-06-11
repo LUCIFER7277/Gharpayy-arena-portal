@@ -17,6 +17,7 @@ import {
   Gavel,
   Sparkles,
   Activity,
+  Target,
 } from "lucide-react";
 import { useRoleFeature } from "@/hooks/useRoleFeature";
 import { useAttendanceState } from "@/hooks/useAttendance";
@@ -97,7 +98,7 @@ function useDynamicPlaybook(pb: RolePlaybook | undefined, actor: Employee) {
     if (!pb) return undefined;
     if (loading || definitions.length === 0) return pb;
 
-    const dynamicKpis = pb.kpis.map((legacyKpi) => {
+    const dynamicKpis = pb.kpis.map((legacyKpi: any) => {
       const expectedSlug = `${pb.id}_${legacyKpi.id}`;
       const definition = definitions.find((d) => d.slug === expectedSlug);
 
@@ -659,7 +660,7 @@ function CommWindows({
         }
       />
       <div className="space-y-2">
-        {pb.commWindows.map((w, index) => {
+        {pb.commWindows.map((w: any, index: number) => {
           const sent = day.windowsSent[w.id];
           const m = nowMin();
           const overdue = !sent && m > w.atMin + 15;
@@ -837,7 +838,7 @@ function EodGenerator({
         <h3 className="font-display text-sm font-semibold">EOD Report</h3>
       </div>
       <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-        {pb.eodFields.map((f) => (
+        {pb.eodFields.map((f: any) => (
           <div key={f.id}>
             <label className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
               {f.label}

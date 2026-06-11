@@ -218,7 +218,7 @@ export function shieldNow(actorId: string): ShieldState {
   const pb = playbookFor(pbKey);
   if (!pb) return { active: false, label: "" };
   const m = nowMin();
-  const block = pb.shieldBlocks.find((b) => m >= b.startMin && m < b.endMin);
+  const block = pb.shieldBlocks.find((b: any) => m >= b.startMin && m < b.endMin);
   return block
     ? { active: true, label: block.label, until: block.endMin }
     : { active: false, label: "" };
@@ -229,7 +229,7 @@ export function currentSprint(actorId: string) {
   const pb = playbookFor(pbKey);
   if (!pb) return undefined;
   const m = nowMin();
-  return pb.sprints.find((s) => m >= s.startMin && m < s.endMin);
+  return pb.sprints.find((s: any) => m >= s.startMin && m < s.endMin);
 }
 
 export function nextSprint(actorId: string) {
@@ -237,7 +237,7 @@ export function nextSprint(actorId: string) {
   const pb = playbookFor(pbKey);
   if (!pb) return undefined;
   const m = nowMin();
-  return pb.sprints.find((s) => s.startMin > m);
+  return pb.sprints.find((s: any) => s.startMin > m);
 }
 
 export function nextWindow(actorId: string) {
@@ -245,7 +245,7 @@ export function nextWindow(actorId: string) {
   const pb = playbookFor(pbKey);
   if (!pb) return undefined;
   const m = nowMin();
-  return pb.commWindows.find((w) => w.atMin > m - 5);
+  return pb.commWindows.find((w: any) => w.atMin > m - 5);
 }
 
 export function dayHealth(actorId: string): { score: number; label: string } {
@@ -255,7 +255,7 @@ export function dayHealth(actorId: string): { score: number; label: string } {
   const day = store.read().days.find((d) => d.date === todayKey() && d.actorId === actorId);
   if (!day) return { score: 0, label: "Not started" };
   let hit = 0;
-  pb.kpis.forEach((k) => {
+  pb.kpis.forEach((k: any) => {
     const v = day.kpis[k.id] ?? 0;
     if (k.kind === "boolean") {
       if (v >= 1) hit++;
@@ -277,7 +277,7 @@ export function exportEodText(actorId: string, key: PlaybookKey): string {
   if (!pb) return "";
   const day = store.read().days.find((d) => d.date === todayKey() && d.actorId === actorId);
   const lines = [`${pb.title.toUpperCase()} EOD — ${todayKey()}`, ""];
-  pb.eodFields.forEach((f) => {
+  pb.eodFields.forEach((f: any) => {
     const v = day?.eod[f.id] ?? "";
     lines.push(`${f.label}: ${v || "—"}`);
   });
