@@ -338,14 +338,245 @@ const FLOOR_LEAD = {
   id: "floor_lead",
 };
 
+// ─── ADMIN PLAYBOOK ──────────────────────────────────────────────────────────
+const ADMIN_PLAYBOOK = {
+  id: "admin",
+  title: "System Administration",
+  subtitle: "Control · Compliance · Access",
+  oneLiner: "Oversee system health, manage permissions, and ensure data integrity.",
+  interdependence: "Without the Admin, the system grinds to a halt.",
+  collapseRule: "If system downtime > 15 mins → Page engineering immediately.",
+  shieldBlocks: [{ startMin: t(9, 30), endMin: t(11, 30), label: "System Maintenance" }],
+  kpis: [{ id: "uptime", label: "System Uptime", target: 99, unit: "%", kind: "percent" }],
+  sprints: [
+    { id: "adm_s1", index: 1, name: "Morning Systems Check", startMin: t(9, 30), endMin: t(11, 0), objective: "Verify all systems and integrations are online." },
+    { id: "adm_s2", index: 2, name: "Access & Permissions Review", startMin: t(11, 30), endMin: t(13, 30), objective: "Process new user requests and role changes." },
+    { id: "adm_s3", index: 3, name: "Data Audits", startMin: t(14, 30), endMin: t(16, 30), objective: "Check for anomalies in metrics and CRM." },
+  ],
+  commWindows: [
+    { id: "adm_w1", label: "System Status Update", atMin: t(10, 0), channel: "Slack", template: "All systems operational. No major updates." },
+  ],
+  eodFields: [{ id: "issues", label: "System Issues Today", kind: "text" }],
+};
+
+// ─── MANAGER ALIAS ────────────────────────────────────────────────────────────
+const EMPLOYEE_ALIAS = {
+  ...OPERATOR_DAY,
+  id: "employee",
+};
+
+const TCM_ALIAS = {
+  ...PERFORMANCE_ENFORCER,
+  id: "tcm",
+};
+
+const MANAGER_ALIAS = {
+  ...COMMUNICATION_SHIELD,
+  id: "manager",
+};
+
+// ─── HR PLAYBOOK ─────────────────────────────────────────────────────────────
+const HR_PLAYBOOK = {
+  id: "hr",
+  title: "HR Operations",
+  subtitle: "Culture · Compliance · Conflict",
+  oneLiner: "Maintain the heartbeat of the organization. Drive culture, resolve conflicts, and ensure compliance.",
+  interdependence: "If this fails → toxicity grows → top performers leave.",
+  collapseRule: "If unresolved conflicts > 3 or attendance audit delayed > 2 hours → alert Owner.",
+  shieldBlocks: [
+    { startMin: t(11, 0), endMin: t(13, 0), label: "Deep Work · Paperwork" },
+  ],
+  kpis: [
+    { id: "audit", label: "Attendance audited by 11 AM", target: 1, kind: "boolean" },
+    { id: "conflicts", label: "Active conflicts resolved < 48h", target: 100, unit: "%", kind: "percent" },
+  ],
+  sprints: [
+    { id: "hr_s1", index: 1, name: "Morning Check-in & Audit", startMin: t(10, 0), endMin: t(11, 0), objective: "Ensure everyone is present and ready." },
+    { id: "hr_s2", index: 2, name: "Culture & Conflict Resolution", startMin: t(11, 30), endMin: t(13, 30), objective: "Address pressing personnel issues." },
+    { id: "hr_s3", index: 3, name: "Policy & Paperwork", startMin: t(14, 30), endMin: t(16, 30), objective: "Contracts, onboarding prep, compliance." },
+    { id: "hr_s4", index: 4, name: "EOD Health Check", startMin: t(17, 30), endMin: t(19, 0), objective: "Check team morale and wrap up." },
+  ],
+  commWindows: [
+    { id: "hr_w1", label: "Morning Pulse", atMin: t(11, 0), channel: "WhatsApp Group", template: "All attendance audited. Missing: {{absent}}." },
+  ],
+  eodFields: [{ id: "morale", label: "General Morale (1-10)", kind: "number" }],
+};
+
+// ─── RECRUITER PLAYBOOK ──────────────────────────────────────────────────────
+const RECRUITER_PLAYBOOK = {
+  id: "recruiter",
+  title: "Recruiting Engine",
+  subtitle: "Sourcing · Screening · Closing",
+  oneLiner: "Find and close top-tier talent to fuel Gharpayy's growth.",
+  interdependence: "No talent → No growth.",
+  collapseRule: "If pipeline < 5 qualified candidates per open role → Escalate to Owner.",
+  shieldBlocks: [
+    { startMin: t(11, 0), endMin: t(13, 0), label: "Screening Calls" },
+    { startMin: t(14, 0), endMin: t(17, 0), label: "Interviews" },
+  ],
+  kpis: [
+    { id: "screens", label: "Phone screens completed", target: 10, kind: "count" },
+    { id: "offers", label: "Offers extended", target: 2, kind: "count" },
+  ],
+  sprints: [
+    { id: "rec_s1", index: 1, name: "Sourcing & Pipeline", startMin: t(10, 0), endMin: t(11, 0), objective: "Find 20 new prospects." },
+    { id: "rec_s2", index: 2, name: "Candidate Screening", startMin: t(11, 0), endMin: t(13, 0), objective: "Conduct initial phone screens." },
+    { id: "rec_s3", index: 3, name: "Interview Coordination", startMin: t(14, 0), endMin: t(17, 0), objective: "Run or shadow technical/cultural interviews." },
+    { id: "rec_s4", index: 4, name: "Offer & Follow-up", startMin: t(17, 0), endMin: t(18, 30), objective: "Draft offers and follow up with candidates." },
+  ],
+  commWindows: [
+    { id: "rec_w1", label: "Pipeline Update", atMin: t(13, 0), channel: "WhatsApp Group", template: "Screens done: {{screens}}. Moving to next round: {{advanced}}." },
+  ],
+  eodFields: [{ id: "offers_sent", label: "Offers Sent", kind: "number" }],
+};
+
+// ─── ZONE LEADER PLAYBOOK ────────────────────────────────────────────────────
+const ZONE_LEADER_PLAYBOOK = {
+  id: "zone_leader",
+  title: "Zone Command",
+  subtitle: "Revenue · Blockers · Strategy",
+  oneLiner: "Command the zone. Unblock Floor Leads and drive overarching revenue.",
+  interdependence: "If Zone Leader is disconnected → Floor Leads run blind.",
+  collapseRule: "If Zone revenue < 40% of weekly target by Wednesday → Initiate Emergency Sync.",
+  shieldBlocks: [{ startMin: t(14, 0), endMin: t(16, 0), label: "Strategy & Reviews" }],
+  kpis: [
+    { id: "rev", label: "Zone Revenue vs Target", target: 100, unit: "%", kind: "percent" },
+  ],
+  sprints: [
+    { id: "zl_s1", index: 1, name: "Zone Kickoff", startMin: t(10, 0), endMin: t(11, 0), objective: "Review metrics across all floors." },
+    { id: "zl_s2", index: 2, name: "Floor Lead Syncs", startMin: t(11, 30), endMin: t(13, 0), objective: "1:1 coaching with Floor Leads." },
+    { id: "zl_s3", index: 3, name: "Escalations & Blockers", startMin: t(14, 0), endMin: t(16, 0), objective: "Resolve high-level client or operational blockers." },
+    { id: "zl_s4", index: 4, name: "Zone EOD Review", startMin: t(17, 30), endMin: t(19, 0), objective: "Consolidate floor reports and plan tomorrow." },
+  ],
+  commWindows: [
+    { id: "zl_w1", label: "Zone Alignment", atMin: t(11, 0), channel: "WhatsApp Group", template: "Zone target: {{target}}. Major focus: {{focus}}." },
+  ],
+  eodFields: [{ id: "zone_rev", label: "Revenue Booked", kind: "number" }],
+};
+
+// ─── OWNER PLAYBOOK ──────────────────────────────────────────────────────────
+const OWNER_PLAYBOOK = {
+  id: "owner",
+  title: "Executive Command",
+  subtitle: "Vision · Strategy · Expansion",
+  oneLiner: "Drive the vision. Review high-level metrics and execute strategic decisions.",
+  interdependence: "Owner provides the map. Without it, the team wanders.",
+  collapseRule: "If cash runway < 3 months → Halt expansion, pivot to sales.",
+  shieldBlocks: [{ startMin: t(9, 0), endMin: t(12, 0), label: "Deep Work" }],
+  kpis: [{ id: "growth", label: "MoM Growth", target: 20, unit: "%", kind: "percent" }],
+  sprints: [
+    { id: "ow_s1", index: 1, name: "Executive Dashboard", startMin: t(9, 0), endMin: t(10, 30), objective: "Review company-wide health metrics." },
+    { id: "ow_s2", index: 2, name: "Leadership Sync", startMin: t(11, 0), endMin: t(13, 0), objective: "Meet with Zone Leaders and HR." },
+    { id: "ow_s3", index: 3, name: "Strategic Deep Work", startMin: t(14, 0), endMin: t(17, 0), objective: "Product, Partnerships, Expansion planning." },
+  ],
+  commWindows: [
+    { id: "ow_w1", label: "Daily Pulse", atMin: t(13, 0), channel: "Slack", template: "Key decision today: {{decision}}." },
+  ],
+  eodFields: [{ id: "big_win", label: "Biggest Win", kind: "text" }],
+};
+
+// ─── COACH PLAYBOOK ──────────────────────────────────────────────────────────
+const COACH_PLAYBOOK = {
+  id: "coach",
+  title: "Performance Coaching",
+  subtitle: "Training · Pitching · Excellence",
+  oneLiner: "Level up the team. Listen, train, and correct performance.",
+  interdependence: "Bad coaching → low conversion rates.",
+  collapseRule: "If C-player conversion remains < 5% after 2 weeks → flag to HR.",
+  shieldBlocks: [{ startMin: t(11, 0), endMin: t(15, 0), label: "Live Call Listening" }],
+  kpis: [{ id: "coached", label: "Agents Coached Today", target: 5, kind: "count" }],
+  sprints: [
+    { id: "co_s1", index: 1, name: "Metric Review", startMin: t(10, 0), endMin: t(11, 0), objective: "Identify who needs coaching today." },
+    { id: "co_s2", index: 2, name: "Live Call Listening", startMin: t(11, 0), endMin: t(14, 0), objective: "Shadow calls silently and take notes." },
+    { id: "co_s3", index: 3, name: "1:1 Coaching", startMin: t(14, 30), endMin: t(17, 30), objective: "Deliver feedback and practice pitches." },
+  ],
+  commWindows: [
+    { id: "co_w1", label: "Training Focus", atMin: t(10, 30), channel: "WhatsApp Group", template: "Today's pitch focus: {{focus}}." },
+  ],
+  eodFields: [{ id: "top_improver", label: "Top Improver", kind: "text" }],
+};
+
+// ─── PROPERTY PARTNER PLAYBOOK ───────────────────────────────────────────────
+const PROPERTY_PARTNER_PLAYBOOK = {
+  id: "property_partner",
+  title: "Property & Partner Ops",
+  subtitle: "Inventory · Landlords · Maintenance",
+  oneLiner: "Ensure inventory is tour-ready and landlord relations are strong.",
+  interdependence: "If property isn't ready → Tours fail → Revenue drops.",
+  collapseRule: "If tour-ready inventory < 10 units → Pause new marketing.",
+  shieldBlocks: [{ startMin: t(13, 0), endMin: t(16, 0), label: "Field Work" }],
+  kpis: [{ id: "ready", label: "Tour-ready units", target: 20, kind: "count" }],
+  sprints: [
+    { id: "pp_s1", index: 1, name: "Inventory Status Check", startMin: t(10, 0), endMin: t(11, 30), objective: "Verify what's available today." },
+    { id: "pp_s2", index: 2, name: "Landlord Follow-ups", startMin: t(11, 30), endMin: t(13, 0), objective: "Chase pending approvals and contracts." },
+    { id: "pp_s3", index: 3, name: "Maintenance & Tour Prep", startMin: t(14, 0), endMin: t(17, 0), objective: "Ensure keys work, properties are clean." },
+  ],
+  commWindows: [
+    { id: "pp_w1", label: "Inventory Update", atMin: t(11, 30), channel: "WhatsApp Group", template: "New units added: {{new}}. Total ready: {{total}}." },
+  ],
+  eodFields: [{ id: "issues", label: "Maintenance Blockers", kind: "text" }],
+};
+
+// ─── FLOW OPS PLAYBOOK ───────────────────────────────────────────────────────
+const FLOW_OPS_PLAYBOOK = {
+  id: "flow_ops",
+  title: "Flow Operations",
+  subtitle: "Pitch · Follow-up · Close",
+  oneLiner: "Keep the deals flowing. Perfect the pitch and confirm the show-ups.",
+  interdependence: "If Flow Ops fails → Tours ghost → Revenue vanishes.",
+  collapseRule: "If < 20 follow-ups by 2 PM → Immediate check-in with Floor Lead.",
+  shieldBlocks: [{ startMin: t(14, 0), endMin: t(17, 0), label: "Closing Sprint" }],
+  kpis: [{ id: "shows", label: "Tours Showed Up", target: 5, kind: "count" }],
+  sprints: [
+    { id: "fo_s1", index: 1, name: "Follow-up Blitz", startMin: t(10, 30), endMin: t(12, 30), objective: "Confirm all today's tours." },
+    { id: "fo_s2", index: 2, name: "New Lead Pitching", startMin: t(13, 30), endMin: t(15, 30), objective: "Call every new lead under 5 minutes." },
+    { id: "fo_s3", index: 3, name: "Closing Deals", startMin: t(16, 0), endMin: t(18, 30), objective: "Push pending contracts over the line." },
+  ],
+  commWindows: [
+    { id: "fo_w1", label: "Midday Flow", atMin: t(13, 30), channel: "WhatsApp Group", template: "Tours confirmed: {{confirmed}}. Deals in progress: {{deals}}." },
+  ],
+  eodFields: [{ id: "closed", label: "Deals Closed", kind: "number" }],
+};
+
+// ─── GENERAL EMPLOYEE PLAYBOOK ─────────────────────────────────────────────────
+const EMPLOYEE_PLAYBOOK = {
+  id: "employee",
+  title: "Standard Operations",
+  subtitle: "Focus · Execution · Delivery",
+  oneLiner: "Execute your core tasks with deep focus and align with team goals.",
+  interdependence: "Your output is the input for the rest of the team.",
+  collapseRule: "If blocked for > 2 hours → Escalate to your Manager.",
+  shieldBlocks: [{ startMin: t(10, 30), endMin: t(12, 30), label: "Morning Deep Work" }],
+  kpis: [{ id: "tasks", label: "Tasks Completed", target: 5, kind: "count" }],
+  sprints: [
+    { id: "emp_s1", index: 1, name: "Morning Kickoff & Alignment", startMin: t(10, 0), endMin: t(10, 30), objective: "Plan the day and align with leadership." },
+    { id: "emp_s2", index: 2, name: "Morning Deep Work", startMin: t(10, 30), endMin: t(13, 0), objective: "Execute highest priority tasks uninterrupted." },
+    { id: "emp_s3", index: 3, name: "Collaboration & Meetings", startMin: t(14, 0), endMin: t(16, 0), objective: "Sync with team members and unblock issues." },
+    { id: "emp_s4", index: 4, name: "Afternoon Deep Work & Wrap", startMin: t(16, 0), endMin: t(18, 30), objective: "Finish daily tasks and prepare EOD report." },
+  ],
+  commWindows: [
+    { id: "emp_w1", label: "Daily Sync", atMin: t(10, 30), channel: "Slack", template: "Today's priority: {{priority}}. Blockers: {{blockers}}." },
+  ],
+  eodFields: [{ id: "completed", label: "Major Output Today", kind: "text" }],
+};
+
 // ─── ALL PLAYBOOKS ────────────────────────────────────────────────────────────
 export const PLAYBOOKS_TO_SEED = [
   COMMUNICATION_SHIELD,
   FLOOR_LEAD,
   PERFORMANCE_ENFORCER,
   OPERATOR_DAY,
-  // Add additional role-specific playbooks here as needed
-  // Each `id` must match: role.toLowerCase().replace(/\s+/g, "_")
+  ADMIN_PLAYBOOK,
+  MANAGER_ALIAS,
+  HR_PLAYBOOK,
+  RECRUITER_PLAYBOOK,
+  ZONE_LEADER_PLAYBOOK,
+  OWNER_PLAYBOOK,
+  COACH_PLAYBOOK,
+  PROPERTY_PARTNER_PLAYBOOK,
+  FLOW_OPS_PLAYBOOK,
+  EMPLOYEE_PLAYBOOK,
+  TCM_ALIAS,
 ];
 
 /**

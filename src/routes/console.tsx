@@ -40,6 +40,8 @@ import {
   nextSprint,
   exportEodText,
 } from "@/lib/console-store";
+import { useTasks, tasksFor, setStatus } from "@/lib/task-store";
+import type { AppTask } from "@/types/hr";
 import { Avatar } from "@/components/Avatar";
 import type { Employee } from "@/types/hr";
 import { TeamIntelligencePanel } from "@/components/TeamIntelligencePanel";
@@ -319,6 +321,9 @@ function MyOperationsSection({
     return calculateDynamicHealth(pb.kpis, day.kpis);
   }, [pb.kpis, day.kpis]);
 
+  const allTasks = useTasks();
+  const myTasks = useMemo(() => allTasks.filter(t => t.assigneeId === actorId), [allTasks, actorId]);
+
   return (
     <div className="space-y-6">
       <Header pb={pb} actorName={actorName} health={health} shield={shield} />
@@ -327,7 +332,7 @@ function MyOperationsSection({
         <div className="lg:col-span-2 space-y-6">
 
           {hasConsoleCapability(actor, "manage_personal_sprint") && (
-            <SprintTimeline pb={pb} actorId={actorId} day={day} />
+            <SprintTimeline pb={pb} actorId={actorId} day={day} tasks={myTasks} />
           )}
           {hasConsoleCapability(actor, "manage_comm_windows") && (
             <CommWindows pb={pb} actorId={actorId} day={day} />
@@ -489,10 +494,12 @@ function SprintTimeline({
   pb,
   actorId,
   day,
+  tasks,
 }: {
   pb: RolePlaybook;
   actorId: string;
   day: ReturnType<typeof useConsoleDay>;
+  tasks: AppTask[];
 }) {
   const m = nowMin();
   return (
@@ -561,21 +568,62 @@ function SprintTimeline({
                   <Check className="h-3 w-3" /> {done ? "Done" : "Mark done"}
                 </button>
               </div>
-              {s.actions && s.actions.length > 0 && (
-                <ul className="space-y-1.5 mt-3">
-                  {s.actions.map((a: any, i: number) => (
-                    <li key={i} className="text-xs flex items-start gap-2">
-                      <span className="font-mono text-[10px] text-primary shrink-0 w-20">
-                        {a.time}
-                      </span>
-                      <span className="flex-1">{a.do}</span>
-                      <span className="text-muted-foreground italic shrink-0 hidden md:inline">
-                        → {a.output}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              
+              {(() => {
+                const sprintTasks = tasks.filter((t) => {
+                  const d = new Date(t.dueAt);
+                  const dueMin = d.getHours() * 60 + d.getMinutes();
+                  return dueMin >= s.startMin && dueMin < s.endMin;
+                });
+
+                if (sprintTasks.length === 0) {
+                  return (
+                    <div className="mt-3 text-xs text-muted-foreground italic">
+                      No live tasks scheduled for this sprint.
+                    </div>
+                  );
+                }
+
+                return (
+                  <ul className="space-y-2 mt-4">
+                    {sprintTasks.map((t) => {
+                      const isTaskDone = t.status === "done";
+                      return (
+                        <li key={t.id} className={`text-sm flex items-start gap-2 p-3 rounded-md border ${isTaskDone ? "bg-success/5 border-success/30" : "bg-secondary/40 border-border"}`}>
+                          <button
+                            onClick={() => setStatus(t.id, isTaskDone ? "todo" : "done", actorId)}
+                            className={`mt-0.5 flex-shrink-0 h-4 w-4 rounded flex items-center justify-center border transition-colors ${
+                              isTaskDone
+                                ? "bg-success text-success-foreground border-success"
+                                : "border-muted-foreground/50 hover:border-primary"
+                            }`}
+                          >
+                            {isTaskDone && <Check className="h-3 w-3" />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-medium ${isTaskDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                              {t.title}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className={`text-[9px] uppercase font-mono tracking-widest px-1.5 py-0.5 rounded ${
+                                t.priority === "urgent" ? "bg-destructive/15 text-destructive border border-destructive/30" :
+                                t.priority === "high" ? "bg-warning/15 text-warning border border-warning/30" :
+                                "bg-secondary border border-border text-muted-foreground"
+                              }`}>
+                                {t.priority}
+                              </span>
+                              {t.description && (
+                                <span className="text-xs text-muted-foreground truncate">{t.description}</span>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
+              })()}
+
               {s.metric && (
                 <div className="mt-3 pt-2 border-t border-border/50 text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
                   Metric: <span className="text-foreground/80 normal-case font-sans">{s.metric}</span>
