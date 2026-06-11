@@ -69,7 +69,10 @@ export function crudRouter(
               isOwner = item.authorId === empId;
               break;
             case "Task":
-              isOwner = item.createdById === userId || item.assigneeId === empId;
+              isOwner =
+                item.createdById === userId ||
+                item.assigneeId === empId ||
+                item.assignedById === empId;
               break;
             case "Notification":
               isOwner = item.toId === empId;

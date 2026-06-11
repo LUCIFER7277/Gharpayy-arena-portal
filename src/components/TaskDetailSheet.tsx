@@ -492,39 +492,47 @@ export function TaskDetailSheet({
             </form>
           )}
 
-          {/* Always-visible action row */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => (timer ? stopTimer(task.id, actorId) : startTimer(task.id, actorId))}
-              className={`h-10 px-3 inline-flex items-center gap-1.5 rounded-md border text-xs font-medium ${
-                timer
-                  ? "bg-destructive/10 text-destructive border-destructive/30"
-                  : "bg-info/10 text-info border-info/30"
-              }`}
-            >
-              {timer ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-              {timer ? "Stop" : "Start"}
-            </button>
-            <div className="flex-1 grid grid-cols-3 gap-1">
-              {(["todo", "doing", "done"] as TaskStatus[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => changeStatus(s)}
-                  className={`h-10 text-[11px] font-medium rounded-md border transition-colors ${
-                    task.status === s
-                      ? s === "done"
-                        ? "bg-success text-success-foreground border-success"
-                        : s === "doing"
-                          ? "bg-info text-info-foreground border-info"
-                          : "bg-secondary text-foreground border-border"
-                      : "border-border text-muted-foreground hover:border-primary/40"
-                  }`}
-                >
-                  {s === "todo" ? "To do" : s === "doing" ? "Doing" : "Done"}
-                </button>
-              ))}
+          {/* Always-visible action row — assignee only */}
+          {actorId === task.assigneeId ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => (timer ? stopTimer(task.id, actorId) : startTimer(task.id, actorId))}
+                className={`h-10 px-3 inline-flex items-center gap-1.5 rounded-md border text-xs font-medium ${
+                  timer
+                    ? "bg-destructive/10 text-destructive border-destructive/30"
+                    : "bg-info/10 text-info border-info/30"
+                }`}
+              >
+                {timer ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                {timer ? "Stop" : "Start"}
+              </button>
+              <div className="flex-1 grid grid-cols-3 gap-1">
+                {(["todo", "doing", "done"] as TaskStatus[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => changeStatus(s)}
+                    className={`h-10 text-[11px] font-medium rounded-md border transition-colors ${
+                      task.status === s
+                        ? s === "done"
+                          ? "bg-success text-success-foreground border-success"
+                          : s === "doing"
+                            ? "bg-info text-info-foreground border-info"
+                            : "bg-secondary text-foreground border-border"
+                        : "border-border text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {s === "todo" ? "To do" : s === "doing" ? "Doing" : "Done"}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 px-1 py-1.5">
+              <span className="text-xs text-muted-foreground italic">
+                Only {assignee?.name.split(" ")[0] ?? "the assignee"} can update this task.
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

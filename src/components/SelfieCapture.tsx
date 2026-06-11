@@ -19,15 +19,40 @@ export function SelfieCapture({ open, title, subtitle, onClose, onCapture }: Pro
   const [snap, setSnap] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
+  const startCamera = async () => {
+    setError(null);
+    setReady(false);
+    setStarting(true);
+    // Stop any existing stream first
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        setReady(true);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Camera permission denied");
+    } finally {
+      setStarting(false);
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setError(null);
-    setReady(false);
     setSnap(null);
-    setStarting(true);
 
     (async () => {
+      setError(null);
+      setReady(false);
+      setStarting(true);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 720 } },
@@ -78,9 +103,15 @@ export function SelfieCapture({ open, title, subtitle, onClose, onCapture }: Pro
     setSnap(data);
   };
 
+  const handleRetake = async () => {
+    setSnap(null);
+    await startCamera();
+  };
+
   const handleConfirm = () => {
     if (snap) onCapture(snap);
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 box-border">
@@ -130,7 +161,7 @@ export function SelfieCapture({ open, title, subtitle, onClose, onCapture }: Pro
           )}
           {snap && (
             <>
-              <Button variant="outline" onClick={() => setSnap(null)} className="flex-1">
+              <Button variant="outline" onClick={handleRetake} className="flex-1">
                 <RefreshCw className="h-4 w-4 mr-2" /> Retake
               </Button>
               <Button onClick={handleConfirm} className="flex-1">

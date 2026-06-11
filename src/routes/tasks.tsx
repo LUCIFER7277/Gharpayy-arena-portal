@@ -278,32 +278,32 @@ function TasksPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex gap-1 mt-3" onClick={(e) => e.stopPropagation()}>
-                        {col.id !== "todo" && (
-                          <button
-                            onClick={() => changeStatus(t, "todo")}
-                            className="flex-1 text-[10px] py-1 rounded border border-border hover:bg-secondary"
-                          >
-                            To do
-                          </button>
-                        )}
-                        {col.id !== "doing" && (
-                          <button
-                            onClick={() => changeStatus(t, "doing")}
-                            className="flex-1 text-[10px] py-1 rounded border border-info/40 text-info hover:bg-info/10"
-                          >
-                            Start
-                          </button>
-                        )}
-                        {col.id !== "done" && (
+                      {col.id !== "done" && t.assigneeId === actor.id && (
+                        <div className="flex gap-1 mt-3" onClick={(e) => e.stopPropagation()}>
+                          {col.id !== "todo" && (
+                            <button
+                              onClick={() => changeStatus(t, "todo")}
+                              className="flex-1 text-[10px] py-1 rounded border border-border hover:bg-secondary"
+                            >
+                              To do
+                            </button>
+                          )}
+                          {col.id !== "doing" && (
+                            <button
+                              onClick={() => changeStatus(t, "doing")}
+                              className="flex-1 text-[10px] py-1 rounded border border-info/40 text-info hover:bg-info/10"
+                            >
+                              Start
+                            </button>
+                          )}
                           <button
                             onClick={() => changeStatus(t, "done")}
                             className="flex-1 text-[10px] py-1 rounded border border-success/40 text-success hover:bg-success/10"
                           >
                             Done
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -316,6 +316,7 @@ function TasksPage() {
       {draftOpen && (
         <NewTaskModal
           defaultStatus={activeCol}
+          actorId={actor.id}
           onClose={() => setDraftOpen(false)}
           onCreate={(input) => {
             const t = createTask({ ...input, assignedById: actor.id });
@@ -341,10 +342,12 @@ function TasksPage() {
 
 function NewTaskModal({
   defaultStatus,
+  actorId,
   onClose,
   onCreate,
 }: {
   defaultStatus: TaskStatus;
+  actorId: string;
   onClose: () => void;
   onCreate: (input: {
     title: string;
@@ -355,9 +358,8 @@ function NewTaskModal({
     relatedTo?: string;
   }) => void;
 }) {
-  const { actor } = useAttendanceState();
   const [title, setTitle] = useState("");
-  const [assigneeId, setAssigneeId] = useState(actor.id);
+  const [assigneeId, setAssigneeId] = useState(actorId);
   const [priority, setPriority] = useState<TaskPriority>("med");
   const [hours, setHours] = useState(4);
   const [related, setRelated] = useState("");

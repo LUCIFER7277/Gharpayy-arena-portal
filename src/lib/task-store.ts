@@ -125,15 +125,17 @@ export function createTask(
     ],
   };
   store.write([next, ...store.read()]);
-  pushNotification({
-    kind: "task",
-    toId: next.assigneeId,
-    fromId: next.assignedById,
-    title: `${nameOf(next.assignedById)} assigned you a task`,
-    body: next.title,
-    actionLabel: "Open",
-    actionTo: "/tasks",
-  });
+  if (next.assigneeId !== next.assignedById) {
+    pushNotification({
+      kind: "task",
+      toId: next.assigneeId,
+      fromId: next.assignedById,
+      title: `${nameOf(next.assignedById)} assigned you a task`,
+      body: next.title,
+      actionLabel: "Open",
+      actionTo: "/tasks",
+    });
+  }
   return next;
 }
 
