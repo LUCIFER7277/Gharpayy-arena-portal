@@ -5,14 +5,12 @@ import {
   ShieldOff,
   Flame,
   Plus,
-  Minus,
   Check,
   Clock,
   MessageSquare,
   Copy,
   Send,
   AlertTriangle,
-  Target,
   Zap,
   FileText,
   ChevronRight,
@@ -33,8 +31,6 @@ import {
 } from "@/lib/playbooks-store";
 import {
   useConsoleDay,
-  bumpKpi,
-  setKpi,
   toggleSprint,
   markWindowSent,
   setEod,
@@ -42,14 +38,12 @@ import {
   shieldNow,
   currentSprint,
   nextSprint,
-  dayHealth,
   exportEodText,
 } from "@/lib/console-store";
 import { Avatar } from "@/components/Avatar";
 import type { Employee } from "@/types/hr";
 import { TeamIntelligencePanel } from "@/components/TeamIntelligencePanel";
 import { LeadershipActionsPanel } from "@/components/LeadershipActionsPanel";
-import { Badge } from "@/components/ui/badge";
 import {
   fetchKpiDefinitions,
   fetchKpiTargets,
@@ -209,7 +203,6 @@ function ConsolePage() {
   const playbookKey = actor.role.toLowerCase().replace(/\s+/g, "_");
   const staticPb = playbookFor(playbookKey);
   const { pb, loading } = useDynamicPlaybook(staticPb, actor);
-  console.log("DEBUG pb:", pb, "staticPb:", staticPb, "loading:", loading);
 
   // Initial loading while actor data is being fetched
   if (actor.id === "loading") {
@@ -332,12 +325,7 @@ function MyOperationsSection({
       <NowStrip actorId={actorId} sprint={sprint} next={next} />
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {hasConsoleCapability(actor, "update_kpis") && (
-            <>
-              <KpiGrid pb={pb} actorId={actorId} day={day} />
-              <KpiGovernanceReference actor={actor} />
-            </>
-          )}
+
           {hasConsoleCapability(actor, "manage_personal_sprint") && (
             <SprintTimeline pb={pb} actorId={actorId} day={day} />
           )}
@@ -495,101 +483,7 @@ function NowStrip({
   );
 }
 
-function KpiGrid({
-  pb,
-  actorId,
-  day,
-}: {
-  pb: RolePlaybook;
-  actorId: string;
-  day: ReturnType<typeof useConsoleDay>;
-}) {
-  return (
-    <section>
-      <SectionHead
-        icon={Target}
-        title="Today's KPIs"
-        subtitle="Tap to log progress. Numbers turn green when you hit target."
-      />
-      <div className="grid sm:grid-cols-2 gap-3">
-        {pb.kpis.map((k) => {
-          const v = day.kpis[k.id] ?? 0;
-          const hit = k.kind === "boolean" ? v >= 1 : v >= k.target;
-          return (
-            <div
-              key={k.id}
-              className={`rounded-lg border p-3 transition-colors ${
-                hit ? "border-success/40 bg-success/5" : "border-border bg-card"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate">{k.label}</div>
-                  <div className="text-[11px] text-muted-foreground italic mt-0.5 line-clamp-2">
-                    {k.why}
-                  </div>
-                </div>
-                <div
-                  className={`text-xl font-bold tabular-nums shrink-0 ${hit ? "text-success" : ""}`}
-                >
-                  {v}
-                  {k.unit && <span className="text-xs text-muted-foreground">{k.unit}</span>}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    {" "}
-                    / {k.target}
-                    {k.unit ?? ""}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-2 flex items-center gap-1.5">
-                {k.kind === "boolean" ? (
-                  <button
-                    onClick={() => setKpi(actorId, k.id, hit ? 0 : 1)}
-                    className={`h-7 flex-1 inline-flex items-center justify-center gap-1 rounded text-xs font-medium border ${
-                      hit
-                        ? "border-success/40 bg-success/15 text-success"
-                        : "border-border bg-secondary hover:bg-secondary/70"
-                    }`}
-                  >
-                    <Check className="h-3 w-3" /> {hit ? "Done" : "Mark done"}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => bumpKpi(actorId, k.id, -1)}
-                      className="h-7 w-7 inline-flex items-center justify-center rounded border border-border hover:bg-secondary"
-                      aria-label="decrement"
-                    >
-                      <Minus className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => bumpKpi(actorId, k.id, 1)}
-                      className="h-7 flex-1 inline-flex items-center justify-center gap-1 rounded border border-border hover:bg-secondary text-xs"
-                    >
-                      <Plus className="h-3 w-3" /> +1
-                    </button>
-                    <button
-                      onClick={() => bumpKpi(actorId, k.id, 5)}
-                      className="h-7 px-2 inline-flex items-center justify-center rounded border border-border hover:bg-secondary text-[10px] font-mono"
-                    >
-                      +5
-                    </button>
-                    <button
-                      onClick={() => setKpi(actorId, k.id, k.target)}
-                      className="h-7 px-2 inline-flex items-center justify-center rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-mono uppercase tracking-widest"
-                    >
-                      Hit
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
+
 
 function SprintTimeline({
   pb,
@@ -717,7 +611,7 @@ function CommWindows({
         }
       />
       <div className="space-y-2">
-        {pb.commWindows.map((w) => {
+        {pb.commWindows.map((w, index) => {
           const sent = day.windowsSent[w.id];
           const m = nowMin();
           const overdue = !sent && m > w.atMin + 15;
@@ -725,7 +619,7 @@ function CommWindows({
           const isOpen = open === w.id;
           return (
             <div
-              key={w.id}
+              key={w.id || index}
               className={`rounded-lg border ${
                 sent
                   ? "border-success/40 bg-success/5"
@@ -991,105 +885,7 @@ function SectionHead({
   );
 }
 
-function KpiGovernanceReference({ actor }: { actor: Employee }) {
-  const [kpis, setKpis] = useState<KpiDefinition[]>([]);
-  const [targets, setTargets] = useState<KpiTarget[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [kpiRes, targetRes] = await Promise.all([
-          fetchKpiDefinitions({ active: true }),
-          fetchKpiTargets(),
-        ]);
-        if (kpiRes?.definitions) setKpis(kpiRes.definitions);
-        if (targetRes?.targets) setTargets(targetRes.targets);
-      } catch (err) {
-        console.error("Failed to load reference KPIs", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (actor?.id && actor.id !== "loading") {
-      load();
-    }
-  }, [actor?.id]);
-
-  const relevantTargets = useMemo(() => {
-    return targets.filter((t) => {
-      if (t.scopeType === "org") return true;
-      if (
-        t.scopeType === "zone" &&
-        actor.zone &&
-        t.scopeId?.toLowerCase() === actor.zone.toLowerCase()
-      )
-        return true;
-      if (
-        t.scopeType === "team" &&
-        actor.team &&
-        t.scopeId?.toLowerCase() === actor.team.toLowerCase()
-      )
-        return true;
-      if (t.scopeType === "individual" && t.scopeId === actor.id) return true;
-      return false;
-    });
-  }, [targets, actor]);
-
-  if (loading) return null;
-  if (kpis.length === 0) return null;
-
-  return (
-    <section className="space-y-3 pt-3">
-      <SectionHead
-        icon={Target}
-        title="KPI Targets & Governance Reference"
-        subtitle="Active organizational targets and visibility scopes for your role tier."
-      />
-      <div className="grid sm:grid-cols-2 gap-3">
-        {kpis.map((k) => {
-          const kpiTargets = relevantTargets.filter((t) => t.kpiId === k.id);
-          return (
-            <div key={k.id} className="rounded-lg border border-border bg-card p-3 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-xs font-semibold text-foreground">{k.name}</div>
-                  <code className="text-[9px] font-mono text-muted-foreground block">{k.slug}</code>
-                </div>
-                <Badge variant="outline" className="text-[9px] uppercase font-mono tracking-wider">
-                  {k.frequency}
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                {k.description || "No definition details logged."}
-              </p>
-              {kpiTargets.length > 0 && (
-                <div className="space-y-1 pt-1.5 border-t border-border/40">
-                  <div className="text-[9px] uppercase font-mono text-muted-foreground tracking-wider">
-                    Target Thresholds:
-                  </div>
-                  {kpiTargets.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex justify-between items-center text-[10px] font-mono"
-                    >
-                      <span className="text-muted-foreground capitalize">{t.scopeType}:</span>
-                      <span className="font-semibold text-foreground">
-                        {k.targetType === "min" ? "≥" : "≤"}
-                        {t.targetValue}{" "}
-                        {k.unit === "percent" ? "%" : k.unit === "currency" ? " INR" : k.unit}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 // expose role list for debugging — referenced for tree-shake safety
 export const __PLAYBOOK_KEYS__ = () => Object.keys(playbookStore.read().playbooks);

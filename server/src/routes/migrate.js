@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler } from "../lib/async-handler.js";
 import { seedTestAccounts } from "../lib/seed-test-accounts.js";
+import { seedPlaybooks } from "../lib/seed-playbooks.js";
 import {
   User,
   Employee,
@@ -255,6 +256,19 @@ router.post(
     const userCount = await User.countDocuments();
     const employeeCount = await Employee.countDocuments();
     res.json({ ...result, counts: { users: userCount, employees: employeeCount } });
+  }),
+);
+
+/**
+ * Seed all role playbooks into MongoDB.
+ * Idempotent — safe to call multiple times.
+ */
+router.post(
+  "/seed-playbooks",
+  requireAuth,
+  asyncHandler(async (_req, res) => {
+    const results = await seedPlaybooks();
+    res.json({ ok: true, results });
   }),
 );
 

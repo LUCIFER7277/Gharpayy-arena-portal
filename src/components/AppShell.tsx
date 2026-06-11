@@ -165,7 +165,8 @@ export function AppShell() {
   const navigate = useNavigate();
   const { actor } = useAttendanceState();
   const { user, logout, switchRole } = useAuth();
-  const hasPlaybook = !!playbookFor(actor.id);
+  const playbookKey = actor.role ? actor.role.toLowerCase().replace(/\s+/g, "_") : "";
+  const hasPlaybook = !!playbookKey && !!playbookFor(playbookKey);
   const shield = hasPlaybook ? shieldNow(actor.id) : { active: false, label: "" };
   const status = liveStatusFor(actor.id);
   const [bellOpen, setBellOpen] = useState(false);

@@ -192,6 +192,7 @@ function startHttpServer() {
 
 import { runWorkforceMigrations } from "./lib/migrations.js";
 import { seedKpis } from "./lib/seed-kpis.js";
+import { seedPlaybooks } from "./lib/seed-playbooks.js";
 
 // ... dynamic import used in fallback ...
 
@@ -210,6 +211,11 @@ async function connectDb() {
       await seedKpis();
     } catch (kpiErr) {
       console.error("[api] kpi seeding failed:", kpiErr);
+    }
+    try {
+      await seedPlaybooks();
+    } catch (pbErr) {
+      console.error("[api] playbook seeding failed:", pbErr);
     }
   } catch (err) {
     console.error("[api] mongo connection failed:", err.message);
@@ -232,6 +238,11 @@ async function connectDb() {
           await seedKpis();
         } catch (kpiErr) {
           console.error("[api] kpi seeding failed (in‑memory):", kpiErr);
+        }
+        try {
+          await seedPlaybooks();
+        } catch (pbErr) {
+          console.error("[api] playbook seeding failed (in‑memory):", pbErr);
         }
       } catch (memErr) {
         console.error("[api] Failed to start in‑memory MongoDB:", memErr);
