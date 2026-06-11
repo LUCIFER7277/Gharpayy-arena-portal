@@ -829,8 +829,23 @@ function EodGenerator({
   actorId: string;
   day: ReturnType<typeof useConsoleDay>;
 }) {
-  const [showPreview, setShowPreview] = useState(false);
+  const [previewText, setPreviewText] = useState<string | null>(null);
   const hasFeature = useRoleFeature();
+
+  const generateDraft = () => {
+    let text = exportEodText(actorId, pb.id as PlaybookKey);
+    const tasks = tasksFor(actorId);
+    const todayStr = new Date().toDateString();
+    const todayTasks = tasks.filter((t: any) => t.dueAt && new Date(t.dueAt).toDateString() === todayStr);
+    
+    if (todayTasks.length > 0) {
+      const done = todayTasks.filter((t: any) => t.status === "DONE");
+      const pending = todayTasks.filter((t: any) => t.status !== "DONE");
+      text += `\n\nTasks Completed:\n${done.length ? done.map((t: any) => `• ${t.title}`).join("\n") : "None"}`;
+      text += `\n\nTasks Pending:\n${pending.length ? pending.map((t: any) => `• ${t.title}`).join("\n") : "None"}`;
+    }
+    return text;
+  };
   return (
     <section className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -868,12 +883,20 @@ function EodGenerator({
                 onChange={(e) => setEod(actorId, f.id, e.target.value)}
                 className="w-full h-8 px-2 text-sm bg-secondary/40 border border-border rounded mt-0.5"
               />
+            ) : f.kind === "text" ? (
+              <input
+                type="text"
+                value={day.eod[f.id] ?? ""}
+                onChange={(e) => setEod(actorId, f.id, e.target.value)}
+                placeholder={f.placeholder}
+                className="w-full h-8 px-2 text-sm bg-secondary/40 border border-border rounded mt-0.5"
+              />
             ) : (
               <textarea
                 value={day.eod[f.id] ?? ""}
                 onChange={(e) => setEod(actorId, f.id, e.target.value)}
                 placeholder={f.placeholder}
-                rows={f.kind === "list" ? 2 : 1}
+                rows={3}
                 className="w-full px-2 py-1 text-sm bg-secondary/40 border border-border rounded mt-0.5 resize-y"
               />
             )}
@@ -882,25 +905,27 @@ function EodGenerator({
       </div>
       <div className="flex gap-2 mt-3 pt-3 border-t border-border">
         <button
-          onClick={() => setShowPreview((v) => !v)}
+          onClick={() => setPreviewText((v) => (v === null ? generateDraft() : null))}
           className="flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded border border-border hover:bg-secondary text-xs"
         >
-          {showPreview ? "Hide" : "Preview"}
+          {previewText !== null ? "Hide" : "Preview"}
         </button>
         <button
           onClick={() => {
-            const text = exportEodText(actorId, pb.id as PlaybookKey);
-            navigator.clipboard?.writeText(text);
+            const textToCopy = previewText !== null ? previewText : generateDraft();
+            navigator.clipboard?.writeText(textToCopy);
           }}
           className="flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded bg-primary text-primary-foreground text-xs font-medium"
         >
           <Copy className="h-3 w-3" /> Copy report
         </button>
       </div>
-      {showPreview && (
-        <pre className="mt-3 text-[11px] bg-secondary/40 rounded p-3 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto">
-          {exportEodText(actorId, pb.id as PlaybookKey)}
-        </pre>
+      {previewText !== null && (
+        <textarea
+          value={previewText}
+          onChange={(e) => setPreviewText(e.target.value)}
+          className="mt-3 w-full text-[11px] bg-secondary/40 border border-border rounded p-3 font-mono leading-relaxed min-h-[200px] resize-y"
+        />
       )}
       {hasFeature("/inbox") && (
         <div className="mt-3 text-[11px] text-muted-foreground">
