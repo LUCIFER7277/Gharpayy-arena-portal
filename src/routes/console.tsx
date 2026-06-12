@@ -46,6 +46,7 @@ import type { AppTask } from "@/types/hr";
 import { Avatar } from "@/components/Avatar";
 import type { Employee } from "@/types/hr";
 import { TeamIntelligencePanel } from "@/components/TeamIntelligencePanel";
+import { LiveCountdown } from "@/components/LiveCountdown";
 import { LeadershipActionsPanel } from "@/components/LeadershipActionsPanel";
 import {
   fetchKpiDefinitions,
@@ -333,7 +334,7 @@ function MyOperationsSection({
         <div className="lg:col-span-2 space-y-6">
 
           {hasConsoleCapability(actor, "manage_personal_sprint") && (
-            <SprintTimeline pb={pb} actorId={actorId} day={day} tasks={myTasks} />
+            <DynamicTaskSprints actorId={actorId} tasks={myTasks} />
           )}
           {hasConsoleCapability(actor, "manage_comm_windows") && (
             <CommWindows pb={pb} actorId={actorId} day={day} />
@@ -491,145 +492,60 @@ function NowStrip({
 
 
 
-function SprintTimeline({
-  pb,
-  actorId,
-  day,
-  tasks,
-}: {
-  pb: RolePlaybook;
-  actorId: string;
-  day: ReturnType<typeof useConsoleDay>;
-  tasks: AppTask[];
-}) {
-  const m = nowMin();
+function DynamicTaskSprints({ actorId, tasks }: { actorId: string; tasks: AppTask[] }) {
+  const todayStr = new Date().toDateString();
+  const activeTasks = tasks.filter((t) => {
+    if (t.status === "done") return false;
+    const taskDate = new Date(t.dueAt).setHours(0, 0, 0, 0);
+    const today = new Date().setHours(0, 0, 0, 0);
+    return taskDate <= today || new Date(t.createdAt).setHours(0, 0, 0, 0) === today;
+  });
+
+  if (activeTasks.length === 0) return null;
+
   return (
     <section>
       <SectionHead
         icon={Zap}
-        title="Sprint plan"
-        subtitle="Hour-by-hour. Tap to mark a sprint complete."
+        title="Dynamic Task Sprints"
+        subtitle="Real-time task countdowns and execution blocks"
       />
       <div className="space-y-3">
-        {pb.sprints.map((s: any, idx: number) => {
-          const sprintId = s.id || `sprint_${s.startMin}_${idx}`;
-          const done = !!day.sprints[sprintId];
-          const live = m >= s.startMin && m < s.endMin;
-          const past = m >= s.endMin;
+        {activeTasks.map((t) => {
           return (
-            <div
-              key={sprintId}
-              className={`rounded-lg border p-4 transition-colors ${
-                done
-                  ? "border-success/40 bg-success/5"
-                  : live
-                    ? "border-primary/40 bg-primary/5"
-                    : past
-                      ? "border-destructive/30 bg-destructive/5"
-                      : "border-border bg-card"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3 mb-2">
+            <div key={t.id} className="rounded-lg border border-primary/40 bg-primary/5 p-4 transition-colors">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                      Sprint {s.index}
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className={`font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                      t.priority === "urgent" ? "bg-destructive/15 text-destructive border border-destructive/30" :
+                      t.priority === "high" ? "bg-warning/15 text-warning border border-warning/30" :
+                      "bg-secondary border border-border text-muted-foreground"
+                    }`}>
+                      {t.priority}
                     </span>
                     <span className="font-mono text-[10px] text-primary">
-                      {fmtMin(s.startMin)} → {fmtMin(s.endMin)}
+                      {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → {new Date(t.dueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {live && (
-                      <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary text-primary-foreground">
-                        Live
-                      </span>
-                    )}
-                    {past && !done && (
-                      <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
-                        Missed?
-                      </span>
-                    )}
-                    {s.shielded && (
-                      <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30 inline-flex items-center gap-1">
-                        <Shield className="h-2.5 w-2.5" />
-                        Shield
-                      </span>
-                    )}
                   </div>
-                  <div className="text-base font-semibold mt-1">{s.name || s.label}</div>
-                  {s.objective && <div className="text-sm text-muted-foreground mt-0.5">{s.objective}</div>}
-                </div>
-                <button
-                  onClick={() => toggleSprint(actorId, sprintId)}
-                  className={`h-8 px-3 inline-flex items-center gap-1 rounded text-xs font-medium border ${
-                    done
-                      ? "border-success/40 bg-success/20 text-success"
-                      : "border-border bg-secondary hover:bg-secondary/70"
-                  }`}
-                >
-                  <Check className="h-3 w-3" /> {done ? "Done" : "Mark done"}
-                </button>
-              </div>
-              
-              {(() => {
-                const sprintTasks = tasks.filter((t) => {
-                  const d = new Date(t.dueAt);
-                  const dueMin = d.getHours() * 60 + d.getMinutes();
-                  return dueMin >= s.startMin && dueMin < s.endMin;
-                });
-
-                if (sprintTasks.length === 0) {
-                  return (
-                    <div className="mt-3 text-xs text-muted-foreground italic">
-                      No live tasks scheduled for this sprint.
+                  <div className="text-base font-semibold mt-1">{t.title}</div>
+                  {t.description && <div className="text-sm text-muted-foreground mt-0.5">{t.description}</div>}
+                  {t.relatedTo && (
+                    <div className="text-xs text-muted-foreground mt-1 font-mono flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> {t.relatedTo}
                     </div>
-                  );
-                }
-
-                return (
-                  <ul className="space-y-2 mt-4">
-                    {sprintTasks.map((t) => {
-                      const isTaskDone = t.status === "done";
-                      return (
-                        <li key={t.id} className={`text-sm flex items-start gap-2 p-3 rounded-md border ${isTaskDone ? "bg-success/5 border-success/30" : "bg-secondary/40 border-border"}`}>
-                          <button
-                            onClick={() => setStatus(t.id, isTaskDone ? "todo" : "done", actorId)}
-                            className={`mt-0.5 flex-shrink-0 h-4 w-4 rounded flex items-center justify-center border transition-colors ${
-                              isTaskDone
-                                ? "bg-success text-success-foreground border-success"
-                                : "border-muted-foreground/50 hover:border-primary"
-                            }`}
-                          >
-                            {isTaskDone && <Check className="h-3 w-3" />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <div className={`font-medium ${isTaskDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                              {t.title}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className={`text-[9px] uppercase font-mono tracking-widest px-1.5 py-0.5 rounded ${
-                                t.priority === "urgent" ? "bg-destructive/15 text-destructive border border-destructive/30" :
-                                t.priority === "high" ? "bg-warning/15 text-warning border border-warning/30" :
-                                "bg-secondary border border-border text-muted-foreground"
-                              }`}>
-                                {t.priority}
-                              </span>
-                              {t.description && (
-                                <span className="text-xs text-muted-foreground truncate">{t.description}</span>
-                              )}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                );
-              })()}
-
-              {s.metric && (
-                <div className="mt-3 pt-2 border-t border-border/50 text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Metric: <span className="text-foreground/80 normal-case font-sans">{s.metric}</span>
+                  )}
                 </div>
-              )}
+                <div className="flex flex-col items-end gap-2">
+                  <LiveCountdown targetTimeMs={t.dueAt} />
+                  <button
+                    onClick={() => setStatus(t.id, "done", actorId)}
+                    className="h-8 px-3 mt-1 inline-flex items-center gap-1 rounded text-xs font-medium border border-border bg-secondary hover:bg-success/20 hover:text-success hover:border-success/40 transition-colors"
+                  >
+                    <Check className="h-3 w-3" /> Mark done
+                  </button>
+                </div>
+              </div>
             </div>
           );
         })}
