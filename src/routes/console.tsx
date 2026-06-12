@@ -22,6 +22,7 @@ import {
 import { useRoleFeature } from "@/hooks/useRoleFeature";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { tierOf, hasConsoleCapability } from "@/lib/permissions";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   playbookStore,
   playbookFor,
@@ -41,7 +42,7 @@ import {
   nextSprint,
   exportEodText,
 } from "@/lib/console-store";
-import { useTasks, tasksFor, setStatus } from "@/lib/task-store";
+import { useTasks, tasksFor, setStatus, requestTaskReason, scheduleOverdueMeeting } from "@/lib/task-store";
 import type { AppTask } from "@/types/hr";
 import { Avatar } from "@/components/Avatar";
 import type { Employee } from "@/types/hr";
@@ -191,6 +192,7 @@ function calculateDynamicHealth(
 
 function ConsolePage() {
   const { actor } = useAttendanceState();
+  const { user } = useAuth();
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const i = setInterval(() => setTick((t) => t + 1), 30_000);
@@ -262,7 +264,7 @@ function ConsolePage() {
             </span>
           </div>
           {pb ? (
-            <MyOperationsSection pb={pb} actorId={actor.id} actorName={actor.name} actor={actor} />
+            <MyOperationsSection pb={pb} actorId={actor.id} actorName={actor.name} actor={actor} currentUserEmployeeId={user?.employeeId} />
           ) : (
             <div className="rounded-xl border border-border bg-card p-5 flex items-center justify-between bg-gradient-to-r from-card to-secondary/15">
               <div className="flex items-center gap-3">
@@ -300,6 +302,9 @@ function ConsolePage() {
           <LeadershipActionsPanel actor={actor} />
         </div>
       )}
+      
+      {/* 04 / Communication Window */}
+      <CommunicationWindow actor={actor} currentUserEmployeeId={user?.employeeId} />
     </div>
   );
 }
@@ -309,11 +314,13 @@ function MyOperationsSection({
   actorId,
   actorName,
   actor,
+  currentUserEmployeeId,
 }: {
   pb: RolePlaybook;
   actorId: string;
   actorName: string;
   actor: ReturnType<typeof useAttendanceState>["actor"];
+  currentUserEmployeeId?: string;
 }) {
   const day = useConsoleDay(actorId);
   const shield = shieldNow(actorId);
@@ -334,7 +341,7 @@ function MyOperationsSection({
         <div className="lg:col-span-2 space-y-6">
 
           {hasConsoleCapability(actor, "manage_personal_sprint") && (
-            <DynamicTaskSprints actorId={actorId} tasks={myTasks} />
+            <DynamicTaskSprints actorId={actorId} tasks={myTasks} currentUserEmployeeId={currentUserEmployeeId} />
           )}
           {hasConsoleCapability(actor, "manage_comm_windows") && (
             <CommWindows pb={pb} actorId={actorId} day={day} />
@@ -492,12 +499,14 @@ function NowStrip({
 
 
 
-function DynamicTaskSprints({ actorId, tasks }: { actorId: string; tasks: AppTask[] }) {
+function DynamicTaskSprints({ actorId, tasks, currentUserEmployeeId }: { actorId: string; tasks: AppTask[]; currentUserEmployeeId?: string }) {
   const todayStr = new Date().toDateString();
   const activeTasks = tasks.filter((t) => {
-    if (t.status === "done") return false;
     const taskDate = new Date(t.dueAt).setHours(0, 0, 0, 0);
     const today = new Date().setHours(0, 0, 0, 0);
+    if (t.status === "done") {
+      return t.completedAt && new Date(t.completedAt).setHours(0, 0, 0, 0) === today;
+    }
     return taskDate <= today || new Date(t.createdAt).setHours(0, 0, 0, 0) === today;
   });
 
@@ -512,37 +521,46 @@ function DynamicTaskSprints({ actorId, tasks }: { actorId: string; tasks: AppTas
       />
       <div className="space-y-3">
         {activeTasks.map((t) => {
+          const isDone = t.status === "done";
           return (
-            <div key={t.id} className="rounded-lg border border-primary/40 bg-primary/5 p-4 transition-colors">
+            <div key={t.id} className={`rounded-lg border p-4 transition-colors ${isDone ? "border-success/40 bg-success/5" : "border-primary/40 bg-primary/5"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className={`font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                      isDone ? "bg-success/15 text-success border border-success/30" :
                       t.priority === "urgent" ? "bg-destructive/15 text-destructive border border-destructive/30" :
                       t.priority === "high" ? "bg-warning/15 text-warning border border-warning/30" :
                       "bg-secondary border border-border text-muted-foreground"
                     }`}>
-                      {t.priority}
+                      {isDone ? "Done" : t.priority}
                     </span>
-                    <span className="font-mono text-[10px] text-primary">
+                    <span className={`font-mono text-[10px] ${isDone ? "text-success" : "text-primary"}`}>
                       {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → {new Date(t.dueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <div className="text-base font-semibold mt-1">{t.title}</div>
-                  {t.description && <div className="text-sm text-muted-foreground mt-0.5">{t.description}</div>}
+                  <div className={`text-base font-semibold mt-1 ${isDone ? "text-success line-through opacity-70" : ""}`}>{t.title}</div>
+                  {t.description && <div className={`text-sm mt-0.5 ${isDone ? "text-success/70" : "text-muted-foreground"}`}>{t.description}</div>}
                   {t.relatedTo && (
-                    <div className="text-xs text-muted-foreground mt-1 font-mono flex items-center gap-1">
+                    <div className={`text-xs mt-1 font-mono flex items-center gap-1 ${isDone ? "text-success/70" : "text-muted-foreground"}`}>
                       <FileText className="h-3 w-3" /> {t.relatedTo}
                     </div>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <LiveCountdown targetTimeMs={t.dueAt} />
+                  {!isDone && <LiveCountdown targetTimeMs={t.dueAt} />}
                   <button
-                    onClick={() => setStatus(t.id, "done", actorId)}
-                    className="h-8 px-3 mt-1 inline-flex items-center gap-1 rounded text-xs font-medium border border-border bg-secondary hover:bg-success/20 hover:text-success hover:border-success/40 transition-colors"
+                    disabled={t.assigneeId !== currentUserEmployeeId}
+                    onClick={() => setStatus(t.id, isDone ? "todo" : "done", actorId)}
+                    className={`h-8 px-3 mt-1 inline-flex items-center gap-1 rounded text-xs font-medium border transition-colors ${
+                      isDone
+                        ? "border-success/40 bg-success/20 text-success"
+                        : t.assigneeId !== currentUserEmployeeId
+                        ? "border-border bg-secondary/50 text-muted-foreground opacity-50 cursor-not-allowed"
+                        : "border-border bg-secondary hover:bg-success/20 hover:text-success hover:border-success/40"
+                    }`}
                   >
-                    <Check className="h-3 w-3" /> Mark done
+                    <Check className="h-3 w-3" /> {isDone ? "Done" : "Mark done"}
                   </button>
                 </div>
               </div>
@@ -879,3 +897,63 @@ function SectionHead({
 
 // expose role list for debugging — referenced for tree-shake safety
 export const __PLAYBOOK_KEYS__ = () => Object.keys(playbookStore.read().playbooks);
+
+function CommunicationWindow({ actor, currentUserEmployeeId }: { actor: ReturnType<typeof useAttendanceState>["actor"]; currentUserEmployeeId?: string }) {
+  const allTasks = useTasks();
+  
+  // Find overdue tasks that are not done
+  const overdueTasks = allTasks.filter(t => t.status !== "done" && t.dueAt < Date.now());
+
+  if (overdueTasks.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 border-b border-border pb-2">
+        <span className="text-xs font-mono uppercase tracking-widest text-destructive flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          04 / Communication Window
+        </span>
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2">
+        {overdueTasks.map(task => (
+          <div key={task.id} className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 flex flex-col justify-between gap-4 transition-all hover:bg-destructive/10">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest bg-destructive text-destructive-foreground rounded-full">
+                  Urgent
+                </span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {Math.round((Date.now() - task.dueAt) / 60000)}m overdue
+                </span>
+              </div>
+              <h3 className="font-semibold text-foreground mb-1 leading-tight">{task.title}</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Assigned to: <span className="font-medium text-foreground">{task.assigneeId}</span>
+              </p>
+            </div>
+            
+            {hasConsoleCapability(actor, "manage_workforce_interventions") && currentUserEmployeeId && (
+              <div className="flex items-center gap-2 mt-auto pt-4 border-t border-destructive/10">
+                <button
+                  onClick={() => requestTaskReason(task.id, currentUserEmployeeId)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Ask Reason
+                </button>
+                <button
+                  onClick={() => scheduleOverdueMeeting(task.assigneeId, task.id, currentUserEmployeeId)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  Schedule Mtg
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

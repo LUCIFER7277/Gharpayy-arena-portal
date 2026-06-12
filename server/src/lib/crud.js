@@ -36,7 +36,7 @@ export function crudRouter(
     asyncHandler(async (req, res) => {
       // Role-based check: Admins and HR have full bulk-upsert authorization
       const isPrivileged = isAdmin(req.user) || isHR(req.user);
-      const items = req.body?.items;
+      let items = req.body?.items;
       if (!Array.isArray(items)) {
         return res.status(400).json({ error: "items array required" });
       }
@@ -50,7 +50,11 @@ export function crudRouter(
           return res.status(403).json({ error: "Your account must be linked to an employee profile to record operational data" });
         }
 
-        // Validate that each item belongs to the authenticated user
+        // Fetch report hierarchy for manager permissions (Zone Leaders have role 'employee' but still manage people)
+        const reportIds = await getManagerHierarchyIds(empId);
+
+        // Validate that each item belongs to the authenticated user or their reports
+        const validItems = [];
         for (const item of items) {
           let isOwner = false;
           switch (modelName) {
@@ -69,10 +73,17 @@ export function crudRouter(
               isOwner = item.authorId === empId;
               break;
             case "Task":
+              console.log("[DEBUG] Task bulk-upsert:", { 
+                empId, 
+                assigneeId: item.assigneeId, 
+                assignedById: item.assignedById,
+                reportIds: Array.from(reportIds) 
+              });
               isOwner =
                 item.createdById === userId ||
                 item.assigneeId === empId ||
-                item.assignedById === empId;
+                item.assignedById === empId ||
+                reportIds.has(item.assigneeId);
               break;
             case "Notification":
               isOwner = item.toId === empId || item.fromId === empId;
@@ -89,11 +100,14 @@ export function crudRouter(
               itemId: item.id,
               expectedEmployeeId: empId,
             });
-            return res.status(403).json({
-              error: `Forbidden: You are not authorized to bulk-upsert records for other users on collection '${modelName}'`,
-            });
+            // Skip items they don't own instead of failing the entire batch
+            continue;
           }
+          validItems.push(item);
         }
+        
+        // Re-assign items to only the valid ones
+        items = validItems;
       }
 
       // Safe validation before write limit to 1000 items per request
@@ -104,7 +118,10 @@ export function crudRouter(
       let upserted = 0;
       for (const raw of items) {
         if (!raw?.id) continue;
-        await Model.updateOne({ id: raw.id }, { $set: raw }, { upsert: true });
+        const updateData = { ...raw };
+        delete updateData._id;
+        delete updateData.__v;
+        await Model.updateOne({ id: raw.id }, { $set: updateData }, { upsert: true });
         upserted += 1;
       }
       res.json({ ok: true, upserted });

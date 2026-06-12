@@ -299,3 +299,55 @@ export function setEstimate(taskId: string, minutes: number, byId: string) {
     activity: logActivity(t, byId, "due", `Set estimate to ${minutes}m`),
   }));
 }
+
+export function requestTaskReason(taskId: string, requesterId: string) {
+  const current = getTask(taskId);
+  if (!current) return;
+  
+  patch(taskId, (t) => ({
+    ...t,
+    activity: logActivity(t, requesterId, "comment", `Requested reason for delay`),
+  }));
+
+  pushNotification({
+    kind: "task",
+    toId: current.assigneeId,
+    fromId: requesterId,
+    title: `Reason requested for overdue task`,
+    body: `${nameOf(requesterId)} requested an update on: ${current.title}`,
+    actionLabel: "Provide update",
+    actionTo: "/tasks",
+  });
+}
+
+export function scheduleOverdueMeeting(assigneeId: string, relatedTaskId: string, requesterId: string) {
+  const current = getTask(relatedTaskId);
+  if (!current) return;
+
+  const meetingId = crypto.randomUUID();
+  const newTask: AppTask = {
+    id: meetingId,
+    title: `Overdue Review: ${current.title}`,
+    description: `Immediate meeting required to discuss overdue task: ${current.title}`,
+    assigneeId,
+    assignedById: requesterId,
+    status: "todo",
+    priority: "high",
+    dueAt: Date.now() + 1000 * 60 * 60, // Due in 1 hour
+    createdAt: Date.now(),
+    relatedTo: relatedTaskId,
+    source: "manual",
+  };
+
+  store.write([...store.read(), newTask]);
+
+  pushNotification({
+    kind: "task",
+    toId: assigneeId,
+    fromId: requesterId,
+    title: `Meeting Scheduled`,
+    body: `${nameOf(requesterId)} scheduled an urgent review for your overdue task.`,
+    actionLabel: "View meeting",
+    actionTo: "/tasks",
+  });
+}
