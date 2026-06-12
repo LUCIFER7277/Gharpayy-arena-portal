@@ -99,11 +99,6 @@ router.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const tier = await getActorTier(req.user.id, req.user.employeeId);
-    
-    // Explicitly block employees (teammate/partner) per requirements
-    if (req.user.role === "employee" || tier === "teammate") {
-       return res.status(403).json({ error: "Forbidden: employees cannot access KPI Governance" });
-    }
 
     // Build query
     const query = {};
@@ -298,11 +293,7 @@ router.get(
   "/kpi-targets",
   requireAuth,
   asyncHandler(async (req, res) => {
-    // Explicitly block employees
     const tier = await getActorTier(req.user.id, req.user.employeeId);
-    if (req.user.role === "employee" || tier === "teammate") {
-       return res.status(403).json({ error: "Forbidden: employees cannot access KPI Governance targets" });
-    }
 
     const query = {};
     if (req.query.kpiId) {

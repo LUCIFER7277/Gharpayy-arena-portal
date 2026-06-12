@@ -89,6 +89,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    cache: "no-store",
   });
 
   let data: unknown = null;

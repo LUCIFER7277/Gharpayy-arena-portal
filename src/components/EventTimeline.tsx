@@ -1,5 +1,6 @@
 import { AttEvent, fmtTime } from "@/lib/attendance-store";
 import { Coffee, LogIn, LogOut, MapPin, Navigation2 } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
 
 const META: Record<
   AttEvent["kind"],
@@ -80,18 +81,25 @@ export function EventTimeline({ events }: { events: AttEvent[] }) {
                 </div>
               )}
               {e.selfie && (
-                <a
-                  href={e.selfie}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-block"
-                >
-                  <img
-                    src={e.selfie}
-                    alt="Selfie"
-                    className="h-16 w-16 rounded-md object-cover border border-border"
-                  />
-                </a>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="mt-2 inline-block focus:outline-none">
+                      <img
+                        src={e.selfie}
+                        alt="Selfie"
+                        className="h-16 w-16 rounded-md object-cover border border-border transition-transform hover:scale-105"
+                      />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md p-2 overflow-hidden bg-background/50 backdrop-blur-md border-border shadow-2xl rounded-xl">
+                    <DialogTitle className="sr-only">Selfie Preview</DialogTitle>
+                    <img
+                      src={e.selfie}
+                      alt="Selfie"
+                      className="w-full max-h-[80vh] object-contain rounded-lg"
+                    />
+                  </DialogContent>
+                </Dialog>
               )}
             </div>
           </li>

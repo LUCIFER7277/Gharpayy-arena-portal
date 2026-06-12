@@ -75,7 +75,7 @@ export function crudRouter(
                 item.assignedById === empId;
               break;
             case "Notification":
-              isOwner = item.toId === empId;
+              isOwner = item.toId === empId || item.fromId === empId;
               break;
             case "OneOnOne":
               isOwner = item.managerId === empId;

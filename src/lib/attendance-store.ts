@@ -251,25 +251,49 @@ export function getGeo(): Promise<GeoFix> {
       reject(new Error("Geolocation not available"));
       return;
     }
+    
+    let resolved = false;
+    const timeoutId = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error("Geolocation timeout"));
+      }
+    }, 10000);
+
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
+      (pos) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutId);
         resolve({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
-        }),
-      (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+        });
+      },
+      (err) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutId);
+        reject(err);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
     );
   });
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=en`,
-      { headers: { Accept: "application/json", "Accept-Language": "en-US,en" } },
+      { 
+        headers: { Accept: "application/json", "Accept-Language": "en-US,en" },
+        signal: controller.signal
+      },
     );
+    clearTimeout(id);
     if (!res.ok) return null;
     const json = await res.json();
     return json.display_name ?? null;

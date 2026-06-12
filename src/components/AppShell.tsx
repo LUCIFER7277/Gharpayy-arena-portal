@@ -326,7 +326,7 @@ export function AppShell() {
         </div>
       </div>
 
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto no-scrollbar">
         {visibleNav.map(({ to, label, icon: Icon }) => {
           const active = location.pathname === to;
           return (

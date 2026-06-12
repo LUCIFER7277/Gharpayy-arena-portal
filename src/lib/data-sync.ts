@@ -20,6 +20,7 @@ import type { ApiUser } from "./api-client";
 
 let syncStarted = false;
 let syncPromise: Promise<Employee[]> | null = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 export type SyncArenaResult = {
   employees: Employee[];
@@ -81,6 +82,15 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
     return employees;
   })();
 
+  if (!pollInterval && typeof window !== "undefined") {
+    pollInterval = setInterval(() => {
+      if (apiEnabled && getToken()) {
+        hydrateTasks();
+        hydrateNotifications();
+      }
+    }, 10_000); // 10 seconds polling for real-time updates
+  }
+
   try {
     const employees = await syncPromise;
     return { employees };
@@ -92,4 +102,8 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
 export function resetSyncArenaData() {
   syncStarted = false;
   syncPromise = null;
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
 }

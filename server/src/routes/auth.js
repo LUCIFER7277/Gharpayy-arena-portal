@@ -1,7 +1,8 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { User, Employee } from "../models/index.js";
+import crypto from "crypto";
+import { User, Employee, Notification } from "../models/index.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { validate } from "../lib/validate.js";
 import { asyncHandler } from "../lib/async-handler.js";
@@ -99,6 +100,23 @@ router.post(
 
       if (!isFirst) {
         logAuth("signup.pending_approval", { email, userId: String(user._id) });
+
+        const admins = await User.find({ role: "admin" }).lean();
+        if (admins.length > 0) {
+          const notifications = admins.map((admin) => ({
+            id: crypto.randomUUID(),
+            kind: "approval",
+            toId: admin.employeeId || String(admin._id),
+            title: "New Account Request",
+            body: `${name || email} has requested an account.`,
+            actionLabel: "Review",
+            actionTo: "/admin/workforce",
+            ts: Date.now(),
+            read: false,
+          }));
+          await Notification.insertMany(notifications);
+        }
+
         const token = signToken(user);
         return res.status(201).json({
           message: "Account created. Awaiting admin approval before you can sign in.",

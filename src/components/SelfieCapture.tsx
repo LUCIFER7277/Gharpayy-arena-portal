@@ -65,12 +65,9 @@ export function SelfieCapture({ open, title, subtitle, onClose, onCapture }: Pro
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-          setReady(true);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Camera permission denied");
-      } finally {
         setStarting(false);
       }
     })();
@@ -89,6 +86,10 @@ export function SelfieCapture({ open, title, subtitle, onClose, onCapture }: Pro
     const c = canvasRef.current;
     if (!v || !c) return;
     const size = Math.min(v.videoWidth, v.videoHeight);
+    if (size === 0) {
+      setError("Camera feed not ready.");
+      return;
+    }
     c.width = 480;
     c.height = 480;
     const sx = (v.videoWidth - size) / 2;
@@ -103,9 +104,8 @@ export function SelfieCapture({ open, title, subtitle, onClose, onCapture }: Pro
     setSnap(data);
   };
 
-  const handleRetake = async () => {
+  const handleRetake = () => {
     setSnap(null);
-    await startCamera();
   };
 
   const handleConfirm = () => {
@@ -127,14 +127,17 @@ export function SelfieCapture({ open, title, subtitle, onClose, onCapture }: Pro
         </div>
 
         <div className="aspect-square bg-black relative overflow-hidden">
-          {!snap && (
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              className="w-full h-full object-cover scale-x-[-1]"
-            />
-          )}
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            autoPlay
+            onCanPlay={() => {
+              setReady(true);
+              setStarting(false);
+            }}
+            className={`w-full h-full object-cover scale-x-[-1] ${snap ? "hidden" : "block"}`}
+          />
           {snap && <img src={snap} alt="selfie preview" className="w-full h-full object-cover" />}
           {(starting || (!ready && !error && !snap)) && (
             <div className="absolute inset-0 flex items-center justify-center text-white/80">

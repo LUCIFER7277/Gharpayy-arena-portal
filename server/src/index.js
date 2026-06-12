@@ -193,6 +193,7 @@ function startHttpServer() {
 import { runWorkforceMigrations } from "./lib/migrations.js";
 import { seedKpis } from "./lib/seed-kpis.js";
 import { seedPlaybooks } from "./lib/seed-playbooks.js";
+import { seedAdmins } from "./lib/seed-admins.js";
 
 // ... dynamic import used in fallback ...
 
@@ -206,6 +207,7 @@ async function connectDb() {
     await mongoose.connect(MONGO);
     isDbConnected = true;
     console.log("[api] mongo connected");
+    await seedAdmins();
     await runWorkforceMigrations();
     try {
       await seedKpis();
@@ -233,6 +235,7 @@ async function connectDb() {
         await mongoose.connect(uri);
         isDbConnected = true;
         console.log("[api] in‑memory MongoDB connected");
+        await seedAdmins();
         await runWorkforceMigrations();
         try {
           await seedKpis();

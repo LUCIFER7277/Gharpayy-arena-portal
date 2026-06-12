@@ -75,6 +75,8 @@ function TasksPage() {
     if (scope === "mine") list = list.filter((t) => t.assigneeId === actor.id);
     else if (scope === "team")
       list = list.filter((t) => {
+        if (t.assigneeId === actor.id) return false; // Exclude own tasks from team view
+        if (t.assignedById === actor.id) return true;
         const e = getRoster().find((x) => x.id === t.assigneeId);
         return e && (e.team === actor.team || e.managerId === actor.id);
       });

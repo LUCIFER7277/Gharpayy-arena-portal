@@ -90,6 +90,7 @@ export function createApiListStore<T extends { id: string }>(config: ApiListConf
 
   async function hydrateFromApi(): Promise<boolean> {
     if (!apiEnabled || !getToken()) return false;
+    if (syncTimer) return false; // Prevent overwriting pending local changes
     try {
       const res = await api.get<{ items: T[] }>(config.apiPath);
       if (res.items?.length) {

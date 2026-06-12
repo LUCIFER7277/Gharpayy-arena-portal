@@ -30,7 +30,7 @@ import { asyncHandler } from "../lib/async-handler.js";
 import { readProfile } from "../lib/workforce-access.js";
 
 const router = Router();
-router.use(requireAuth, requireRole("admin", "manager", "hr"));
+router.use(requireAuth);
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
