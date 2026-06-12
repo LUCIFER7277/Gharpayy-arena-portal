@@ -240,7 +240,7 @@ function HrmsPage() {
             title="Workforce access"
             sub="Roles, hierarchy, approvals"
             icon={UserCog}
-            show={can(activeRole, "manage_users") && hasFeature("/admin/workforce")}
+            show={hasFeature("/admin/workforce")}
           />
           <ActionCard
             to="/war-room"

@@ -179,12 +179,7 @@ export function AppShell() {
 
   const isFeatureEnabled = useRoleFeature();
 
-  const visibleNav = NAV.filter(
-    (item) =>
-      item.tiers.includes(tier) &&
-      (!item.adminOnly || (user?.role === "admin" && can(user.role as never, "manage_users"))) &&
-      isFeatureEnabled(item.to),
-  );
+  const visibleNav = NAV.filter((item) => isFeatureEnabled(item.to));
 
   const mobileNav = (
     tier === "partner"

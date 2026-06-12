@@ -1,11 +1,18 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 import { tierOf, TIER_LABEL, type Tier } from "@/lib/permissions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRoleFeature } from "@/hooks/useRoleFeature";
 
 export function RoleGate({ allow, children }: { allow: Tier[]; children: React.ReactNode }) {
   const { actor } = useAuth();
+  const location = useLocation();
+  const isFeatureEnabled = useRoleFeature();
+
   if (!actor) return null;
+
+  if (isFeatureEnabled(location.pathname)) return <>{children}</>;
+
   const tier = tierOf(actor);
   if (allow.includes(tier)) return <>{children}</>;
   return (
