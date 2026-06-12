@@ -21,6 +21,7 @@ import {
   ticketsOfZone,
   inr,
   occPct,
+  store,
 } from "@/lib/zones-store";
 import type { Zone, Property } from "@/data/zones";
 import { useAttendanceState } from "@/hooks/useAttendance";

@@ -8,18 +8,20 @@ export type Zone = {
   city: string;
   pods: number;
   leaderId: string;
+  properties: number;
 };
 
 export type Property = {
   id: string;
   zoneId: string;
   name: string;
-  type: string;
+  type: "Boys" | "Girls" | "Co-living";
   address: string;
   rating: number;
   beds: number;
   occupied: number;
   monthlyRevenue: number;
+  partnerId: string;
 };
 
 interface ZonesState {
