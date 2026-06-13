@@ -23,7 +23,7 @@ async function main() {
     // Upsert Employee
     await Employee.findOneAndUpdate(
       { id: admin.employeeId },
-      { id: admin.employeeId, name: admin.name, role: "leadership" },
+      { id: admin.employeeId, name: admin.name, role: "Admin", profile: { appRole: "admin", team: "HQ", zone: "All", experience: "Core", shift: "9:00 AM - 6:00 PM" } },
       { upsert: true }
     );
     // Upsert User

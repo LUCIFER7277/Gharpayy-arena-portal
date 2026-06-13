@@ -132,9 +132,10 @@ function WorkforcePage() {
     () =>
       rows.filter(
         (r) =>
-          ["Admin", "Zone Leader", "Floor Lead", "Coach", "HR"].includes(r.operationalRole) ||
+          ["Admin", "Zone Leader", "Floor Lead", "Coach", "HR", "leadership"].includes(r.operationalRole) ||
           r.appRole === "admin" ||
-          r.appRole === "manager",
+          r.appRole === "manager" ||
+          r.user?.role === "admin",
       ),
     [rows],
   );

@@ -30,6 +30,10 @@ export const LAUNCH_ROUTES = new Set<string>([
   "/one-on-ones",         // 1:1 Notes
   "/admin/workforce",     // Workforce
   "/admin/permissions",   // Permissions (Admin only — enforced in route guard)
+  "/org-goals",           // Org Goals
+  "/live-attendance",     // Live Attendance
+  "/task-throughput",     // Task Throughput
+  "/employee-stats/$id",  // Employee Stats
 ]);
 
 // ─── Feature key whitelist ───────────────────────────────────────────────────
@@ -51,6 +55,9 @@ export const ENABLED_FEATURES = new Set<string>([
   "oneOnOnes",
   "workforce",
   "adminPermissions",   // visible only to admins — enforced in route/sidebar
+  "orgGoals",
+  "liveAttendance",
+  "taskThroughput",
 ]);
 
 // ─── Route → feature key map ─────────────────────────────────────────────────
@@ -72,6 +79,10 @@ export const FEATURE_MAP: Record<string, string> = {
   "/one-on-ones":         "oneOnOnes",
   "/admin/workforce":     "workforce",
   "/admin/permissions":   "adminPermissions",
+  "/org-goals":           "orgGoals",
+  "/live-attendance":     "liveAttendance",
+  "/task-throughput":     "taskThroughput",
+  "/employee-stats/$id":  "home",
 };
 
 // ─── Role permission matrix ───────────────────────────────────────────────────
@@ -94,6 +105,9 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "oneOnOnes",
     "workforce",
     "adminPermissions",   // Admin-only
+    "orgGoals",
+    "liveAttendance",
+    "taskThroughput",
   ],
   hr: [
     "home",
@@ -107,6 +121,9 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "kudos",
     "oneOnOnes",
     "workforce",
+    "orgGoals",
+    "liveAttendance",
+    "taskThroughput",
   ],
   manager: [
     "home",
@@ -118,6 +135,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "liveRoster",
     "kudos",
     "oneOnOnes",
+    "liveAttendance",
   ],
   employee: [
     "home",

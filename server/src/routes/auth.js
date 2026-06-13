@@ -220,6 +220,52 @@ router.post(
   }),
 );
 
+const ImpersonateSchema = z.object({
+  employeeId: z.string().min(1),
+});
+
+router.post(
+  "/impersonate",
+  requireAuth,
+  validate(ImpersonateSchema),
+  asyncHandler(async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ error: "Only admins can impersonate users" });
+      }
+
+      const { employeeId } = req.body;
+      
+      const emp = await Employee.findOne({ id: employeeId });
+      if (!emp) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+
+      // Check if a registered User exists for this employee
+      let user = await User.findOne({ employeeId });
+      
+      if (!user) {
+        // Construct a dynamic stub user for impersonation
+        user = {
+          id: employeeId, // Fallback ID
+          email: emp.email || `${employeeId}@gharpayy.com`,
+          employeeId: emp.id,
+          role: emp.appRole || "employee",
+          isApproved: true,
+          status: "active",
+        };
+      }
+
+      const token = signToken(user);
+      logAuth("impersonate.success", { adminId: req.user.id, targetEmployeeId: employeeId });
+      return res.json({ token, user: publicUser(user) });
+    } catch (err) {
+      logAuth("impersonate.error", { adminId: req.user?.id, body: req.body }, err);
+      throw toHttpError(err);
+    }
+  }),
+);
+
 const ChangePasswordSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
@@ -253,7 +299,7 @@ function publicUser(u) {
   const status =
     u.isApproved && (!u.status || u.status === "pending") ? "active" : u.status || "pending";
   return {
-    id: String(u._id),
+    id: String(u._id || u.id),
     email: u.email,
     employeeId: u.employeeId ?? undefined,
     role: u.role,

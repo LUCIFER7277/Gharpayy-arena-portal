@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { Tier } from "@/types/hr";
 import { teamSummary, tierFor } from "@/lib/team-metrics";
+import { computeScore } from "@/lib/score-engine";
 import { useRosterState } from "@/hooks/useRoster";
 import { Loader2 } from "lucide-react";
 import { ArrowDown, ArrowUp, Flame, Target, IndianRupee, Phone, AlertTriangle } from "lucide-react";
@@ -141,37 +142,61 @@ function WarRoom() {
             My score →
           </Link>
         </div>
-        <div className="divide-y divide-border">
-          {sorted.map((e, i) => {
-            const t = tierFor(e.performance);
-            return (
-              <div key={e.id} className="px-4 md:px-5 py-3 flex items-center gap-3">
-                <div className="w-6 font-mono text-xs text-muted-foreground">
-                  {String(i + 1).padStart(2, "0")}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm truncate">{e.name}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    {e.role} · {e.team}
-                  </div>
-                </div>
-                <span
-                  className={`inline-flex items-center justify-center h-6 w-6 rounded border font-mono font-semibold text-[11px] ${tierColor[t]}`}
-                >
-                  {t}
-                </span>
-                <div className="w-12 text-right font-mono text-sm font-semibold">
-                  {e.performance}
-                </div>
-                {(e.flags ?? []).length > 0 && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-xs text-destructive">
-                    <AlertTriangle className="h-3 w-3" />
-                    {(e.flags ?? []).length}
-                  </span>
-                )}
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 md:px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Rank</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Employee</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Attendance</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Tasks</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Role KPI</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Score</th>
+                <th className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Tier</th>
+                <th className="px-4 md:px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-medium text-right">Flags</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sorted.map((e, i) => {
+                const t = tierFor(e.performance);
+                const score = computeScore(e);
+                return (
+                  <tr key={e.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 md:px-5 py-3 w-12 font-mono text-xs text-muted-foreground">
+                      {String(i + 1).padStart(2, "0")}
+                    </td>
+                    <td className="px-4 py-3 min-w-[200px]">
+                      <div className="font-medium text-sm truncate">{e.name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {e.role} · {e.team}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs">{score.attendance}%</td>
+                    <td className="px-4 py-3 font-mono text-xs">{score.taskOnTime}%</td>
+                    <td className="px-4 py-3 font-mono text-xs">{score.roleKpi}%</td>
+                    <td className="px-4 py-3 font-mono text-sm font-semibold text-primary">{score.total}</td>
+                    <td className="px-4 py-3 w-16">
+                      <span
+                        className={`inline-flex items-center justify-center h-6 w-6 rounded border font-mono font-semibold text-[11px] ${tierColor[t]}`}
+                      >
+                        {t}
+                      </span>
+                    </td>
+                    <td className="px-4 md:px-5 py-3 text-right">
+                      {(e.flags ?? []).length > 0 ? (
+                        <span className="inline-flex justify-end items-center gap-1 text-xs text-destructive">
+                          <AlertTriangle className="h-3 w-3" />
+                          {(e.flags ?? []).length}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

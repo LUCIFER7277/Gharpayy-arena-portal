@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Tier as PerfTier, Employee } from "@/types/hr";
 import { teamSummary, tierFor } from "@/lib/team-metrics";
 import { getRoster } from "@/lib/roster";
@@ -15,6 +15,7 @@ import { lastNDays } from "@/lib/day-score";
 import { Avatar } from "@/components/Avatar";
 import { AttendancePanel } from "@/components/AttendancePanel";
 import { MissionBrief } from "@/components/MissionBrief";
+import { EmployeeStatsModal } from "@/components/EmployeeStatsModal";
 import { Progress } from "@/components/ui/progress";
 import { useRoleFeature } from "@/hooks/useRoleFeature";
 import {
@@ -247,15 +248,53 @@ function TasksPillar({ actor }: { actor: Employee }) {
 }
 
 function GoalsPillar({ actor }: { actor: Employee }) {
-  const score = computeScore(actor);
+  const actorTier = tierOf(actor);
+  const isOrgLevel = actorTier === "leadership" || actorTier === "hr";
+
+  const score = useMemo(() => {
+    if (!isOrgLevel) return computeScore(actor);
+    const roster = getRoster().filter((e) => e.role !== "Admin");
+    if (!roster.length) return computeScore(actor);
+    const scores = roster.map(computeScore);
+    return {
+      attendance: Math.round(scores.reduce((s, x) => s + x.attendance, 0) / roster.length),
+      taskOnTime: Math.round(scores.reduce((s, x) => s + x.taskOnTime, 0) / roster.length),
+      kudos: Math.round(scores.reduce((s, x) => s + x.kudos, 0) / roster.length),
+      roleKpi: Math.round(scores.reduce((s, x) => s + x.roleKpi, 0) / roster.length),
+      total: Math.round(scores.reduce((s, x) => s + x.total, 0) / roster.length),
+    };
+  }, [actor, isOrgLevel]);
+
   const tier = tierFor(score.total);
-  const days = useMemo(() => lastNDays(actor, 7), [actor]);
+
+  const days = useMemo(() => {
+    if (!isOrgLevel) return lastNDays(actor, 7);
+    const roster = getRoster().filter((e) => e.role !== "Admin");
+    if (!roster.length) return lastNDays(actor, 7);
+    
+    // Average the daily trends
+    const allDays = roster.map((e) => lastNDays(e, 7));
+    const merged = allDays[0].map((_, i) => {
+      const avgTotal = Math.round(
+        allDays.reduce((sum, d) => sum + d[i].total, 0) / roster.length,
+      );
+      return {
+        ...allDays[0][i],
+        total: avgTotal,
+      };
+    });
+    return merged;
+  }, [actor, isOrgLevel]);
+
   const max = Math.max(100, ...days.map((d) => d.total));
   const hasFeature = useRoleFeature();
 
+  const title = isOrgLevel ? "Org Goals" : "Goals";
+  const href = isOrgLevel ? "/war-room" : "/score";
+
   return (
     <section className="rounded-xl bg-card border border-border p-4 md:p-5">
-      <PillarHeader kicker="Pillar 03" title="Goals" href="/score" icon={Trophy} />
+      <PillarHeader kicker="Pillar 03" title={title} href={href} icon={Trophy} />
       <div className="flex items-baseline justify-between mb-3">
         <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums">
           {score.total}
@@ -272,10 +311,10 @@ function GoalsPillar({ actor }: { actor: Employee }) {
           const h = Math.max(8, (d.total / max) * 56);
           const isToday = d.dayKey === days[days.length - 1]?.dayKey;
           const barClass = `w-full rounded-sm transition ${isToday ? "bg-primary" : "bg-muted-foreground/40 group-hover:bg-muted-foreground/70"}`;
-          return hasFeature("/score") ? (
+          return hasFeature(href) ? (
             <Link
               key={d.dayKey}
-              to="/score"
+              to={href}
               className="flex-1 flex flex-col items-center gap-1 group"
               title={`${d.label} · ${d.total}`}
             >
@@ -375,13 +414,17 @@ function PodPillars({ pod, label }: { pod: Employee[]; label: string }) {
     return { onClock, onBreak, inField, openTasks, doneToday, avg, atRisk, total: pod.length };
   }, [pod]);
 
+  const { actor } = useAttendanceState();
+  const actorTier = tierOf(actor);
+  const isOrgLevel = actorTier === "leadership" || actorTier === "hr";
+
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
       <div className="rounded-xl bg-card border border-border p-4 md:p-5">
         <PillarHeader
           kicker={`${label} · Pillar 01`}
           title="Time on the floor"
-          href="/attendance"
+          href="/live-attendance"
           icon={Clock}
         />
         <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums">
@@ -404,7 +447,7 @@ function PodPillars({ pod, label }: { pod: Employee[]; label: string }) {
         <PillarHeader
           kicker={`${label} · Pillar 02`}
           title="Task throughput"
-          href="/tasks"
+          href="/task-throughput"
           icon={CheckSquare}
         />
         <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums">
@@ -426,8 +469,8 @@ function PodPillars({ pod, label }: { pod: Employee[]; label: string }) {
       <div className="rounded-xl bg-card border border-border p-4 md:p-5">
         <PillarHeader
           kicker={`${label} · Pillar 03`}
-          title="Goal attainment"
-          href="/score"
+          title={isOrgLevel ? "Org Goals" : "Goal attainment"}
+          href={isOrgLevel ? "/org-goals" : "/score"}
           icon={Trophy}
         />
         <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums">
@@ -537,13 +580,18 @@ function TeammateHome({ actor }: { actor: Employee }) {
 
 function LeaderHome({ actor }: { actor: Employee }) {
   const hasFeature = useRoleFeature();
-  const pod = useMemo(
-    () =>
-      getRoster()
-        .filter((e) => e.managerId === actor.id || e.team === actor.team)
-        .filter((e) => e.id !== actor.id),
-    [actor.id, actor.team],
-  );
+  const { actor: currentActor } = useAttendanceState();
+  const actorTier = tierOf(currentActor);
+  const isOrgLevel = actorTier === "leadership" || actorTier === "hr";
+
+  const pod = useMemo(() => {
+    // Basic "pod" = same team, excluding Admins
+    if (!actor) return [];
+    let members = getRoster().filter((e) => e.role !== "Admin");
+    if (isOrgLevel) return members.filter((e) => e.id !== actor.id);
+    return members.filter((e) => e.team === actor.team && e.id !== actor.id);
+  }, [actor, isOrgLevel]);
+
   const leaves = useLeaves().filter(
     (l) => l.status === "pending" && pod.some((p) => p.id === l.employeeId),
   );
@@ -647,12 +695,13 @@ function HRHome({ actor }: { actor: Employee }) {
   const leaves = useLeaves().filter((l) => l.status === "pending");
   const today = new Date();
   const mmdd = `${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const birthdays = getRoster().filter((e) => e.birthdayMMDD === mmdd);
-  const newJoiners = getRoster().filter((e) => (e.joinedYearsAgo ?? 99) === 0);
-  const lowAttendance = getRoster()
+  const orgRoster = getRoster().filter((e) => e.role !== "Admin");
+  const birthdays = orgRoster.filter((e) => e.birthdayMMDD === mmdd);
+  const newJoiners = orgRoster.filter((e) => (e.joinedYearsAgo ?? 99) === 0);
+  const lowAttendance = orgRoster
     .filter((e) => e.attendance < 80)
     .sort((a, b) => a.attendance - b.attendance);
-  const flagged = getRoster().filter((e) => (e.flags ?? []).length > 0);
+  const flagged = orgRoster.filter((e) => (e.flags ?? []).length > 0);
 
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1300px] mx-auto">
@@ -660,7 +709,7 @@ function HRHome({ actor }: { actor: Employee }) {
       <MissionBrief actor={actor} />
 
       {/* Org-wide rollup of the three pillars */}
-      <PodPillars pod={getRoster()} label="Org" />
+      <PodPillars pod={orgRoster} label="Org" />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="rounded-xl bg-card border border-border p-4">
@@ -670,7 +719,7 @@ function HRHome({ actor }: { actor: Employee }) {
             </span>
             <Users className="h-4 w-4 text-primary" />
           </div>
-          <div className="mt-2 font-display text-2xl font-semibold">{getRoster().length}</div>
+          <div className="mt-2 font-display text-2xl font-semibold">{orgRoster.length}</div>
           <div className="mt-1 text-[11px] text-muted-foreground">
             {newJoiners.length} new this year
           </div>
@@ -754,15 +803,17 @@ function HRHome({ actor }: { actor: Employee }) {
 
 function LeadershipHome({ actor }: { actor: Employee }) {
   const hasFeature = useRoleFeature();
-  const s = teamSummary(getRoster());
-  const sorted = [...getRoster()].sort((a, b) => b.performance - a.performance);
+  const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
+  const orgRoster = getRoster().filter((e) => e.role !== "Admin");
+  const s = teamSummary(orgRoster);
+  const sorted = [...orgRoster].sort((a, b) => b.performance - a.performance);
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1400px] mx-auto">
       <HomeHeader actor={actor} sub={`Org-wide Time, Tasks, Goals. ${TIER_TAGLINE.leadership}`} />
       <MissionBrief actor={actor} />
 
       {/* The three pillars, org-wide, are the headline */}
-      <PodPillars pod={getRoster()} label="Org" />
+      <PodPillars pod={orgRoster} label="Org" />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="rounded-xl bg-card border border-border p-4">
@@ -810,37 +861,64 @@ function LeadershipHome({ actor }: { actor: Employee }) {
       </section>
 
       <section className="grid md:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-xl bg-card border border-border p-5">
-          <div className="flex items-center gap-2 text-success mb-3">
-            <ArrowUp className="h-4 w-4" />
-            <span className="text-xs font-mono uppercase tracking-widest">Top Performer</span>
+        {s.top ? (
+          <button
+            onClick={() => setSelectedEmpId(s.top?.id ?? null)}
+            className="block text-left rounded-xl bg-card border border-border p-5 hover:border-primary/50 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-success mb-3">
+              <ArrowUp className="h-4 w-4" />
+              <span className="text-xs font-mono uppercase tracking-widest">Top Performer</span>
+            </div>
+            <div className="font-display text-xl font-semibold">{s.top.name}</div>
+            <div className="text-xs text-muted-foreground mb-3">
+              {`${s.top.role} · ${inr(s.top.revenueImpact)}`}
+            </div>
+            <Bar value={s.top.performance} color="bg-success" />
+          </button>
+        ) : (
+          <div className="rounded-xl bg-card border border-border p-5 opacity-50">
+            <div className="flex items-center gap-2 text-success mb-3">
+              <ArrowUp className="h-4 w-4" />
+              <span className="text-xs font-mono uppercase tracking-widest">Top Performer</span>
+            </div>
+            <div className="font-display text-xl font-semibold">—</div>
           </div>
-          <div className="font-display text-xl font-semibold">{s.top?.name ?? "—"}</div>
-          <div className="text-xs text-muted-foreground mb-3">
-            {s.top ? `${s.top.role} · ${inr(s.top.revenueImpact)}` : ""}
+        )}
+
+        {s.bottom ? (
+          <button
+            onClick={() => setSelectedEmpId(s.bottom?.id ?? null)}
+            className="block text-left rounded-xl bg-card border border-border p-5 hover:border-primary/50 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-destructive mb-3">
+              <ArrowDown className="h-4 w-4" />
+              <span className="text-xs font-mono uppercase tracking-widest">Replace Signal</span>
+            </div>
+            <div className="font-display text-xl font-semibold">{s.bottom.name}</div>
+            <div className="text-xs text-muted-foreground mb-3">
+              {`${s.bottom.role} · ${(s.bottom.flags ?? []).length} flags`}
+            </div>
+            <Bar value={s.bottom.performance} color="bg-destructive" />
+          </button>
+        ) : (
+          <div className="rounded-xl bg-card border border-border p-5 opacity-50">
+            <div className="flex items-center gap-2 text-destructive mb-3">
+              <ArrowDown className="h-4 w-4" />
+              <span className="text-xs font-mono uppercase tracking-widest">Replace Signal</span>
+            </div>
+            <div className="font-display text-xl font-semibold">—</div>
           </div>
-          {s.top && <Bar value={s.top.performance} color="bg-success" />}
-        </div>
-        <div className="rounded-xl bg-card border border-border p-5">
-          <div className="flex items-center gap-2 text-destructive mb-3">
-            <ArrowDown className="h-4 w-4" />
-            <span className="text-xs font-mono uppercase tracking-widest">Replace Signal</span>
-          </div>
-          <div className="font-display text-xl font-semibold">{s.bottom?.name ?? "—"}</div>
-          <div className="text-xs text-muted-foreground mb-3">
-            {s.bottom ? `${s.bottom.role} · ${(s.bottom.flags ?? []).length} flags` : ""}
-          </div>
-          {s.bottom && <Bar value={s.bottom.performance} color="bg-destructive" />}
-        </div>
+        )}
         <div className="rounded-xl bg-sidebar text-sidebar-foreground border border-sidebar-border p-5">
           <div className="flex items-center gap-2 text-primary mb-3">
             <TrendingUp className="h-4 w-4" />
             <span className="text-xs font-mono uppercase tracking-widest">Today's Call</span>
           </div>
           <p className="text-sm text-white leading-relaxed">
-            Floor needs{" "}
-            <span className="text-primary font-semibold">{Math.max(0, 200 - s.totalCalls)}</span>{" "}
-            more calls to hit shift target. Reassign Devansh's pool to Karan.
+            Floor has made{" "}
+            <span className="text-primary font-semibold">{s.totalCalls}</span>{" "}
+            calls today. Review pipeline and prioritize high-intent leads.
           </p>
           {hasFeature("/war-room") && (
             <Link
@@ -886,6 +964,8 @@ function LeadershipHome({ actor }: { actor: Employee }) {
           })}
         </div>
       </section>
+
+      <EmployeeStatsModal empId={selectedEmpId} onClose={() => setSelectedEmpId(null)} />
     </div>
   );
 }
@@ -979,6 +1059,8 @@ function ZoneLeaderHome({ actor }: { actor: Employee }) {
 function ArenaHome() {
   const { actor } = useAttendanceState();
   const tier = tierOf(actor);
+  
+  if (!actor.role) return <MissionBrief actor={actor} />;
   if (tier === "partner") {
     if (typeof window !== "undefined") window.location.replace("/partner");
     return null;

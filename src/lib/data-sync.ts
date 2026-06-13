@@ -43,13 +43,7 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
   const u = user ?? getCachedUser();
 
   syncPromise = (async () => {
-    if (import.meta.env.DEV) {
-      try {
-        await api.post("/migrate/seed-test-accounts");
-      } catch (err) {
-        console.warn("[sync] test accounts seed failed (continuing):", err);
-      }
-    } else {
+    if (!import.meta.env.DEV) {
       console.debug("[sync] Skipping auto-seed in production mode.");
     }
 

@@ -45,14 +45,21 @@ export function mapApiEmployee(record: ApiEmployeeRecord, user?: ApiUser | null)
     record.profile?.appRole ??
     (user?.employeeId === record.id ? appRoleFromApiUser(user.role) : "employee");
 
+  // Generate stable random variations based on the employee ID
+  const seed = Array.from(record.id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const mod1 = (seed % 15) - 5; // -5 to +9
+  const mod2 = (seed % 20) - 10; // -10 to +9
+  const mod3 = (seed % 25) - 12; // -12 to +12
+  const mod4 = (seed % 10) - 5;
+
   const defaults: Omit<Employee, "id" | "name" | "role" | "appRole"> = {
-    experience: "Mid",
-    attendance: 85,
-    performance: 70,
-    consistency: 70,
+    experience: "New",
+    attendance: 0,
+    performance: 0,
+    consistency: 0,
     revenueImpact: 0,
-    taskCompletion: 75,
-    conversion: 15,
+    taskCompletion: 0,
+    conversion: 0,
     callsToday: 0,
     callTarget: 30,
     leadsActive: 0,

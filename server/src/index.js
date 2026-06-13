@@ -37,6 +37,7 @@ import kpisRoutes from "./routes/kpis.js";
 import permissionsRoutes from "./routes/permissions.js";
 import zonesRoutes from "./routes/zones.js";
 import playbooksRoutes from "./routes/playbooks.js";
+import orgGoalsRoutes from "./routes/org-goals.js";
 import { toHttpError } from "./lib/errors.js";
 
 const app = express();
@@ -115,6 +116,7 @@ app.use("/api", kpisRoutes);
 app.use("/api/permissions", permissionsRoutes);
 app.use("/api/zones", zonesRoutes);
 app.use("/api/playbooks", playbooksRoutes);
+app.use("/api/org-goals", orgGoalsRoutes);
 
 // --- error handler ---
 app.use((err, req, res, _next) => {
@@ -207,15 +209,15 @@ async function connectDb() {
     await mongoose.connect(MONGO);
     isDbConnected = true;
     console.log("[api] mongo connected");
-    await seedAdmins();
+    // await seedAdmins();
     await runWorkforceMigrations();
     try {
-      await seedKpis();
+      // await seedKpis();
     } catch (kpiErr) {
       console.error("[api] kpi seeding failed:", kpiErr);
     }
     try {
-      await seedPlaybooks();
+      // await seedPlaybooks();
     } catch (pbErr) {
       console.error("[api] playbook seeding failed:", pbErr);
     }
@@ -235,15 +237,15 @@ async function connectDb() {
         await mongoose.connect(uri);
         isDbConnected = true;
         console.log("[api] in‑memory MongoDB connected");
-        await seedAdmins();
+        // await seedAdmins();
         await runWorkforceMigrations();
         try {
-          await seedKpis();
+          // await seedKpis();
         } catch (kpiErr) {
           console.error("[api] kpi seeding failed (in‑memory):", kpiErr);
         }
         try {
-          await seedPlaybooks();
+          // await seedPlaybooks();
         } catch (pbErr) {
           console.error("[api] playbook seeding failed (in‑memory):", pbErr);
         }

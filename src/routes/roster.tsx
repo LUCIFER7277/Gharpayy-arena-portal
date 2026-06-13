@@ -13,6 +13,7 @@ import {
   type AttEvent,
   type RosterEvent,
 } from "@/lib/attendance-store";
+
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,8 @@ import {
 import { RoleGate } from "@/components/RoleGate";
 import { useRosterState } from "@/hooks/useRoster";
 import type { Employee } from "@/types/hr";
+import { Input } from "@/components/ui/input";
+import { Search, Filter, CheckCircle2, XCircle, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/roster")({
   head: () => ({
@@ -76,12 +79,18 @@ type RosterRow = {
 // ---------------------------------------------------------------------------
 
 function RosterPage() {
-  useAttendanceState();
+  const { actor } = useAttendanceState();
   const { roster, loading: rosterLoading } = useRosterState();
   const today = todayKey();
 
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const isToday = selectedDate === today;
+
+  const [teamFilter, setTeamFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const teams = Array.from(new Set(roster.map((r) => r.team).filter(Boolean))).sort();
 
   // Historical fetch state
   const [histEvents, setHistEvents] = useState<RosterEvent[]>([]);
@@ -188,6 +197,24 @@ function RosterPage() {
     });
   }
 
+  // Apply filters
+  rows = rows.filter((r) => {
+    if (teamFilter !== "all" && r.empTeam !== teamFilter) return false;
+    if (statusFilter !== "all") {
+      if (statusFilter === "absent" && r.status !== "Off") return false;
+      if (statusFilter === "clocked_in" && r.status !== "Clocked In") return false;
+      if (statusFilter === "break" && r.status !== "On Break") return false;
+      if (statusFilter === "field" && r.status !== "In Field") return false;
+    }
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+      if (!r.empName.toLowerCase().includes(q) && !r.empRole.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   const counts = {
     "Clocked In": rows.filter((r) => r.status === "Clocked In").length,
     "On Break": rows.filter((r) => r.status === "On Break").length,
@@ -197,35 +224,84 @@ function RosterPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-end gap-4">
-        <div className="flex-1">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
-            {isToday ? "Live Roster · Admin View" : `Attendance History · ${selectedDate}`}
+      <header className="flex flex-col gap-6 bg-card p-6 rounded-2xl border border-border shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex-1">
+            <div className="text-[10px] uppercase tracking-widest text-primary font-mono mb-1">
+              {isToday ? "Live Roster · Admin View" : `Attendance History · ${selectedDate}`}
+            </div>
+            <h1 className="font-display text-3xl font-semibold tracking-tight">
+              {isToday ? "Who's where, right now" : "Historical Attendance"}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Track attendance, live status, and absentees across teams.
+            </p>
           </div>
-          <h1 className="font-display text-3xl font-semibold tracking-tight mt-1">
-            {isToday ? "Who's where, right now" : "Historical Attendance"}
-          </h1>
+
+          {/* Date picker */}
+          <div className="flex items-center gap-2 shrink-0">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <input
+              type="date"
+              value={selectedDate}
+              max={today}
+              onChange={(e) => setSelectedDate(e.target.value || today)}
+              className="h-10 rounded-lg border border-border bg-background px-3 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer shadow-sm transition-all"
+              aria-label="Select attendance date"
+            />
+            {!isToday && (
+              <button
+                onClick={() => setSelectedDate(today)}
+                className="h-10 px-4 rounded-lg border border-border bg-secondary text-xs font-mono uppercase tracking-widest hover:bg-secondary/70 transition-colors shadow-sm"
+              >
+                Today
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Date picker */}
-        <div className="flex items-center gap-2 shrink-0">
-          <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <input
-            type="date"
-            value={selectedDate}
-            max={today}
-            onChange={(e) => setSelectedDate(e.target.value || today)}
-            className="h-9 rounded-md border border-border bg-card px-3 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
-            aria-label="Select attendance date"
-          />
-          {!isToday && (
-            <button
-              onClick={() => setSelectedDate(today)}
-              className="h-9 px-3 rounded-md border border-border bg-secondary text-xs font-mono uppercase tracking-widest hover:bg-secondary/70 transition-colors"
-            >
-              Today
-            </button>
-          )}
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-3 items-center border-t border-border pt-5">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search name or role..."
+              className="pl-9 h-10 bg-background"
+            />
+          </div>
+          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <div className="relative shrink-0">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <select
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none min-w-[140px]"
+              >
+                <option value="all">All Teams</option>
+                {teams.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="relative shrink-0">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-10 pl-9 pr-8 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none min-w-[140px]"
+              >
+                <option value="all">All Statuses</option>
+                <option value="clocked_in">Clocked In</option>
+                <option value="absent">Absent / Off</option>
+                <option value="break">On Break</option>
+                <option value="field">In Field</option>
+              </select>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -257,7 +333,7 @@ function RosterPage() {
             </div>
           )}
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
             {rows.map((row) => (
               <RosterCard key={row.empId} row={row} isToday={isToday} />
             ))}
@@ -289,10 +365,10 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
   const subtitleParts = [row.empTeam, row.empRole, row.empAppRole].filter(Boolean);
 
   return (
-    <Card className="p-4 flex flex-col h-full">
-      <div className="flex items-start gap-3">
-        <Avatar className="h-12 w-12 shrink-0 border border-border">
-          <AvatarFallback className="bg-muted text-foreground font-medium">
+    <Card className={`p-5 flex flex-col h-full border ${row.status === "Off" ? "border-destructive/20 bg-destructive/5" : "border-border shadow-sm bg-card hover:border-primary/20 hover:shadow-md transition-all"}`}>
+      <div className="flex items-start gap-4">
+        <Avatar className="h-14 w-14 shrink-0 border-2 border-background shadow-sm ring-1 ring-border">
+          <AvatarFallback className={`${row.status === "Off" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"} font-medium`}>
             {row.empName
               .split(" ")
               .map((s: string) => s[0])
@@ -300,34 +376,38 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
               .join("")}
           </AvatarFallback>
         </Avatar>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="font-medium truncate">{row.empName}</div>
-              <div className="text-xs text-muted-foreground truncate">
+              <div className="font-semibold text-[15px] truncate text-foreground">{row.empName}</div>
+              <div className="text-xs text-muted-foreground truncate mt-0.5 font-medium">
                 {subtitleParts.join(" · ")}
               </div>
             </div>
             <StatusBadge status={row.status} />
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-1 text-[11px] font-mono uppercase tracking-widest">
-            <Mini label="Work" value={fmtDuration(row.workMs)} />
-            <Mini label="Break" value={fmtDuration(row.breakMs)} />
-            <Mini label="Field" value={fmtDuration(row.fieldMs)} />
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex gap-2">
+              <Mini label="Work" value={fmtDuration(row.workMs)} active={row.status === "Clocked In"} />
+              <Mini label="Break" value={fmtDuration(row.breakMs)} active={row.status === "On Break"} />
+              <Mini label="Field" value={fmtDuration(row.fieldMs)} active={row.status === "In Field"} />
+            </div>
           </div>
 
           {/* Clock-in / clock-out times for historical view */}
           {!isToday && (row.firstClockIn || row.lastClockOut) && (
-            <div className="mt-2 flex items-center gap-3 text-[11px] font-mono text-muted-foreground">
+            <div className="mt-3 flex items-center gap-3 text-[11px] font-mono bg-muted/50 rounded-md px-2 py-1.5 border border-border/50">
               {row.firstClockIn && (
-                <span>
-                  In: <span className="text-foreground">{fmtTime(row.firstClockIn)}</span>
+                <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground uppercase tracking-widest text-[9px]">In:</span>
+                  <span className="font-medium">{fmtTime(row.firstClockIn)}</span>
                 </span>
               )}
               {row.lastClockOut && (
-                <span>
-                  Out: <span className="text-foreground">{fmtTime(row.lastClockOut)}</span>
+                <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground uppercase tracking-widest text-[9px]">Out:</span>
+                  <span className="font-medium">{fmtTime(row.lastClockOut)}</span>
                 </span>
               )}
             </div>
@@ -335,18 +415,18 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
         </div>
       </div>
 
-      <div className="mt-4 pt-4 border-t border-border flex flex-col flex-1">
+      <div className="mt-5 pt-4 border-t border-border flex flex-col flex-1">
         {sortedEvents.length > 0 ? (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
-                {row.events.length} event{row.events.length === 1 ? "" : "s"}{" "}
-                {isToday ? "today" : "that day"}
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {row.events.length} event{row.events.length === 1 ? "" : "s"}
               </div>
               {row.events.length > 1 && (
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  className="text-[10px] text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium uppercase tracking-widest font-mono"
+                  className="text-[10px] text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-semibold uppercase tracking-widest font-mono bg-primary/5 px-2 py-1 rounded"
                 >
                   {expanded ? "Collapse" : "Timeline"}
                   {expanded ? (
@@ -359,35 +439,38 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
             </div>
 
             {/* Event list — identical selfie + location rendering as before */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {sortedEvents
                 .slice(0, expanded ? undefined : 1)
                 .map((ev: AttEvent | RosterEvent, i: number) => (
-                  <div key={ev.id} className={`flex gap-3 ${i === 0 ? "" : "opacity-75"}`}>
+                  <div key={ev.id} className={`flex gap-3 bg-muted/20 p-2 rounded-lg border border-border/40 ${i === 0 ? "shadow-sm bg-card" : "opacity-80"}`}>
                     {ev.selfie ? (
-                      <a href={ev.selfie} target="_blank" rel="noreferrer" className="shrink-0">
+                      <a href={ev.selfie} target="_blank" rel="noreferrer" className="shrink-0 relative group">
                         <img
                           src={ev.selfie}
                           alt="selfie"
-                          className="h-10 w-10 md:h-12 md:w-12 rounded-md object-cover border border-border shadow-sm bg-muted"
+                          className="h-12 w-12 md:h-14 md:w-14 rounded-md object-cover border border-border shadow-sm bg-muted transition-transform group-hover:scale-105"
                           loading="lazy"
                         />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
+                          <ExternalLink className="h-4 w-4 text-white" />
+                        </div>
                       </a>
                     ) : (
-                      <div className="h-10 w-10 md:h-12 md:w-12 shrink-0 rounded-md border border-dashed border-border flex items-center justify-center text-muted-foreground bg-muted/30">
-                        <Camera className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                      <div className="h-12 w-12 md:h-14 md:w-14 shrink-0 rounded-md border border-dashed border-border flex items-center justify-center text-muted-foreground bg-muted/40">
+                        <Camera className="h-4 w-4 md:h-5 md:w-5 opacity-50" />
                       </div>
                     )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1 py-0.5">
+                      <div className="flex items-center justify-between gap-2 mb-1">
                         <span
-                          className={`text-[10px] md:text-[11px] font-medium uppercase tracking-widest font-mono ${
+                          className={`text-[10px] md:text-[11px] font-bold uppercase tracking-widest font-mono ${
                             i === 0 ? "text-foreground" : "text-muted-foreground"
                           }`}
                         >
                           {formatEventKind(ev.kind)}
                         </span>
-                        <span className="text-[10px] text-muted-foreground font-mono">
+                        <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
                           {fmtTime(ev.ts)}
                         </span>
                       </div>
@@ -402,9 +485,10 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
             </div>
           </>
         ) : (
-          <div className="flex items-center gap-1.5 text-xs text-warning flex-1 py-1">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            {isToday ? "No punch yet today" : "No attendance recorded"}
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-sm text-destructive py-6 bg-destructive/5 rounded-lg border border-destructive/10">
+            <XCircle className="h-6 w-6 opacity-80" />
+            <div className="font-medium text-center">{isToday ? "Absent today" : "Marked Absent"}</div>
+            <div className="text-xs opacity-70 text-center">No attendance punches found</div>
           </div>
         )}
       </div>
@@ -441,11 +525,11 @@ function Tile({
   );
 }
 
-function Mini({ label, value }: { label: string; value: string }) {
+function Mini({ label, value, active }: { label: string; value: string; active?: boolean }) {
   return (
-    <div className="rounded bg-muted/40 border border-border px-2 py-1 text-center">
-      <div className="text-[9px] text-muted-foreground">{label}</div>
-      <div className="text-xs text-foreground font-mono tabular-nums">{value}</div>
+    <div className={`rounded-md border px-2.5 py-1.5 text-center flex-1 ${active ? "bg-primary/10 border-primary/30" : "bg-muted/30 border-border/60"}`}>
+      <div className={`text-[9px] uppercase tracking-wider font-semibold ${active ? "text-primary" : "text-muted-foreground"}`}>{label}</div>
+      <div className={`text-xs font-mono tabular-nums mt-0.5 ${active ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{value}</div>
     </div>
   );
 }

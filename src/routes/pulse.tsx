@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { tierOf } from "@/lib/permissions";
 import {
@@ -47,6 +47,12 @@ function PulsePage() {
   useEffect(() => {
     if (current) setSelected(current.key);
   }, [current?.key]);
+
+  const isAdminOrHr = tier === "leadership" || tier === "hr";
+
+  if (isAdminOrHr) {
+    return <AdminPulseView />;
+  }
 
   return (
     <div className="px-4 md:px-8 py-6 max-w-7xl mx-auto space-y-6">
@@ -390,6 +396,332 @@ function OrgComplianceCard() {
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function AdminPulseView() {
+  const [v, setV] = useState(0);
+  useEffect(() => subscribe(() => setV((x) => x + 1)), []);
+
+  const entries = useMemo(() => getEntries({ date: todayISO() }), [v]);
+  const [copied, setCopied] = useState(false);
+
+  const groupedEntries = useMemo(() => {
+    const groups: Record<string, typeof entries> = {};
+    for (const e of entries) {
+      if (!groups[e.employeeId]) groups[e.employeeId] = [];
+      groups[e.employeeId].push(e);
+    }
+    const slotOrder: Record<string, number> = { slot1: 1, slot2: 2, slot3: 3, eod: 4 };
+    Object.values(groups).forEach(g => g.sort((a,b) => (slotOrder[a.slot] || 99) - (slotOrder[b.slot] || 99)));
+    
+    return Object.values(groups).map(empEntries => {
+      const eodEntry = empEntries.find(e => e.slot === "eod");
+      const regularEntries = empEntries.filter(e => e.slot !== "eod");
+      return {
+        empId: empEntries[0].employeeId,
+        empName: empEntries[0].employeeName,
+        role: empEntries[0].role,
+        team: empEntries[0].team,
+        eodEntry,
+        regularEntries: regularEntries.length > 0 ? regularEntries : [null]
+      };
+    });
+  }, [entries]);
+
+  function copyToClipboard() {
+    const headers = [
+      "Name",
+      "Role",
+      "Team",
+      "Slot",
+      "Time",
+      "Status",
+      "Calls",
+      "Tours",
+      "Closures",
+      "Blockers",
+      "Pulse Text",
+      "EOD Time",
+      "EOD Status",
+      "EOD Brief",
+      "EOD Blockers"
+    ];
+
+    const rows: string[][] = [];
+    let bodyHtml = "";
+
+    groupedEntries.forEach((group) => {
+      const eodTime = group.eodEntry ? new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
+      const eodStatus = group.eodEntry ? (group.eodEntry.onTime ? "On Time" : "Late") : "Pending";
+      const eodText = group.eodEntry ? group.eodEntry.text.replace(/\n/g, " ") : "";
+      const eodBlockers = group.eodEntry?.blockers ? group.eodEntry.blockers.replace(/\n/g, " ") : "";
+      
+      const rowCount = group.regularEntries.length;
+
+      group.regularEntries.forEach((e, idx) => {
+        // --- TSV Fallback ---
+        const name = idx === 0 ? group.empName : "";
+        const role = idx === 0 ? group.role : "";
+        const team = idx === 0 ? group.team : "";
+        const outEodTime = idx === 0 ? eodTime : "";
+        const outEodStatus = idx === 0 ? eodStatus : "";
+        const outEodText = idx === 0 ? eodText : "";
+        const outEodBlockers = idx === 0 ? eodBlockers : "";
+
+        if (e) {
+          let slotLabel = e.slot;
+          const slotObj = SLOTS.find((s) => s.key === e.slot);
+          if (slotObj) {
+            const parts = slotObj.label.split(" · ");
+            slotLabel = parts.length > 1 ? `${parts[0]} (${parts[1]})` : slotObj.label;
+          }
+          
+          rows.push([
+            name, role, team,
+            slotLabel,
+            new Date(e.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+            e.onTime ? "On Time" : "Late",
+            e.calls?.toString() || "", e.tours?.toString() || "", e.closures?.toString() || "",
+            e.blockers?.replace(/\n/g, " ") || "", e.text.replace(/\n/g, " "),
+            outEodTime, outEodStatus, outEodText, outEodBlockers
+          ]);
+        } else {
+          rows.push([name, role, team, "No intraday slots", "", "", "", "", "", "", "", outEodTime, outEodStatus, outEodText, outEodBlockers]);
+        }
+
+        // --- HTML Table Generation with Styling and Rowspans ---
+        let htmlRow = `<tr>`;
+        const cellStyle = `border: 1px solid #d1d5db; padding: 8px; vertical-align: top;`;
+        const textStyle = `border: 1px solid #d1d5db; padding: 8px; vertical-align: top; width: 300px; white-space: pre-wrap; word-wrap: break-word;`;
+        const eodStyle = `border: 1px solid #d1d5db; border-left: 2px solid #9ca3af; padding: 8px; vertical-align: top; background-color: #f8fafc;`;
+        const eodTextStyle = `border: 1px solid #d1d5db; border-left: 2px solid #9ca3af; padding: 8px; vertical-align: top; background-color: #f8fafc; width: 300px; white-space: pre-wrap; word-wrap: break-word;`;
+        
+        if (idx === 0) {
+          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle} font-weight: bold; background-color: #ffffff;">${group.empName}</td>`;
+          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle} background-color: #ffffff;">${group.role}</td>`;
+          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle} background-color: #ffffff;">${group.team}</td>`;
+        }
+
+        if (e) {
+          let slotLabel = e.slot;
+          const slotObj = SLOTS.find((s) => s.key === e.slot);
+          if (slotObj) {
+            const parts = slotObj.label.split(" · ");
+            slotLabel = parts.length > 1 ? `${parts[0]} (${parts[1]})` : slotObj.label;
+          }
+          const time = new Date(e.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+          const statusColor = e.onTime ? '#16a34a' : '#ea580c';
+          htmlRow += `<td style="${cellStyle}">${slotLabel}</td>`;
+          htmlRow += `<td style="${cellStyle}">${time}</td>`;
+          htmlRow += `<td style="${cellStyle} color: ${statusColor}; font-weight: bold;">${e.onTime ? "On Time" : "Late"}</td>`;
+          htmlRow += `<td style="${cellStyle}">${e.calls?.toString() || ""}</td>`;
+          htmlRow += `<td style="${cellStyle}">${e.tours?.toString() || ""}</td>`;
+          htmlRow += `<td style="${cellStyle}">${e.closures?.toString() || ""}</td>`;
+          htmlRow += `<td style="${cellStyle}">${e.blockers?.replace(/\n/g, " ") || ""}</td>`;
+          htmlRow += `<td style="${textStyle}">${e.text}</td>`;
+        } else {
+          htmlRow += `<td colspan="8" style="${cellStyle} color: #6b7280; font-style: italic; text-align: center;">No intraday slots submitted</td>`;
+        }
+
+        if (idx === 0) {
+          const eodStatusColor = group.eodEntry?.onTime ? '#16a34a' : group.eodEntry ? '#ea580c' : '#6b7280';
+          htmlRow += `<td rowspan="${rowCount}" style="${eodStyle}">${eodTime}</td>`;
+          htmlRow += `<td rowspan="${rowCount}" style="${eodStyle} color: ${eodStatusColor}; font-weight: bold;">${eodStatus}</td>`;
+          htmlRow += `<td rowspan="${rowCount}" style="${eodTextStyle}">${group.eodEntry?.text || ""}</td>`;
+          htmlRow += `<td rowspan="${rowCount}" style="${eodStyle}">${eodBlockers}</td>`;
+        }
+        htmlRow += `</tr>`;
+        bodyHtml += htmlRow;
+      });
+    });
+    
+    const tsv = [headers, ...rows].map((row) => row.join("\t")).join("\n");
+    
+    const headerHtml = `<tr>${headers.map((h, i) => {
+      const isEod = i >= headers.length - 4;
+      return `<th style="border: 1px solid #d1d5db; ${isEod ? 'border-left: 2px solid #9ca3af; background-color: #e2e8f0;' : 'background-color: #f3f4f6;'} padding: 10px 8px; font-weight: bold; text-align: left; font-family: sans-serif;">${h}</th>`;
+    }).join("")}</tr>`;
+    
+    const html = `<table style="border-collapse: collapse; font-family: sans-serif; font-size: 14px;"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
+
+    try {
+      const textBlob = new Blob([tsv], { type: "text/plain" });
+      const htmlBlob = new Blob([html], { type: "text/html" });
+      const clipboardItem = new ClipboardItem({
+        "text/plain": textBlob,
+        "text/html": htmlBlob,
+      });
+      navigator.clipboard.write([clipboardItem]);
+    } catch (e) {
+      // Fallback for older browsers
+      navigator.clipboard.writeText(tsv);
+    }
+    
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="px-4 md:px-8 py-6 max-w-7xl mx-auto space-y-6">
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary mb-2">
+            Gharpayy · Daily Pulse
+          </div>
+          <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">
+            Organization Pulses
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Live feed of all daily pulses across the organization.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={copyToClipboard}
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            {copied ? <CheckCircle2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+            {copied ? "Copied to clipboard" : "Copy as Excel"}
+          </button>
+        </div>
+      </header>
+
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-mono tracking-wider">
+              <tr>
+                <th className="px-6 py-4 font-medium">Name</th>
+                <th className="px-6 py-4 font-medium">Role & Team</th>
+                <th className="px-6 py-4 font-medium">Slot</th>
+                <th className="px-6 py-4 font-medium">Time</th>
+                <th className="px-6 py-4 font-medium">Metrics</th>
+                <th className="px-6 py-4 font-medium w-1/4">Pulse Text</th>
+                <th className="px-6 py-4 font-medium w-1/4">EOD Brief</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {groupedEntries.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
+                    No pulses submitted yet today.
+                  </td>
+                </tr>
+              ) : (
+                groupedEntries.map((group) => (
+                  <Fragment key={group.empId}>
+                    {group.regularEntries.map((e, idx) => (
+                      <tr key={e?.id || `empty-${group.empId}`} className={`hover:bg-muted/30 transition-colors ${idx === group.regularEntries.length - 1 ? "border-b border-border" : "border-b-0"}`}>
+                        {idx === 0 && (
+                          <>
+                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 whitespace-nowrap align-top border-r border-border/20">
+                              <div className="flex items-center gap-3">
+                                <Avatar id={group.empId} size={32} />
+                                <span className="font-medium">{group.empName}</span>
+                              </div>
+                            </td>
+                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 whitespace-nowrap align-top border-r border-border/20">
+                              <div>{group.role}</div>
+                              <div className="text-xs text-muted-foreground">{group.team}</div>
+                            </td>
+                          </>
+                        )}
+                        {e ? (
+                          <>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium">
+                                {SLOTS.find((s) => s.key === e.slot)?.label.split(" · ")[0] || e.slot}
+                                <span className="text-muted-foreground text-xs ml-1 font-normal">
+                                  ({SLOTS.find((s) => s.key === e.slot)?.window})
+                                </span>
+                              </div>
+                              <div
+                                className={`text-[10px] uppercase tracking-wider font-mono mt-1 ${
+                                  e.onTime ? "text-success" : "text-warning"
+                                }`}
+                              >
+                                {e.onTime ? "On Time" : "Late"}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                              {new Date(e.submittedAt).toLocaleTimeString("en-IN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {(e.calls != null || e.tours != null || e.closures != null) ? (
+                                <div className="flex flex-col gap-1 text-xs font-mono">
+                                  {e.calls != null && <span>Calls: {e.calls}</span>}
+                                  {e.tours != null && <span>Tours: {e.tours}</span>}
+                                  {e.closures != null && <span>Closures: {e.closures}</span>}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="whitespace-pre-wrap text-sm text-foreground/90">
+                                {e.text}
+                              </div>
+                              {e.blockers && (
+                                <div className="mt-2 text-xs rounded-md border border-destructive/20 bg-destructive/5 text-destructive px-2 py-1 inline-flex items-center gap-1">
+                                  <AlertCircle className="h-3 w-3" /> {e.blockers}
+                                </div>
+                              )}
+                            </td>
+                          </>
+                        ) : (
+                          <td colSpan={4} className="px-6 py-4 text-center text-muted-foreground">
+                            <span className="text-xs italic">No intraday slots submitted yet.</span>
+                          </td>
+                        )}
+                        {idx === 0 && (
+                          <td rowSpan={group.regularEntries.length} className="px-6 py-4 align-top border-l border-border/20 min-w-[250px]">
+                            {group.eodEntry ? (
+                              <>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div
+                                    className={`text-[10px] uppercase tracking-wider font-mono ${
+                                      group.eodEntry.onTime ? "text-success" : "text-warning"
+                                    }`}
+                                  >
+                                    {group.eodEntry.onTime ? "On Time" : "Late"}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-IN", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </div>
+                                </div>
+                                <div className="whitespace-pre-wrap text-sm text-foreground/90">
+                                  {group.eodEntry.text}
+                                </div>
+                                {group.eodEntry.blockers && (
+                                  <div className="mt-2 text-xs rounded-md border border-destructive/20 bg-destructive/5 text-destructive px-2 py-1 inline-flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3" /> {group.eodEntry.blockers}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-center text-muted-foreground mt-4 text-xs italic">
+                                Pending EOD
+                              </div>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

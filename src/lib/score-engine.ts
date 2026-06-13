@@ -18,23 +18,15 @@ export function computeScore(emp: Employee): ScoreBreakdown {
   const att = emp.attendance;
   const tasks = tasksFor(emp.id);
   const completed = tasks.filter((t) => t.status === "done");
-  const onTime = completed.filter((t) => (t.completedAt ?? 0) <= t.dueAt).length;
-  const taskOnTime =
-    completed.length > 0 ? Math.round((onTime / completed.length) * 100) : emp.taskCompletion;
+  const taskCompletionPct =
+    tasks.length > 0 ? Math.round((completed.length / tasks.length) * 100) : emp.taskCompletion;
 
-  const recent = kudosReceived(emp.id, Date.now() - 30 * D);
-  const kudos = Math.min(100, recent.length * 25);
+  const kudos = 0; // Removed from total score calculation
+  const roleKpi = 0; // Removed from total score calculation
 
-  // Role-specific KPI proxy
-  let roleKpi = emp.performance;
-  if (emp.role === "Operator")
-    roleKpi = Math.round(emp.conversion * 3 + (emp.callsToday / Math.max(1, emp.callTarget)) * 50);
-  else if (emp.role === "TCM") roleKpi = Math.round(emp.taskCompletion);
-  else if (emp.role === "Floor Lead") roleKpi = Math.round(emp.performance);
-  roleKpi = Math.max(0, Math.min(100, roleKpi));
-
-  const total = Math.round(att * 0.4 + taskOnTime * 0.3 + kudos * 0.15 + roleKpi * 0.15);
-  return { attendance: att, taskOnTime, kudos, roleKpi, total };
+  // Score based ONLY on Attendance and Task Completion, weighted equally (50/50)
+  const total = Math.round((att + taskCompletionPct) / 2);
+  return { attendance: att, taskOnTime: taskCompletionPct, kudos, roleKpi, total };
 }
 
 export function squadOf(emp: Employee): Employee[] {

@@ -1,6 +1,6 @@
 // HTTP client for the self-hosted Arena API (VITE_API_URL, e.g. http://localhost:4000/api).
 
-let API_URL: string | undefined;
+export let API_URL: string | undefined;
 const isBrowser = typeof window !== "undefined";
 if (isBrowser) {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
@@ -139,6 +139,40 @@ export async function login(input: { email: string; password: string }) {
   setToken(res.token);
   setCachedUser(res.user);
   return res;
+}
+
+export async function impersonate(employeeId: string) {
+  const currentToken = getToken();
+  const currentUser = getCachedUser();
+  if (currentToken && currentUser && currentUser.role === "admin") {
+    window.localStorage.setItem("arena_original_token", currentToken);
+    window.localStorage.setItem("arena_original_user", JSON.stringify(currentUser));
+  }
+
+  const res = await api.post<{ token: string; user: ApiUser }>("/auth/impersonate", { employeeId });
+  setToken(res.token);
+  setCachedUser(res.user);
+  return res;
+}
+
+export function revertImpersonation() {
+  const originalToken = window.localStorage.getItem("arena_original_token");
+  const originalUser = window.localStorage.getItem("arena_original_user");
+  if (originalToken && originalUser) {
+    setToken(originalToken);
+    try {
+      setCachedUser(JSON.parse(originalUser));
+    } catch {
+      setCachedUser(null);
+    }
+    window.localStorage.removeItem("arena_original_token");
+    window.localStorage.removeItem("arena_original_user");
+  }
+}
+
+export function isImpersonating(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!window.localStorage.getItem("arena_original_token");
 }
 
 export async function me() {

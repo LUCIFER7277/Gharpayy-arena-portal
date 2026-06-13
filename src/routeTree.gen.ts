@@ -13,6 +13,7 @@ import { Route as ZonesRouteImport } from './routes/zones'
 import { Route as WarRoomRouteImport } from './routes/war-room'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as TaskThroughputRouteImport } from './routes/task-throughput'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScoreRouteImport } from './routes/score'
@@ -21,8 +22,10 @@ import { Route as RecruitingRouteImport } from './routes/recruiting'
 import { Route as PulseRouteImport } from './routes/pulse'
 import { Route as PeopleRouteImport } from './routes/people'
 import { Route as PartnerRouteImport } from './routes/partner'
+import { Route as OrgGoalsRouteImport } from './routes/org-goals'
 import { Route as OneOnOnesRouteImport } from './routes/one-on-ones'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LiveAttendanceRouteImport } from './routes/live-attendance'
 import { Route as LeavesRouteImport } from './routes/leaves'
 import { Route as KudosRouteImport } from './routes/kudos'
 import { Route as InboxRouteImport } from './routes/inbox'
@@ -57,6 +60,11 @@ const TeamRoute = TeamRouteImport.update({
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaskThroughputRoute = TaskThroughputRouteImport.update({
+  id: '/task-throughput',
+  path: '/task-throughput',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -99,6 +107,11 @@ const PartnerRoute = PartnerRouteImport.update({
   path: '/partner',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgGoalsRoute = OrgGoalsRouteImport.update({
+  id: '/org-goals',
+  path: '/org-goals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OneOnOnesRoute = OneOnOnesRouteImport.update({
   id: '/one-on-ones',
   path: '/one-on-ones',
@@ -107,6 +120,11 @@ const OneOnOnesRoute = OneOnOnesRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveAttendanceRoute = LiveAttendanceRouteImport.update({
+  id: '/live-attendance',
+  path: '/live-attendance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeavesRoute = LeavesRouteImport.update({
@@ -198,8 +216,10 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof InboxRoute
   '/kudos': typeof KudosRoute
   '/leaves': typeof LeavesRoute
+  '/live-attendance': typeof LiveAttendanceRoute
   '/login': typeof LoginRoute
   '/one-on-ones': typeof OneOnOnesRoute
+  '/org-goals': typeof OrgGoalsRoute
   '/partner': typeof PartnerRoute
   '/people': typeof PeopleRoute
   '/pulse': typeof PulseRoute
@@ -208,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/score': typeof ScoreRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/task-throughput': typeof TaskThroughputRoute
   '/tasks': typeof TasksRoute
   '/team': typeof TeamRoute
   '/war-room': typeof WarRoomRoute
@@ -229,8 +250,10 @@ export interface FileRoutesByTo {
   '/inbox': typeof InboxRoute
   '/kudos': typeof KudosRoute
   '/leaves': typeof LeavesRoute
+  '/live-attendance': typeof LiveAttendanceRoute
   '/login': typeof LoginRoute
   '/one-on-ones': typeof OneOnOnesRoute
+  '/org-goals': typeof OrgGoalsRoute
   '/partner': typeof PartnerRoute
   '/people': typeof PeopleRoute
   '/pulse': typeof PulseRoute
@@ -239,6 +262,7 @@ export interface FileRoutesByTo {
   '/score': typeof ScoreRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/task-throughput': typeof TaskThroughputRoute
   '/tasks': typeof TasksRoute
   '/team': typeof TeamRoute
   '/war-room': typeof WarRoomRoute
@@ -261,8 +285,10 @@ export interface FileRoutesById {
   '/inbox': typeof InboxRoute
   '/kudos': typeof KudosRoute
   '/leaves': typeof LeavesRoute
+  '/live-attendance': typeof LiveAttendanceRoute
   '/login': typeof LoginRoute
   '/one-on-ones': typeof OneOnOnesRoute
+  '/org-goals': typeof OrgGoalsRoute
   '/partner': typeof PartnerRoute
   '/people': typeof PeopleRoute
   '/pulse': typeof PulseRoute
@@ -271,6 +297,7 @@ export interface FileRoutesById {
   '/score': typeof ScoreRoute
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
+  '/task-throughput': typeof TaskThroughputRoute
   '/tasks': typeof TasksRoute
   '/team': typeof TeamRoute
   '/war-room': typeof WarRoomRoute
@@ -294,8 +321,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/kudos'
     | '/leaves'
+    | '/live-attendance'
     | '/login'
     | '/one-on-ones'
+    | '/org-goals'
     | '/partner'
     | '/people'
     | '/pulse'
@@ -304,6 +333,7 @@ export interface FileRouteTypes {
     | '/score'
     | '/settings'
     | '/signup'
+    | '/task-throughput'
     | '/tasks'
     | '/team'
     | '/war-room'
@@ -325,8 +355,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/kudos'
     | '/leaves'
+    | '/live-attendance'
     | '/login'
     | '/one-on-ones'
+    | '/org-goals'
     | '/partner'
     | '/people'
     | '/pulse'
@@ -335,6 +367,7 @@ export interface FileRouteTypes {
     | '/score'
     | '/settings'
     | '/signup'
+    | '/task-throughput'
     | '/tasks'
     | '/team'
     | '/war-room'
@@ -356,8 +389,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/kudos'
     | '/leaves'
+    | '/live-attendance'
     | '/login'
     | '/one-on-ones'
+    | '/org-goals'
     | '/partner'
     | '/people'
     | '/pulse'
@@ -366,6 +401,7 @@ export interface FileRouteTypes {
     | '/score'
     | '/settings'
     | '/signup'
+    | '/task-throughput'
     | '/tasks'
     | '/team'
     | '/war-room'
@@ -388,8 +424,10 @@ export interface RootRouteChildren {
   InboxRoute: typeof InboxRoute
   KudosRoute: typeof KudosRoute
   LeavesRoute: typeof LeavesRoute
+  LiveAttendanceRoute: typeof LiveAttendanceRoute
   LoginRoute: typeof LoginRoute
   OneOnOnesRoute: typeof OneOnOnesRoute
+  OrgGoalsRoute: typeof OrgGoalsRoute
   PartnerRoute: typeof PartnerRoute
   PeopleRoute: typeof PeopleRoute
   PulseRoute: typeof PulseRoute
@@ -398,6 +436,7 @@ export interface RootRouteChildren {
   ScoreRoute: typeof ScoreRoute
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
+  TaskThroughputRoute: typeof TaskThroughputRoute
   TasksRoute: typeof TasksRoute
   TeamRoute: typeof TeamRoute
   WarRoomRoute: typeof WarRoomRoute
@@ -435,6 +474,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/task-throughput': {
+      id: '/task-throughput'
+      path: '/task-throughput'
+      fullPath: '/task-throughput'
+      preLoaderRoute: typeof TaskThroughputRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -493,6 +539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartnerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org-goals': {
+      id: '/org-goals'
+      path: '/org-goals'
+      fullPath: '/org-goals'
+      preLoaderRoute: typeof OrgGoalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/one-on-ones': {
       id: '/one-on-ones'
       path: '/one-on-ones'
@@ -505,6 +558,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live-attendance': {
+      id: '/live-attendance'
+      path: '/live-attendance'
+      fullPath: '/live-attendance'
+      preLoaderRoute: typeof LiveAttendanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaves': {
@@ -628,8 +688,10 @@ const rootRouteChildren: RootRouteChildren = {
   InboxRoute: InboxRoute,
   KudosRoute: KudosRoute,
   LeavesRoute: LeavesRoute,
+  LiveAttendanceRoute: LiveAttendanceRoute,
   LoginRoute: LoginRoute,
   OneOnOnesRoute: OneOnOnesRoute,
+  OrgGoalsRoute: OrgGoalsRoute,
   PartnerRoute: PartnerRoute,
   PeopleRoute: PeopleRoute,
   PulseRoute: PulseRoute,
@@ -638,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScoreRoute: ScoreRoute,
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
+  TaskThroughputRoute: TaskThroughputRoute,
   TasksRoute: TasksRoute,
   TeamRoute: TeamRoute,
   WarRoomRoute: WarRoomRoute,

@@ -21,8 +21,14 @@ export function useRoleFeature(): (path: string) => boolean {
   });
 
   return (path: string): boolean => {
+    // Resolve dynamic path segments back to route definition for feature mapping
+    let resolvedPath = path;
+    if (path.startsWith("/employee-stats/")) {
+      resolvedPath = "/employee-stats/$id";
+    }
+
     // Resolve the feature key for this path
-    const featureKey = FEATURE_MAP[path] ?? path;
+    const featureKey = FEATURE_MAP[resolvedPath] ?? resolvedPath;
 
     // ── LAUNCH_MODE global gate ──────────────────────────────────────────
     // If we are in launch mode and the route has a known mapping,

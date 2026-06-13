@@ -48,6 +48,7 @@ import { GiveKudoModal } from "./GiveKudoModal";
 import { Avatar } from "./Avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { isImpersonating, revertImpersonation } from "@/lib/api-client";
 import { useRoleFeature } from "../hooks/useRoleFeature";
 import ComingSoon from "./ComingSoon";
 
@@ -376,6 +377,21 @@ export function AppShell() {
       )}
 
       <main className="flex-1 min-w-0 flex flex-col h-full overflow-hidden pb-16 md:pb-0">
+        {isImpersonating() && (
+          <div className="bg-destructive/15 text-destructive border-b border-destructive/20 text-xs px-4 py-2 flex items-center justify-center gap-2">
+            <span className="font-semibold">Impersonation Mode Active</span>
+            <span className="text-destructive/80">— you are currently viewing the app as {actor.name}.</span>
+            <button
+              onClick={() => {
+                revertImpersonation();
+                window.location.replace("/");
+              }}
+              className="ml-2 font-semibold underline underline-offset-2 hover:text-destructive/80"
+            >
+              Return to Admin
+            </button>
+          </div>
+        )}
         <header className="shrink-0 h-14 border-b border-border bg-card/50 backdrop-blur-md flex items-center px-3 md:px-6 gap-2 md:gap-4 z-40">
           <button
             onClick={() => setDrawerOpen(true)}
