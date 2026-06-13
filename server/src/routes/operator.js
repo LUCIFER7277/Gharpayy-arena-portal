@@ -214,18 +214,52 @@ router.get(
     ]);
 
     const visibleIds = await resolveVisibleIds(req.user, allEmployees);
-    const team = allEmployees.filter((e) => visibleIds.has(e.id));
+    const team = allEmployees.filter((e) => {
+      if (!visibleIds.has(e.id)) return false;
+      const r = e.role?.toLowerCase().trim() || "";
+      const ar = e.profile?.appRole?.toLowerCase().trim() || "";
+      return r !== "admin" && r !== "hr" && ar !== "admin" && ar !== "hr";
+    });
 
     const members = team.map((emp) => computeMemberMetrics(emp, tasks, leaves, attEvents, kudos));
 
     // ─── aggregate team health ───────────────────────────────────────────
     const total = members.length;
-    const present = members.filter((m) => m.attendance.clockInCount > 0).length;
-    const late = members.filter((m) => m.attendance.lateArrivals > 0).length;
+    
+    // Calculate Present/Late ONLY for today
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayTsStart = new Date(todayStr).getTime();
+    const todayClockIns = attEvents.filter(e => e.kind === "clock_in" && e.ts >= todayTsStart);
+    
+    let present = 0;
+    let late = 0;
+    
+    for (const m of members) {
+      const mClockIns = todayClockIns.filter(e => e.employeeId === m.employeeId);
+      if (mClockIns.length > 0) {
+        present++;
+        const empRaw = team.find(e => e.id === m.employeeId);
+        const profile = empRaw ? readProfile(empRaw) : {};
+        const shiftStart = profile.shift ? (profile.shift.split(" - ")[0] ?? "10:00") : "10:00";
+        const [shH, shM] = shiftStart.split(":").map(Number);
+        const shiftStartMin = (shH || 10) * 60 + (shM || 0) + 15;
+        
+        const isLate = mClockIns.some(ci => {
+          const d = new Date(ci.ts);
+          const min = d.getHours() * 60 + d.getMinutes();
+          return min > shiftStartMin;
+        });
+        if (isLate) late++;
+      }
+    }
+    
     const leaveRisk = members.filter((m) => m.leaves.pending > 0).length;
     const burnoutHigh = members.filter((m) => m.burnoutRisk === "high").length;
     const interventionNeeded = members.filter((m) => m.needsIntervention);
-    const topPerformers = [...members].sort((a, b) => b.performance - a.performance).slice(0, 3);
+    const topPerformers = [...members]
+      .filter((m) => m.role?.toLowerCase() !== "admin" && m.appRole?.toLowerCase() !== "admin")
+      .sort((a, b) => b.performance - a.performance)
+      .slice(0, 3);
 
     const avgEngagement =
       members.length > 0
@@ -615,7 +649,12 @@ router.post(
         ]);
 
       const visibleIds = await resolveVisibleIds(req.user, allEmployees);
-      const teamEmployees = allEmployees.filter((emp) => visibleIds.has(emp.id));
+      const teamEmployees = allEmployees.filter((emp) => {
+        if (!visibleIds.has(emp.id)) return false;
+        const r = emp.role?.toLowerCase().trim() || "";
+        const ar = emp.profile?.appRole?.toLowerCase().trim() || "";
+        return r !== "admin" && r !== "hr" && ar !== "admin" && ar !== "hr";
+      });
       const employeeById = new Map(allEmployees.map((emp) => [emp.id, emp]));
 
       const members = teamEmployees.map((emp) =>
@@ -781,6 +820,7 @@ router.post(
       };
 
       const topPerformerMetrics = members
+        .filter((m) => m.role?.toLowerCase() !== "admin" && m.appRole?.toLowerCase() !== "admin")
         .map((m) => ({
           name: m.name,
           score:

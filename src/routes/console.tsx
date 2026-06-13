@@ -6,6 +6,7 @@ import {
   Flame,
   Plus,
   Check,
+  CheckCircle2,
   Clock,
   MessageSquare,
   Copy,
@@ -42,7 +43,8 @@ import {
   nextSprint,
   exportEodText,
 } from "@/lib/console-store";
-import { useTasks, tasksFor, setStatus, requestTaskReason, scheduleOverdueMeeting } from "@/lib/task-store";
+import { useTasks, tasksFor, setStatus, requestTaskReason, scheduleOverdueMeeting, createTask, addComment } from "@/lib/task-store";
+import { submitPulse } from "@/lib/pulse-store";
 import type { AppTask } from "@/types/hr";
 import { Avatar } from "@/components/Avatar";
 import type { Employee } from "@/types/hr";
@@ -55,6 +57,7 @@ import {
   type KpiDefinition,
   type KpiTarget,
 } from "@/lib/kpi-governance-api";
+import { AdminPulseView } from "./pulse";
 
 export const Route = createFileRoute("/console")({
   component: ConsolePage,
@@ -263,30 +266,16 @@ function ConsolePage() {
               01 / My Operations
             </span>
           </div>
-          {pb ? (
-            <MyOperationsSection pb={pb} actorId={actor.id} actorName={actor.name} actor={actor} currentUserEmployeeId={user?.employeeId} />
-          ) : (
-            <div className="rounded-xl border border-border bg-card p-5 flex items-center justify-between bg-gradient-to-r from-card to-secondary/15">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
-                  <Activity className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Operator Playbook</h2>
-                  <p className="text-xs text-muted-foreground">
-                    No operator playbook assigned for execution workflows.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          <MyOperationsSection pb={pb} actorId={actor.id} actorName={actor.name} actor={actor} currentUserEmployeeId={user?.employeeId} />
         </div>
       )}
+      
+
       {hasTeamIntel && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-2">
             <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-              02 / Team Intelligence
+              {hasMyOps && pb ? "02" : "01"} / Team Intelligence
             </span>
           </div>
           <TeamIntelligencePanel actor={actor} />
@@ -296,7 +285,7 @@ function ConsolePage() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-2">
             <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-              03 / Leadership Actions
+              {hasMyOps && pb ? (hasTeamIntel ? "03" : "02") : (hasTeamIntel ? "02" : "01")} / Leadership Actions
             </span>
           </div>
           <LeadershipActionsPanel actor={actor} />
@@ -340,12 +329,7 @@ function MyOperationsSection({
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
 
-          {hasConsoleCapability(actor, "manage_personal_sprint") && (
-            <DynamicTaskSprints actorId={actorId} tasks={myTasks} currentUserEmployeeId={currentUserEmployeeId} />
-          )}
-          {hasConsoleCapability(actor, "manage_comm_windows") && (
-            <CommWindows pb={pb} actorId={actorId} day={day} />
-          )}
+          <CommWindows pb={pb} actorId={actorId} day={day} />
         </div>
         <div className="space-y-6">
           <CollapseRule pb={pb} />
@@ -499,78 +483,6 @@ function NowStrip({
 
 
 
-function DynamicTaskSprints({ actorId, tasks, currentUserEmployeeId }: { actorId: string; tasks: AppTask[]; currentUserEmployeeId?: string }) {
-  const todayStr = new Date().toDateString();
-  const activeTasks = tasks.filter((t) => {
-    const taskDate = new Date(t.dueAt).setHours(0, 0, 0, 0);
-    const today = new Date().setHours(0, 0, 0, 0);
-    if (t.status === "done") {
-      return t.completedAt && new Date(t.completedAt).setHours(0, 0, 0, 0) === today;
-    }
-    return taskDate <= today || new Date(t.createdAt).setHours(0, 0, 0, 0) === today;
-  });
-
-  if (activeTasks.length === 0) return null;
-
-  return (
-    <section>
-      <SectionHead
-        icon={Zap}
-        title="Dynamic Task Sprints"
-        subtitle="Real-time task countdowns and execution blocks"
-      />
-      <div className="space-y-3">
-        {activeTasks.map((t) => {
-          const isDone = t.status === "done";
-          return (
-            <div key={t.id} className={`rounded-lg border p-4 transition-colors ${isDone ? "border-success/40 bg-success/5" : "border-primary/40 bg-primary/5"}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                      isDone ? "bg-success/15 text-success border border-success/30" :
-                      t.priority === "urgent" ? "bg-destructive/15 text-destructive border border-destructive/30" :
-                      t.priority === "high" ? "bg-warning/15 text-warning border border-warning/30" :
-                      "bg-secondary border border-border text-muted-foreground"
-                    }`}>
-                      {isDone ? "Done" : t.priority}
-                    </span>
-                    <span className={`font-mono text-[10px] ${isDone ? "text-success" : "text-primary"}`}>
-                      {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → {new Date(t.dueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div className={`text-base font-semibold mt-1 ${isDone ? "text-success line-through opacity-70" : ""}`}>{t.title}</div>
-                  {t.description && <div className={`text-sm mt-0.5 ${isDone ? "text-success/70" : "text-muted-foreground"}`}>{t.description}</div>}
-                  {t.relatedTo && (
-                    <div className={`text-xs mt-1 font-mono flex items-center gap-1 ${isDone ? "text-success/70" : "text-muted-foreground"}`}>
-                      <FileText className="h-3 w-3" /> {t.relatedTo}
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {!isDone && <LiveCountdown targetTimeMs={t.dueAt} />}
-                  <button
-                    disabled={t.assigneeId !== currentUserEmployeeId}
-                    onClick={() => setStatus(t.id, isDone ? "todo" : "done", actorId)}
-                    className={`h-8 px-3 mt-1 inline-flex items-center gap-1 rounded text-xs font-medium border transition-colors ${
-                      isDone
-                        ? "border-success/40 bg-success/20 text-success"
-                        : t.assigneeId !== currentUserEmployeeId
-                        ? "border-border bg-secondary/50 text-muted-foreground opacity-50 cursor-not-allowed"
-                        : "border-border bg-secondary hover:bg-success/20 hover:text-success hover:border-success/40"
-                    }`}
-                  >
-                    <Check className="h-3 w-3" /> {isDone ? "Done" : "Mark done"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 function CommWindows({
   pb,
@@ -582,6 +494,20 @@ function CommWindows({
   day: ReturnType<typeof useConsoleDay>;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  
+  const allTasks = useTasks();
+  const { user, actor: loggedInActor } = useAuth();
+  const currentUserId = loggedInActor?.id || user?.employeeId || user?.id;
+
+  const r = user?.role?.toLowerCase() || "";
+  const ar = (user as any)?.appRole?.toLowerCase() || (user as any)?.profile?.appRole?.toLowerCase() || "";
+  const isLeadership = 
+    r.includes("admin") || r.includes("hr") || ar.includes("admin") || ar.includes("hr");
+
+  const sentCheckIns = allTasks.filter(task => task.relatedTo === "Admin Check-In" && task.assigneeId === actorId);
+
+  if (!isLeadership && sentCheckIns.length === 0) return null;
+
   return (
     <section>
       <SectionHead
@@ -594,60 +520,39 @@ function CommWindows({
         }
       />
       <div className="space-y-2">
-        {pb.commWindows.map((w: any, index: number) => {
-          const sent = day.windowsSent[w.id];
-          const m = nowMin();
-          const overdue = !sent && m > w.atMin + 15;
-          const due = !sent && m >= w.atMin - 5 && m <= w.atMin + 15;
-          const isOpen = open === w.id;
+        {ADMIN_TEMPLATES.map((t) => {
+          const sentTask = allTasks.find(task => task.relatedTo === "Admin Check-In" && task.title.includes(t.title) && task.assigneeId === actorId);
+          const isSent = !!sentTask;
+          
+          if (!isLeadership && !isSent) return null;
+
+          const isOpen = open === t.id;
+
           return (
-            <div
-              key={w.id || index}
-              className={`rounded-lg border ${
-                sent
-                  ? "border-success/40 bg-success/5"
-                  : overdue
-                    ? "border-destructive/40 bg-destructive/5"
-                    : due
-                      ? "border-warning/40 bg-warning/5"
-                      : "border-border bg-card"
-              }`}
-            >
+            <div key={t.id} className={`rounded-lg border overflow-hidden transition-colors ${
+              isSent ? "border-success/30 bg-success/5" : "border-border bg-card"
+            }`}>
               <button
-                onClick={() => setOpen(isOpen ? null : w.id)}
-                className="w-full p-3 flex items-center gap-3 text-left"
+                onClick={() => setOpen(isOpen ? null : t.id)}
+                className="w-full text-left p-3 flex items-center justify-between hover:bg-secondary/20 transition-colors"
               >
-                <div className="h-8 w-8 rounded bg-secondary flex items-center justify-center shrink-0">
-                  <MessageSquare className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">{w.label}</div>
-                  <div className="text-[11px] font-mono text-muted-foreground">
-                    {w.channel} · scheduled {fmtMin(w.atMin)}
+                <div className="flex items-center gap-3">
+                  <div className={`mt-0.5 rounded ${isSent ? "text-success" : "text-muted-foreground"}`}>
+                    <MessageSquare className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold">{t.title}</div>
+                    <div className="text-xs text-muted-foreground">Admin Check-In · {t.time}</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  {sent ? (
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-success inline-flex items-center gap-1">
-                      <Check className="h-3 w-3" />
-                      Sent{" "}
-                      {new Date(sent).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  ) : overdue ? (
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-destructive inline-flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Overdue
-                    </span>
-                  ) : due ? (
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-warning">
-                      Due now
+                <div className="flex items-center gap-3">
+                  {isSent ? (
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-success flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Sent {new Date(sentTask.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                      Pending
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-primary flex items-center gap-1">
+                      <Send className="h-3 w-3" /> Ready to send
                     </span>
                   )}
                 </div>
@@ -655,22 +560,71 @@ function CommWindows({
               {isOpen && (
                 <div className="border-t border-border p-3 space-y-2">
                   <pre className="whitespace-pre-wrap text-xs bg-secondary/40 rounded p-3 font-sans leading-relaxed">
-                    {w.template}
+                    {t.text}
                   </pre>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => navigator.clipboard?.writeText(w.template)}
-                      className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-border hover:bg-secondary text-xs"
-                    >
-                      <Copy className="h-3 w-3" /> Copy
-                    </button>
-                    <button
-                      onClick={() => markWindowSent(actorId, w.id)}
-                      className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-primary/30 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium"
-                    >
-                      <Send className="h-3 w-3" /> Mark sent
-                    </button>
-                  </div>
+
+                  {isLeadership && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard?.writeText(t.text);
+                        }}
+                        className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-border hover:bg-secondary text-xs"
+                      >
+                        <Copy className="h-3 w-3" /> Copy
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`https://wa.me/?text=${encodeURIComponent(t.text)}`, "_blank");
+                        }}
+                        className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-[#25D366] bg-[#25D366] text-white hover:bg-[#20bd5a] text-xs font-medium"
+                      >
+                        <Send className="h-3 w-3" /> WhatsApp
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!currentUserId) return;
+                          createTask({
+                            title: `Admin Check-In: ${t.title}`,
+                            description: t.text,
+                            assigneeId: actorId,
+                            assignedById: currentUserId,
+                            priority: "urgent",
+                            dueAt: Date.now() - 1000,
+                            source: "manual",
+                            relatedTo: "Admin Check-In",
+                          });
+                        }}
+                        className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-blue-600 bg-blue-600 text-white hover:bg-blue-500 text-xs font-medium"
+                      >
+                        <Check className="h-3 w-3" /> Mark sent to {actorId === currentUserId ? "Yourself" : "Operator"}
+                      </button>
+                    </div>
+                  )}
+
+                  {isSent && (
+                     <div className="mt-3 pt-3 border-t border-success/20">
+                      {currentUserId === actorId && sentTask.status !== "done" ? (
+                        <CheckInResponseForm task={sentTask} />
+                      ) : (
+                        <>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-success mb-1 block">Operator Response:</span>
+                          {sentTask.comments && sentTask.comments.length > 0 ? (
+                            <div className="text-xs text-foreground bg-secondary/50 p-2 rounded">
+                              {sentTask.comments[sentTask.comments.length - 1].body}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-warning italic flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> Waiting for operator response...
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -848,10 +802,16 @@ function EodGenerator({
           onClick={() => {
             const textToCopy = previewText !== null ? previewText : generateDraft();
             navigator.clipboard?.writeText(textToCopy);
+            // Sync with pulse store
+            submitPulse({
+              employeeId: actorId,
+              slot: "eod",
+              text: textToCopy,
+            });
           }}
           className="flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded bg-primary text-primary-foreground text-xs font-medium"
         >
-          <Copy className="h-3 w-3" /> Copy report
+          <Copy className="h-3 w-3" /> Copy & Submit report
         </button>
       </div>
       {previewText !== null && (
@@ -898,11 +858,97 @@ function SectionHead({
 // expose role list for debugging — referenced for tree-shake safety
 export const __PLAYBOOK_KEYS__ = () => Object.keys(playbookStore.read().playbooks);
 
+const ADMIN_TEMPLATES = [
+  {
+    id: "check_1pm",
+    title: "1 PM Initial Check",
+    time: "1 PM",
+    text: `1 PM CHECK-IN
+Drafts done (Target: 30) - 
+Super Leads - 
+U1 Calls connected (Target: 30) - 
+Tours planned / done - 
+CX Issues / Blockers - 
+
+*Prioritize value creation, maintain a focused agenda, and optimize time management.*`
+  },
+  {
+    id: "check_5pm",
+    title: "5 PM Mid-Day Check",
+    time: "5 PM",
+    text: `5 PM CHECK-IN (Target: 40% more than 1 PM)
+Drafts done - 
+Super Leads - 
+U1 Calls connected - 
+Tours planned / done - 
+CX Issues / Blockers - `
+  },
+  {
+    id: "check_8pm",
+    title: "8 PM EOD Check",
+    time: "8 PM",
+    text: `8 PM EOD WRAP-UP
+Total Drafts - 
+Total Super Leads - 
+Total U1 Calls connected - 
+Total Tours planned / done - 
+Key learnings / Blockers for tomorrow - `
+  }
+];
+
+
+
+function CheckInResponseForm({ task }: { task: AppTask }) {
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSend = () => {
+    if (!text.trim()) return;
+    setSubmitting(true);
+    addComment(task.id, task.assigneeId, text);
+    setStatus(task.id, "done", task.assigneeId);
+    setTimeout(() => setSubmitting(false), 500);
+  };
+
+  return (
+    <div className="mt-auto pt-4 border-t border-destructive/10 flex flex-col gap-2">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Paste your completed check-in here..."
+        className="w-full text-xs bg-secondary/40 border border-border rounded p-3 min-h-[80px] resize-y"
+      />
+      <button
+        onClick={handleSend}
+        disabled={!text.trim() || submitting}
+        className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+      >
+        <Send className="h-3.5 w-3.5" /> Send Response
+      </button>
+    </div>
+  );
+}
+
 function CommunicationWindow({ actor, currentUserEmployeeId }: { actor: ReturnType<typeof useAttendanceState>["actor"]; currentUserEmployeeId?: string }) {
   const allTasks = useTasks();
+  const { user, actor: loggedInActor } = useAuth();
   
+  const currentUserId = currentUserEmployeeId || loggedInActor?.id || user?.employeeId || user?.id;
+  
+  const r = user?.role?.toLowerCase() || actor?.role?.toLowerCase() || "";
+  const ar = (user as any)?.appRole?.toLowerCase() || (user as any)?.profile?.appRole?.toLowerCase() || (actor as any)?.appRole?.toLowerCase() || (actor as any)?.profile?.appRole?.toLowerCase() || "";
+  
+  const isLeadership = 
+    tierOf(actor) === "hr" || 
+    tierOf(actor) === "leadership" || 
+    tierOf(actor) === "zone_leader" || 
+    r.includes("admin") || 
+    r.includes("hr") || 
+    ar.includes("admin") ||
+    ar.includes("hr");
+
   // Find overdue tasks that are not done
-  const overdueTasks = allTasks.filter(t => t.status !== "done" && t.dueAt < Date.now());
+  const overdueTasks = allTasks.filter(t => t.status !== "done" && t.dueAt < Date.now() && t.assigneeId === actor.id && t.relatedTo !== "Admin Check-In");
 
   if (overdueTasks.length === 0) return null;
 
@@ -911,7 +957,7 @@ function CommunicationWindow({ actor, currentUserEmployeeId }: { actor: ReturnTy
       <div className="flex items-center gap-2 border-b border-border pb-2">
         <span className="text-xs font-mono uppercase tracking-widest text-destructive flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
-          04 / Communication Window
+          Urgent Tasks & Responses
         </span>
       </div>
       
@@ -933,7 +979,7 @@ function CommunicationWindow({ actor, currentUserEmployeeId }: { actor: ReturnTy
               </p>
             </div>
             
-            {hasConsoleCapability(actor, "manage_workforce_interventions") && currentUserEmployeeId && (
+            {hasConsoleCapability(actor, "manage_workforce_interventions") && currentUserEmployeeId && currentUserEmployeeId !== task.assigneeId && (
               <div className="flex items-center gap-2 mt-auto pt-4 border-t border-destructive/10">
                 <button
                   onClick={() => requestTaskReason(task.id, currentUserEmployeeId)}

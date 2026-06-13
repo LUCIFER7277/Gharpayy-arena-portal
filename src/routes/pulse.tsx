@@ -15,6 +15,7 @@ import {
   subscribe,
   todayISO,
 } from "@/lib/pulse-store";
+import { dayHealth } from "@/lib/console-store";
 import { Avatar } from "@/components/Avatar";
 import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles } from "lucide-react";
 
@@ -414,7 +415,7 @@ function OrgComplianceCard() {
   );
 }
 
-function AdminPulseView() {
+export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const [v, setV] = useState(0);
   useEffect(() => subscribe(() => setV((x) => x + 1)), []);
 
@@ -424,6 +425,7 @@ function AdminPulseView() {
   const groupedEntries = useMemo(() => {
     const groups: Record<string, typeof entries> = {};
     for (const e of entries) {
+      if (e.role?.toLowerCase() === "admin") continue;
       if (!groups[e.employeeId]) groups[e.employeeId] = [];
       groups[e.employeeId].push(e);
     }
@@ -468,6 +470,7 @@ function AdminPulseView() {
       "Closures",
       "Blockers",
       "Pulse Text",
+      "Console Status",
       "EOD Time",
       "EOD Status",
       "EOD Brief",
@@ -496,12 +499,14 @@ function AdminPulseView() {
         const outEodBlockers = idx === 0 ? eodBlockers : "";
 
         if (e) {
-          let slotLabel = e.slot;
+          let slotLabel: string = e.slot;
           const slotObj = SLOTS.find((s) => s.key === e.slot);
           if (slotObj) {
             const parts = slotObj.label.split(" · ");
             slotLabel = parts.length > 1 ? `${parts[0]} (${parts[1]})` : slotObj.label;
           }
+          
+          const health = dayHealth(group.empId);
           
           rows.push([
             name, role, team,
@@ -510,10 +515,12 @@ function AdminPulseView() {
             e.onTime ? "On Time" : "Late",
             e.calls?.toString() || "", e.tours?.toString() || "", e.closures?.toString() || "",
             e.blockers?.replace(/\n/g, " ") || "", e.text.replace(/\n/g, " "),
+            idx === 0 ? `${health.score}% (${health.label})` : "",
             outEodTime, outEodStatus, outEodText, outEodBlockers
           ]);
         } else {
-          rows.push([name, role, team, "No intraday slots", "", "", "", "", "", "", "", outEodTime, outEodStatus, outEodText, outEodBlockers]);
+          const health = dayHealth(group.empId);
+          rows.push([name, role, team, "No intraday slots", "", "", "", "", "", "", "", idx === 0 ? `${health.score}% (${health.label})` : "", outEodTime, outEodStatus, outEodText, outEodBlockers]);
         }
 
         // --- HTML Table Generation with Styling and Rowspans ---
@@ -530,7 +537,7 @@ function AdminPulseView() {
         }
 
         if (e) {
-          let slotLabel = e.slot;
+          let slotLabel: string = e.slot;
           const slotObj = SLOTS.find((s) => s.key === e.slot);
           if (slotObj) {
             const parts = slotObj.label.split(" · ");
@@ -551,7 +558,9 @@ function AdminPulseView() {
         }
 
         if (idx === 0) {
+          const health = dayHealth(group.empId);
           const eodStatusColor = group.eodEntry?.onTime ? '#16a34a' : group.eodEntry ? '#ea580c' : '#6b7280';
+          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle}"><b>${health.score}%</b><br/><span style="font-size:10px">${health.label}</span></td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodStyle}">${eodTime}</td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodStyle} color: ${eodStatusColor}; font-weight: bold;">${eodStatus}</td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodTextStyle}">${group.eodEntry?.text || ""}</td>`;
@@ -592,29 +601,41 @@ function AdminPulseView() {
   }
 
   return (
-    <div className="px-4 md:px-8 py-6 max-w-7xl mx-auto space-y-6">
-      <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary mb-2">
-            Gharpayy · Daily Pulse
-          </div>
-          <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">
-            Organization Pulses
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Live feed of all daily pulses across the organization.
-          </p>
-        </div>
-        <div className="flex gap-3">
+    <div className={isEmbedded ? "space-y-6" : "px-4 md:px-8 py-6 max-w-7xl mx-auto space-y-6"}>
+      {isEmbedded ? (
+        <div className="flex justify-end">
           <button
             onClick={copyToClipboard}
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
           >
-            {copied ? <CheckCircle2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-            {copied ? "Copied to clipboard" : "Copy as Excel"}
+            {copied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy as Excel"}
           </button>
         </div>
-      </header>
+      ) : (
+        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary mb-2">
+              Gharpayy · Daily Pulse
+            </div>
+            <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">
+              Organization Pulses
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Live feed of all daily pulses across the organization.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={copyToClipboard}
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              {copied ? <CheckCircle2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+              {copied ? "Copied to clipboard" : "Copy as Excel"}
+            </button>
+          </div>
+        </header>
+      )}
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
@@ -627,6 +648,7 @@ function AdminPulseView() {
                 <th className="px-6 py-4 font-medium">Time</th>
                 <th className="px-6 py-4 font-medium">Metrics</th>
                 <th className="px-6 py-4 font-medium w-1/4">Pulse Text</th>
+                <th className="px-6 py-4 font-medium">Console</th>
                 <th className="px-6 py-4 font-medium w-1/4">EOD Brief</th>
               </tr>
             </thead>
@@ -707,10 +729,27 @@ function AdminPulseView() {
                           </td>
                         )}
                         {idx === 0 && (
-                          <td rowSpan={group.regularEntries.length} className="px-6 py-4 align-top border-l border-border/20 min-w-[250px]">
-                            {group.eodEntry ? (
-                              <>
-                                <div className="flex items-center justify-between mb-2">
+                          <>
+                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 align-top border-l border-border/20">
+                              <div className="flex flex-col gap-1 text-center">
+                                <div className="text-xl font-bold tabular-nums">
+                                  {dayHealth(group.empId).score}%
+                                </div>
+                                <div className={`text-[10px] uppercase tracking-widest font-mono ${
+                                  dayHealth(group.empId).score >= 70
+                                    ? "text-success"
+                                    : dayHealth(group.empId).score >= 40
+                                      ? "text-warning"
+                                      : "text-destructive"
+                                }`}>
+                                  {dayHealth(group.empId).label}
+                                </div>
+                              </div>
+                            </td>
+                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 align-top border-l border-border/20 min-w-[250px]">
+                              {group.eodEntry ? (
+                                <>
+                                  <div className="flex items-center justify-between mb-2">
                                   <div
                                     className={`text-[10px] uppercase tracking-wider font-mono ${
                                       group.eodEntry.onTime ? "text-success" : "text-warning"
@@ -740,6 +779,7 @@ function AdminPulseView() {
                               </div>
                             )}
                           </td>
+                          </>
                         )}
                       </tr>
                     ))}

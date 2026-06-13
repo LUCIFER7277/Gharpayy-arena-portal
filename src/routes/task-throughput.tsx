@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 
 export const Route = createFileRoute("/task-throughput")({
   component: () => (
-    <RoleGate allow={["leadership", "hr", "admin"]}>
+    <RoleGate allow={["leadership", "hr"]}>
       <TaskThroughputPage />
     </RoleGate>
   ),
