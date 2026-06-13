@@ -514,7 +514,7 @@ function AdminPulseView() {
           }
           const time = new Date(e.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
           const statusColor = e.onTime ? '#16a34a' : '#ea580c';
-          htmlRow += `<td style="${cellStyle}">${slotLabel}</td>`;
+          htmlRow += `<td style="${cellStyle} white-space: nowrap; width: 250px; min-width: 250px;">${slotLabel}</td>`;
           htmlRow += `<td style="${cellStyle}">${time}</td>`;
           htmlRow += `<td style="${cellStyle} color: ${statusColor}; font-weight: bold;">${e.onTime ? "On Time" : "Late"}</td>`;
           htmlRow += `<td style="${cellStyle}">${e.calls?.toString() || ""}</td>`;
@@ -542,7 +542,10 @@ function AdminPulseView() {
     
     const headerHtml = `<tr>${headers.map((h, i) => {
       const isEod = i >= headers.length - 4;
-      return `<th style="border: 1px solid #d1d5db; ${isEod ? 'border-left: 2px solid #9ca3af; background-color: #e2e8f0;' : 'background-color: #f3f4f6;'} padding: 10px 8px; font-weight: bold; text-align: left; font-family: sans-serif;">${h}</th>`;
+      const isLongText = h === "Pulse Text" || h === "EOD Brief" || h === "Blockers" || h === "EOD Blockers";
+      let style = isLongText ? 'width: 300px; min-width: 300px;' : 'white-space: nowrap;';
+      if (h === "Slot") style = 'width: 250px; min-width: 250px; white-space: nowrap;';
+      return `<th style="border: 1px solid #d1d5db; ${isEod ? 'border-left: 2px solid #9ca3af; background-color: #e2e8f0;' : 'background-color: #f3f4f6;'} padding: 10px 8px; font-weight: bold; text-align: left; font-family: sans-serif; ${style}">${h}</th>`;
     }).join("")}</tr>`;
     
     const html = `<table style="border-collapse: collapse; font-family: sans-serif; font-size: 14px;"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
