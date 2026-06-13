@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, Fragment } from "react";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { tierOf } from "@/lib/permissions";
+import { getRoster } from "@/lib/roster";
 import {
   SLOTS,
   type SlotKey,
@@ -209,6 +210,18 @@ function PulsePage() {
               })}
             </div>
           </div>
+          
+          {myEntries.length === 0 && (
+            <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 flex gap-3 shadow-sm">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-destructive">You are currently marked as Absent</h3>
+                <p className="text-sm text-destructive/90 mt-1">
+                  You have not submitted any pulse updates today. Please log your progress on time to correct your attendance status.
+                </p>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Right rail */}
@@ -430,6 +443,17 @@ function AdminPulseView() {
       };
     });
   }, [entries]);
+
+  const absentEmployees = useMemo(() => {
+    const roster = getRoster();
+    const submittedIds = new Set(groupedEntries.map(g => g.empId));
+    return roster.filter(emp => {
+      const tier = tierOf(emp);
+      // Exclude Admin and HR
+      if (tier === "leadership" || tier === "hr") return false;
+      return !submittedIds.has(emp.id);
+    });
+  }, [groupedEntries]);
 
   function copyToClipboard() {
     const headers = [
@@ -726,6 +750,28 @@ function AdminPulseView() {
           </table>
         </div>
       </div>
+      
+      {absentEmployees.length > 0 && (
+        <div className="mt-8 border border-destructive/20 bg-destructive/5 rounded-2xl p-6">
+          <div className="flex items-center gap-2 text-destructive font-semibold mb-4">
+            <AlertCircle className="h-5 w-5" />
+            <h3>Absent / Missing Pulses Today</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {absentEmployees.map(emp => (
+              <div key={emp.id} className="flex items-center gap-3 bg-card border border-border p-3 rounded-xl shadow-sm">
+                <Avatar id={emp.id} size={32} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate text-foreground">{emp.name}</div>
+                  <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground truncate">
+                    {emp.role} · {emp.team}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
