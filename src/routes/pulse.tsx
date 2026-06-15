@@ -15,16 +15,21 @@ import {
   subscribe,
   todayISO,
 } from "@/lib/pulse-store";
+import { getEventsFor, todayKey } from "@/lib/attendance-store";
 import { dayHealth } from "@/lib/console-store";
 import { Avatar } from "@/components/Avatar";
-import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles } from "lucide-react";
+import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon } from "lucide-react";
 
 export const Route = createFileRoute("/pulse")({
   component: PulsePage,
 });
 
 function PulsePage() {
-  const { actor } = useAttendanceState();
+  const { actor, events } = useAttendanceState();
+  const isClockedIn = useMemo(() => {
+    const today = todayKey();
+    return events.some(e => e.employeeId === actor.id && todayKey(e.ts) === today);
+  }, [events, actor.id]);
   const tier = tierOf(actor);
   const canSeeAll =
     tier === "leadership" || tier === "hr" || tier === "zone_leader" || tier === "leader";
@@ -49,6 +54,8 @@ function PulsePage() {
   useEffect(() => {
     if (current) setSelected(current.key);
   }, [current?.key]);
+
+  const [viewImages, setViewImages] = useState<string[] | null>(null);
 
   const isAdminOrHr = tier === "leadership" || tier === "hr";
 
@@ -206,19 +213,42 @@ function PulsePage() {
                         <AlertCircle className="h-3 w-3" /> {entry.blockers}
                       </div>
                     )}
+                    {entry?.mediaUrls && entry.mediaUrls.length > 0 && (
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        {entry.mediaUrls.map((url, idx) => (
+                          <img 
+                            key={idx} 
+                            src={url} 
+                            className="h-12 w-12 object-cover rounded border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setViewImages(entry.mediaUrls || null)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
           
-          {myEntries.length === 0 && (
+          {myEntries.length === 0 && !isClockedIn && (
             <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 flex gap-3 shadow-sm">
               <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-destructive">You are currently marked as Absent</h3>
                 <p className="text-sm text-destructive/90 mt-1">
-                  You have not submitted any pulse updates today. Please log your progress on time to correct your attendance status.
+                  You have not clocked in or submitted any pulse updates today. Please log your progress to correct your attendance status.
+                </p>
+              </div>
+            </div>
+          )}
+          {myEntries.length === 0 && isClockedIn && (
+            <div className="mt-6 rounded-2xl border border-warning/30 bg-warning/10 p-5 flex gap-3 shadow-sm">
+              <Clock className="h-5 w-5 text-warning-foreground shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-warning-foreground">Missing Pulses</h3>
+                <p className="text-sm text-warning-foreground/90 mt-1">
+                  You have clocked in but haven't submitted any pulse updates today. Please log your progress.
                 </p>
               </div>
             </div>
@@ -231,6 +261,25 @@ function PulsePage() {
           {canSeeAll && <OrgComplianceCard />}
         </aside>
       </div>
+
+      {viewImages && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-start p-4 md:p-10 backdrop-blur-sm cursor-pointer overflow-y-auto"
+          onClick={() => setViewImages(null)}
+        >
+          <div className="relative max-w-5xl w-full flex flex-col items-center gap-8 py-10 my-auto" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setViewImages(null)}
+              className="sticky top-4 self-end md:-mr-12 bg-secondary text-foreground rounded-full p-2 hover:bg-destructive hover:text-white transition-colors z-10 shadow-lg"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {viewImages.map((url, idx) => (
+              <img key={idx} src={url} alt={`Proof of Work ${idx+1}`} className="max-w-full max-h-[85vh] rounded-md shadow-2xl object-contain bg-black" />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -242,6 +291,7 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
   const [tours, setTours] = useState<string>(existing?.tours?.toString() || "");
   const [closures, setClosures] = useState<string>(existing?.closures?.toString() || "");
   const [blockers, setBlockers] = useState(existing?.blockers || "");
+  const [mediaUrls, setMediaUrls] = useState<string[]>(existing?.mediaUrls || []);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -251,8 +301,29 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
     setTours(e?.tours?.toString() || "");
     setClosures(e?.closures?.toString() || "");
     setBlockers(e?.blockers || "");
+    setMediaUrls(e?.mediaUrls || []);
     setSaved(false);
   }, [slot.key, employeeId]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const promises = files.map(file => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            if (ev.target?.result) {
+              resolve(ev.target.result as string);
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+      Promise.all(promises).then(urls => {
+        setMediaUrls(prev => [...prev, ...urls]);
+      });
+    }
+  }
 
   function submit() {
     if (!text.trim()) return;
@@ -264,6 +335,7 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
       tours: tours ? Number(tours) : undefined,
       closures: closures ? Number(closures) : undefined,
       blockers,
+      mediaUrls,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -297,7 +369,32 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
           placeholder="Anything blocked? (optional)"
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
-        <div className="flex items-center justify-between">
+        <div>
+          <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1 block">Proof of Work (optional)</label>
+          <div className="flex items-center gap-3">
+            <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-xs bg-secondary/50 hover:bg-secondary transition-colors">
+              <Upload className="h-3.5 w-3.5" /> Upload Screenshot(s)
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+            </label>
+            {mediaUrls.length > 0 && <span className="text-xs text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> {mediaUrls.length} uploaded</span>}
+          </div>
+          {mediaUrls.length > 0 && (
+            <div className="mt-2 flex gap-2 flex-wrap">
+              {mediaUrls.map((url, idx) => (
+                <div key={idx} className="relative inline-block">
+                  <img src={url} className="h-16 w-16 object-cover rounded border border-border" />
+                  <button 
+                    onClick={() => setMediaUrls(prev => prev.filter((_, i) => i !== idx))} 
+                    className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-0.5 hover:bg-destructive hover:text-white transition-colors"
+                  >
+                    <X className="h-3 w-3"/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-between pt-2">
           <div className="text-xs text-muted-foreground">
             {existing
               ? `Last saved · ${new Date(existing.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
@@ -416,11 +513,13 @@ function OrgComplianceCard() {
 }
 
 export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
+  const { events: attendanceEvents } = useAttendanceState();
   const [v, setV] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [viewImages, setViewImages] = useState<string[] | null>(null);
   useEffect(() => subscribe(() => setV((x) => x + 1)), []);
 
   const entries = useMemo(() => getEntries({ date: todayISO() }), [v]);
-  const [copied, setCopied] = useState(false);
 
   const groupedEntries = useMemo(() => {
     const groups: Record<string, typeof entries> = {};
@@ -446,16 +545,32 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     });
   }, [entries]);
 
-  const absentEmployees = useMemo(() => {
+  const { absentEmployees, missingPulseEmployees } = useMemo(() => {
     const roster = getRoster();
     const submittedIds = new Set(groupedEntries.map(g => g.empId));
-    return roster.filter(emp => {
+    
+    const absent: typeof roster = [];
+    const missing: typeof roster = [];
+    
+    const today = todayKey();
+    
+    roster.forEach(emp => {
       const tier = tierOf(emp);
       // Exclude Admin and HR
-      if (tier === "leadership" || tier === "hr") return false;
-      return !submittedIds.has(emp.id);
+      if (tier === "leadership" || tier === "hr") return;
+      
+      if (!submittedIds.has(emp.id)) {
+        const hasAttendance = attendanceEvents.some(e => e.employeeId === emp.id && todayKey(e.ts) === today);
+        if (hasAttendance) {
+          missing.push(emp);
+        } else {
+          absent.push(emp);
+        }
+      }
     });
-  }, [groupedEntries]);
+    
+    return { absentEmployees: absent, missingPulseEmployees: missing };
+  }, [groupedEntries, attendanceEvents]);
 
   function copyToClipboard() {
     const headers = [
@@ -638,24 +753,32 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       )}
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-mono tracking-wider">
+        <div className="overflow-x-auto pb-4">
+          <table className="w-full text-sm text-left whitespace-nowrap min-w-[1500px]">
+            <thead className="bg-muted/50 text-muted-foreground text-xs font-semibold tracking-wider border-b border-border">
               <tr>
-                <th className="px-6 py-4 font-medium">Name</th>
-                <th className="px-6 py-4 font-medium">Role & Team</th>
-                <th className="px-6 py-4 font-medium">Slot</th>
-                <th className="px-6 py-4 font-medium">Time</th>
-                <th className="px-6 py-4 font-medium">Metrics</th>
-                <th className="px-6 py-4 font-medium w-1/4">Pulse Text</th>
-                <th className="px-6 py-4 font-medium">Console</th>
-                <th className="px-6 py-4 font-medium w-1/4">EOD Brief</th>
+                <th className="px-3 py-3 border-r border-border/20">Name</th>
+                <th className="px-3 py-3 border-r border-border/20">Role</th>
+                <th className="px-3 py-3 border-r border-border/20">Team</th>
+                <th className="px-3 py-3 border-r border-border/20">Slot</th>
+                <th className="px-3 py-3 border-r border-border/20">Time</th>
+                <th className="px-3 py-3 border-r border-border/20">Status</th>
+                <th className="px-3 py-3 border-r border-border/20 text-right">Calls</th>
+                <th className="px-3 py-3 border-r border-border/20 text-right">Tours</th>
+                <th className="px-3 py-3 border-r border-border/20 text-right">Closures</th>
+                <th className="px-3 py-3 border-r border-border/20 min-w-[150px]">Blockers</th>
+                <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">Pulse Text</th>
+                <th className="px-3 py-3 border-r border-border/20">Proof of Work</th>
+                <th className="px-3 py-3 border-r border-border/20">EOD Time</th>
+                <th className="px-3 py-3 border-r border-border/20">EOD Status</th>
+                <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">EOD Brief</th>
+                <th className="px-3 py-3 min-w-[150px]">EOD Blockers</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {groupedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={16} className="px-6 py-8 text-center text-muted-foreground">
                     No pulses submitted yet today.
                   </td>
                 </tr>
@@ -664,123 +787,96 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                   <Fragment key={group.empId}>
                     {group.regularEntries.map((e, idx) => (
                       <tr key={e?.id || `empty-${group.empId}`} className={`hover:bg-muted/30 transition-colors ${idx === group.regularEntries.length - 1 ? "border-b border-border" : "border-b-0"}`}>
-                        {idx === 0 && (
+                        {idx === 0 ? (
                           <>
-                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 whitespace-nowrap align-top border-r border-border/20">
-                              <div className="flex items-center gap-3">
-                                <Avatar id={group.empId} size={32} />
-                                <span className="font-medium">{group.empName}</span>
-                              </div>
+                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
+                              {group.empName}
                             </td>
-                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 whitespace-nowrap align-top border-r border-border/20">
-                              <div>{group.role}</div>
-                              <div className="text-xs text-muted-foreground">{group.team}</div>
+                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                              {group.role}
+                            </td>
+                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                              {group.team}
                             </td>
                           </>
-                        )}
+                        ) : null}
+                        
                         {e ? (
                           <>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium">
-                                {SLOTS.find((s) => s.key === e.slot)?.label.split(" · ")[0] || e.slot}
-                                <span className="text-muted-foreground text-xs ml-1 font-normal">
-                                  ({SLOTS.find((s) => s.key === e.slot)?.window})
-                                </span>
-                              </div>
-                              <div
-                                className={`text-[10px] uppercase tracking-wider font-mono mt-1 ${
-                                  e.onTime ? "text-success" : "text-warning"
-                                }`}
-                              >
-                                {e.onTime ? "On Time" : "Late"}
-                              </div>
+                            <td className="px-3 py-2 align-top border-r border-border/20 text-foreground/90">
+                              {SLOTS.find((s) => s.key === e.slot)?.label.split(" · ")[0] || e.slot}
+                              <span className="text-muted-foreground ml-1 text-xs">
+                                ({SLOTS.find((s) => s.key === e.slot)?.window})
+                              </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
-                              {new Date(e.submittedAt).toLocaleTimeString("en-IN", {
-                                hour: "2-digit",
+                            <td className="px-3 py-2 align-top text-foreground/90 border-r border-border/20 text-right">
+                              {new Date(e.submittedAt).toLocaleTimeString("en-US", {
+                                hour: "numeric",
                                 minute: "2-digit",
                               })}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {(e.calls != null || e.tours != null || e.closures != null) ? (
-                                <div className="flex flex-col gap-1 text-xs font-mono">
-                                  {e.calls != null && <span>Calls: {e.calls}</span>}
-                                  {e.tours != null && <span>Tours: {e.tours}</span>}
-                                  {e.closures != null && <span>Closures: {e.closures}</span>}
-                                </div>
+                            <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.onTime ? "text-success" : "text-destructive"}`}>
+                              {e.onTime ? "On Time" : "Late"}
+                            </td>
+                            <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                              {e.calls ?? ""}
+                            </td>
+                            <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                              {e.tours ?? ""}
+                            </td>
+                            <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                              {e.closures ?? ""}
+                            </td>
+                            <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90">
+                              {e.blockers ?? ""}
+                            </td>
+                            <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
+                              {e.text}
+                            </td>
+                            <td className="px-3 py-2 align-top border-r border-border/20">
+                              {e.mediaUrls && e.mediaUrls.length > 0 ? (
+                                <button
+                                  onClick={() => setViewImages(e.mediaUrls!)}
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-medium rounded transition-colors"
+                                >
+                                  <ImageIcon className="h-3 w-3" /> View {e.mediaUrls.length > 1 ? `(${e.mediaUrls.length})` : ""}
+                                </button>
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="whitespace-pre-wrap text-sm text-foreground/90">
-                                {e.text}
-                              </div>
-                              {e.blockers && (
-                                <div className="mt-2 text-xs rounded-md border border-destructive/20 bg-destructive/5 text-destructive px-2 py-1 inline-flex items-center gap-1">
-                                  <AlertCircle className="h-3 w-3" /> {e.blockers}
-                                </div>
-                              )}
-                            </td>
                           </>
                         ) : (
-                          <td colSpan={4} className="px-6 py-4 text-center text-muted-foreground">
-                            <span className="text-xs italic">No intraday slots submitted yet.</span>
+                          <td colSpan={9} className="px-3 py-2 text-muted-foreground italic border-r border-border/20">
+                            No intraday slots submitted yet.
                           </td>
                         )}
-                        {idx === 0 && (
-                          <>
-                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 align-top border-l border-border/20">
-                              <div className="flex flex-col gap-1 text-center">
-                                <div className="text-xl font-bold tabular-nums">
-                                  {dayHealth(group.empId).score}%
-                                </div>
-                                <div className={`text-[10px] uppercase tracking-widest font-mono ${
-                                  dayHealth(group.empId).score >= 70
-                                    ? "text-success"
-                                    : dayHealth(group.empId).score >= 40
-                                      ? "text-warning"
-                                      : "text-destructive"
-                                }`}>
-                                  {dayHealth(group.empId).label}
-                                </div>
-                              </div>
+
+                        {idx === 0 ? (
+                          group.eodEntry ? (
+                            <>
+                              <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">
+                                {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-US", {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </td>
+                              <td rowSpan={group.regularEntries.length} className={`px-3 py-2 align-top font-medium border-r border-border/20 ${group.eodEntry.onTime ? "text-success" : "text-destructive"}`}>
+                                {group.eodEntry.onTime ? "On Time" : "Late"}
+                              </td>
+                              <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
+                                {group.eodEntry.text}
+                              </td>
+                              <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words text-foreground/90">
+                                {group.eodEntry.blockers ?? ""}
+                              </td>
+                            </>
+                          ) : (
+                            <td colSpan={4} rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground italic opacity-70">
+                              Pending EOD
                             </td>
-                            <td rowSpan={group.regularEntries.length} className="px-6 py-4 align-top border-l border-border/20 min-w-[250px]">
-                              {group.eodEntry ? (
-                                <>
-                                  <div className="flex items-center justify-between mb-2">
-                                  <div
-                                    className={`text-[10px] uppercase tracking-wider font-mono ${
-                                      group.eodEntry.onTime ? "text-success" : "text-warning"
-                                    }`}
-                                  >
-                                    {group.eodEntry.onTime ? "On Time" : "Late"}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-IN", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </div>
-                                </div>
-                                <div className="whitespace-pre-wrap text-sm text-foreground/90">
-                                  {group.eodEntry.text}
-                                </div>
-                                {group.eodEntry.blockers && (
-                                  <div className="mt-2 text-xs rounded-md border border-destructive/20 bg-destructive/5 text-destructive px-2 py-1 inline-flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3" /> {group.eodEntry.blockers}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="text-center text-muted-foreground mt-4 text-xs italic">
-                                Pending EOD
-                              </div>
-                            )}
-                          </td>
-                          </>
-                        )}
+                          )
+                        ) : null}
                       </tr>
                     ))}
                   </Fragment>
@@ -795,7 +891,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
         <div className="mt-8 border border-destructive/20 bg-destructive/5 rounded-2xl p-6">
           <div className="flex items-center gap-2 text-destructive font-semibold mb-4">
             <AlertCircle className="h-5 w-5" />
-            <h3>Absent / Missing Pulses Today</h3>
+            <h3>Absent Today</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {absentEmployees.map(emp => (
@@ -812,6 +908,26 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
           </div>
         </div>
       )}
+
+      {viewImages && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-start p-4 md:p-10 backdrop-blur-sm cursor-pointer overflow-y-auto"
+          onClick={() => setViewImages(null)}
+        >
+          <div className="relative max-w-5xl w-full flex flex-col items-center gap-8 py-10 my-auto" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setViewImages(null)}
+              className="sticky top-4 self-end md:-mr-12 bg-secondary text-foreground rounded-full p-2 hover:bg-destructive hover:text-white transition-colors z-10 shadow-lg"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {viewImages.map((url, idx) => (
+              <img key={idx} src={url} alt={`Proof of Work ${idx+1}`} className="max-w-full max-h-[85vh] rounded-md shadow-2xl object-contain bg-black" />
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

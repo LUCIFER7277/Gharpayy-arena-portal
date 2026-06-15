@@ -63,6 +63,7 @@ export interface PulseEntry {
   tours?: number;
   closures?: number;
   blockers?: string;
+  mediaUrls?: string[]; // Array of Proof of work base64 images
   submittedAt: number;
   onTime: boolean;
 }
@@ -123,6 +124,7 @@ export function submitPulse(input: {
   tours?: number;
   closures?: number;
   blockers?: string;
+  mediaUrls?: string[];
 }): PulseEntry {
   const emp = getRoster().find((e) => e.id === input.employeeId);
   const date = todayISO();
@@ -150,6 +152,7 @@ export function submitPulse(input: {
     tours: input.tours,
     closures: input.closures,
     blockers: input.blockers?.trim() || undefined,
+    mediaUrls: input.mediaUrls?.length ? input.mediaUrls : ((input as any).mediaUrl ? [(input as any).mediaUrl] : undefined),
     submittedAt: Date.now(),
     onTime,
   };

@@ -26,6 +26,10 @@ export function hydrateTasks() {
   return store.hydrateFromApi();
 }
 
+export function flushTasksSync() {
+  return store.flushSync();
+}
+
 export function useTasks(): AppTask[] {
   return useSyncExternalStore(
     (cb) => store.subscribe(cb),
@@ -35,7 +39,7 @@ export function useTasks(): AppTask[] {
 }
 
 export function tasksFor(assigneeId: string): AppTask[] {
-  return store.read().filter((t) => t.assigneeId === assigneeId);
+  return store.read().filter((t) => t.assigneeId === assigneeId && t.relatedTo !== "Admin Check-In");
 }
 
 export function tasksAssignedBy(byId: string): AppTask[] {
@@ -72,6 +76,7 @@ export function setStatus(id: string, status: TaskStatus, byId?: string) {
       recipients.add(current.assignedById);
     recipients.add(current.assigneeId);
     for (const toId of recipients) {
+      if (current.relatedTo === "Admin Check-In") continue;
       const isOwner = toId === current.assigneeId;
       pushNotification({
         kind: "task",
@@ -88,7 +93,8 @@ export function setStatus(id: string, status: TaskStatus, byId?: string) {
   } else if (
     status === "doing" &&
     current.assignedById &&
-    current.assignedById !== current.assigneeId
+    current.assignedById !== current.assigneeId &&
+    current.relatedTo !== "Admin Check-In"
   ) {
     pushNotification({
       kind: "task",
@@ -126,15 +132,27 @@ export function createTask(
   };
   store.write([next, ...store.read()]);
   if (next.assigneeId !== next.assignedById) {
-    pushNotification({
-      kind: "task",
-      toId: next.assigneeId,
-      fromId: next.assignedById,
-      title: `${nameOf(next.assignedById)} assigned you a task`,
-      body: next.title,
-      actionLabel: "Open",
-      actionTo: "/tasks",
-    });
+    if (next.relatedTo === "Admin Check-In") {
+      pushNotification({
+        kind: "task",
+        toId: next.assigneeId,
+        fromId: next.assignedById,
+        title: `${nameOf(next.assignedById)} sent a check-in`,
+        body: next.title.replace("Admin Check-In: ", ""),
+        actionLabel: "Open Console",
+        actionTo: "/console",
+      });
+    } else {
+      pushNotification({
+        kind: "task",
+        toId: next.assigneeId,
+        fromId: next.assignedById,
+        title: `${nameOf(next.assignedById)} assigned you a task`,
+        body: next.title,
+        actionLabel: "Open",
+        actionTo: "/tasks",
+      });
+    }
   }
   return next;
 }
@@ -207,19 +225,32 @@ export function addComment(taskId: string, authorId: string, body: string) {
     activity: logActivity(t, authorId, "comment", "Commented"),
   }));
   // Notify the other party
-  const t = store.read().find((x) => x.id === taskId);
-  if (t) {
-    const otherId = authorId === t.assigneeId ? t.assignedById : t.assigneeId;
+  const t2 = store.read().find((x) => x.id === taskId);
+  if (t2) {
+    const otherId = authorId === t2.assigneeId ? t2.assignedById : t2.assigneeId;
     if (otherId && otherId !== authorId) {
-      pushNotification({
-        kind: "mention",
-        toId: otherId,
-        fromId: authorId,
-        title: `${nameOf(authorId)} commented`,
-        body: text.slice(0, 80),
-        actionLabel: "Open task",
-        actionTo: "/tasks",
-      });
+      if (t2.relatedTo === "Admin Check-In") {
+        const checkInName = t2.title.replace("Admin Check-In: ", "");
+        pushNotification({
+          kind: "mention",
+          toId: otherId,
+          fromId: authorId,
+          title: `${nameOf(authorId)} replied to: ${checkInName}`,
+          body: text.slice(0, 80),
+          actionLabel: "View Response",
+          actionTo: "/console",
+        });
+      } else {
+        pushNotification({
+          kind: "mention",
+          toId: otherId,
+          fromId: authorId,
+          title: `${nameOf(authorId)} commented on a task`,
+          body: text.slice(0, 80),
+          actionLabel: "Open task",
+          actionTo: "/tasks",
+        });
+      }
     }
   }
 }

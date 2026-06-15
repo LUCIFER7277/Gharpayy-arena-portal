@@ -143,6 +143,8 @@ function WorkforcePage() {
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return rows.filter((r) => {
+      // Hide admin users from workforce list
+      if (r.appRole === "admin") return false;
       if (filterStatus !== "all" && r.accountStatus !== filterStatus) return false;
       if (!needle) return true;
       const hay = [
@@ -216,16 +218,16 @@ function WorkforcePage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Stat label="Workforce" value={meta.total} />
-        <Stat label="Pending approval" value={meta.pendingCount} tone="warning" />
+        <Stat label="Workforce" value={rows.filter((r) => r.appRole !== "admin").length} />
+        <Stat label="Pending approval" value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "pending").length} tone="warning" />
         <Stat
           label="Active accounts"
-          value={rows.filter((r) => r.accountStatus === "active").length}
+          value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "active").length}
           tone="success"
         />
         <Stat
           label="Suspended"
-          value={rows.filter((r) => r.accountStatus === "suspended").length}
+          value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "suspended").length}
           tone="destructive"
         />
       </section>

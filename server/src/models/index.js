@@ -284,6 +284,8 @@ const PulseEntrySchema = new Schema(
     tours: Number,
     closures: Number,
     blockers: String,
+    mediaUrl: String,
+    mediaUrls: [String],
     submittedAt: Number,
     onTime: Boolean,
     createdById: String,

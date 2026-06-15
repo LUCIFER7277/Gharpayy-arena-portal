@@ -43,7 +43,7 @@ import {
   nextSprint,
   exportEodText,
 } from "@/lib/console-store";
-import { useTasks, tasksFor, setStatus, requestTaskReason, scheduleOverdueMeeting, createTask, addComment } from "@/lib/task-store";
+import { useTasks, tasksFor, setStatus, requestTaskReason, scheduleOverdueMeeting, createTask, addComment, flushTasksSync } from "@/lib/task-store";
 import { submitPulse } from "@/lib/pulse-store";
 import type { AppTask } from "@/types/hr";
 import { Avatar } from "@/components/Avatar";
@@ -494,9 +494,12 @@ function CommWindows({
   day: ReturnType<typeof useConsoleDay>;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [selectedTarget, setSelectedTarget] = useState<string>("all");
+  const [draftTexts, setDraftTexts] = useState<Record<string, string>>({});
   
   const allTasks = useTasks();
   const { user, actor: loggedInActor } = useAuth();
+  const { employees } = useAttendanceState();
   const currentUserId = loggedInActor?.id || user?.employeeId || user?.id;
 
   const r = user?.role?.toLowerCase() || "";
@@ -504,29 +507,48 @@ function CommWindows({
   const isLeadership = 
     r.includes("admin") || r.includes("hr") || ar.includes("admin") || ar.includes("hr");
 
-  const sentCheckIns = allTasks.filter(task => task.relatedTo === "Admin Check-In" && task.assigneeId === actorId);
+  const hasSentAnything = allTasks.some(task => task.relatedTo === "Admin Check-In" && (task.assigneeId === actorId || task.assignedById === currentUserId));
 
-  if (!isLeadership && sentCheckIns.length === 0) return null;
+  if (!isLeadership && !hasSentAnything) return null;
+
+  const operators = employees.filter(e => e.id !== currentUserId && !e.role.toLowerCase().includes("admin") && !e.role.toLowerCase().includes("hr") && e.id !== "loading");
 
   return (
     <section>
-      <SectionHead
-        icon={MessageSquare}
-        title="Communication windows"
-        subtitle={
-          pb.shieldBlocks.length > 0
-            ? "Send these on time. Outside these, Shield Mode applies."
-            : "Send these messages on time. Tap to copy the template."
-        }
-      />
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2">
+        <SectionHead
+          icon={MessageSquare}
+          title="Communication windows"
+          subtitle={
+            pb.shieldBlocks.length > 0
+              ? "Send these on time. Outside these, Shield Mode applies."
+              : "Send these messages on time. Tap to copy the template."
+          }
+        />
+        {isLeadership && actorId === currentUserId && (
+          <select
+            value={selectedTarget}
+            onChange={(e) => setSelectedTarget(e.target.value)}
+            className="text-xs bg-secondary/40 border border-border rounded p-2 min-w-[180px] font-medium"
+          >
+            <option value="all">-- Send to All Operators --</option>
+            {operators.map(op => (
+              <option key={op.id} value={op.id}>{op.name} ({op.role})</option>
+            ))}
+          </select>
+        )}
+      </div>
       <div className="space-y-2">
         {ADMIN_TEMPLATES.map((t) => {
-          const sentTask = allTasks.find(task => task.relatedTo === "Admin Check-In" && task.title.includes(t.title) && task.assigneeId === actorId);
-          const isSent = !!sentTask;
+          const sentTaskOperator = allTasks.find(task => task.relatedTo === "Admin Check-In" && task.title.includes(t.title) && task.assigneeId === actorId);
+          const sentTasksAdmin = isLeadership ? allTasks.filter(task => task.relatedTo === "Admin Check-In" && task.title.includes(t.title) && task.assignedById === currentUserId) : [];
+          
+          const isSent = isLeadership ? sentTasksAdmin.length > 0 : !!sentTaskOperator;
           
           if (!isLeadership && !isSent) return null;
 
           const isOpen = open === t.id;
+          const currentText = draftTexts[t.id] ?? t.text;
 
           return (
             <div key={t.id} className={`rounded-lg border overflow-hidden transition-colors ${
@@ -548,7 +570,7 @@ function CommWindows({
                 <div className="flex items-center gap-3">
                   {isSent ? (
                     <span className="text-[10px] font-mono uppercase tracking-widest text-success flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Sent {new Date(sentTask.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <CheckCircle2 className="h-3 w-3" /> Sent
                     </span>
                   ) : (
                     <span className="text-[10px] font-mono uppercase tracking-widest text-primary flex items-center gap-1">
@@ -559,16 +581,24 @@ function CommWindows({
               </button>
               {isOpen && (
                 <div className="border-t border-border p-3 space-y-2">
-                  <pre className="whitespace-pre-wrap text-xs bg-secondary/40 rounded p-3 font-sans leading-relaxed">
-                    {t.text}
-                  </pre>
+                  {isLeadership && !isSent ? (
+                    <textarea
+                      value={currentText}
+                      onChange={(e) => setDraftTexts(prev => ({ ...prev, [t.id]: e.target.value }))}
+                      className="w-full text-xs bg-secondary/20 border border-border rounded-md p-3 font-sans leading-relaxed focus:bg-background focus:border-primary outline-none transition-colors min-h-[80px] resize-y"
+                    />
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-xs bg-secondary/40 rounded p-3 font-sans leading-relaxed">
+                      {currentText}
+                    </pre>
+                  )}
 
                   {isLeadership && (
                     <div className="flex gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigator.clipboard?.writeText(t.text);
+                          navigator.clipboard?.writeText(currentText);
                         }}
                         className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-border hover:bg-secondary text-xs"
                       >
@@ -577,49 +607,98 @@ function CommWindows({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.open(`https://wa.me/?text=${encodeURIComponent(t.text)}`, "_blank");
+                          window.open(`https://wa.me/?text=${encodeURIComponent(currentText)}`, "_blank");
                         }}
-                        className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-[#25D366] bg-[#25D366] text-white hover:bg-[#20bd5a] text-xs font-medium"
+                        className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-[#25D366] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white transition-colors text-xs font-medium"
                       >
-                        <Send className="h-3 w-3" /> WhatsApp
+                        <MessageSquare className="h-3 w-3" /> Share on WhatsApp
                       </button>
                       <button
-                        onClick={(e) => {
+                        disabled={operators.length === 0}
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          if (!currentUserId) return;
-                          createTask({
-                            title: `Admin Check-In: ${t.title}`,
-                            description: t.text,
-                            assigneeId: actorId,
-                            assignedById: currentUserId,
-                            priority: "urgent",
-                            dueAt: Date.now() - 1000,
-                            source: "manual",
-                            relatedTo: "Admin Check-In",
-                          });
+                          if (!currentUserId || operators.length === 0) return;
+                          
+                          const targetOps = selectedTarget === "all" 
+                            ? operators 
+                            : operators.filter(o => o.id === selectedTarget);
+                            
+                          for (const op of targetOps) {
+                            // avoid duplicates
+                            const alreadySent = allTasks.some(task => task.relatedTo === "Admin Check-In" && task.title.includes(t.title) && task.assigneeId === op.id);
+                            if (alreadySent) continue;
+                            createTask({
+                              title: `Admin Check-In: ${t.title}`,
+                              description: currentText,
+                              assigneeId: op.id,
+                              assignedById: currentUserId,
+                              priority: "urgent",
+                              dueAt: Date.now() - 1000,
+                              source: "manual",
+                              relatedTo: "Admin Check-In",
+                            });
+                          }
+                          await flushTasksSync();
                         }}
-                        className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-blue-600 bg-blue-600 text-white hover:bg-blue-500 text-xs font-medium"
+                        className={`h-8 px-3 inline-flex items-center gap-1.5 rounded border text-xs font-medium ${
+                          operators.length === 0
+                            ? "border-muted bg-muted text-muted-foreground cursor-not-allowed"
+                            : "border-blue-600 bg-blue-600 text-white hover:bg-blue-500"
+                        }`}
                       >
-                        <Check className="h-3 w-3" /> Mark sent to {actorId === currentUserId ? "Yourself" : "Operator"}
+                        <Send className="h-3 w-3" /> {operators.length === 0 ? "No Operators" : "Send"}
                       </button>
                     </div>
                   )}
 
                   {isSent && (
                      <div className="mt-3 pt-3 border-t border-success/20">
-                      {currentUserId === actorId && sentTask.status !== "done" ? (
-                        <CheckInResponseForm task={sentTask} />
+                      {isLeadership ? (
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-success mb-2 block">Operator Responses:</span>
+                          {operators.map(op => {
+                            const opTask = sentTasksAdmin.find(task => task.assigneeId === op.id);
+                            if (!opTask) return null;
+                            return (
+                              <div key={op.id} className="border border-border/50 rounded p-2 bg-secondary/10">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="text-[10px] font-bold text-muted-foreground">{op.name}</div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(`https://wa.me/?text=${encodeURIComponent(t.text)}`, "_blank");
+                                    }}
+                                    className="text-[#25D366] hover:text-[#20bd5a] p-1 bg-[#25D366]/10 rounded flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider"
+                                  >
+                                    <MessageSquare className="h-2.5 w-2.5" /> WA
+                                  </button>
+                                </div>
+                                {opTask.comments && opTask.comments.length > 0 ? (
+                                  <div className="text-xs text-foreground bg-secondary/50 p-2 rounded whitespace-pre-wrap">
+                                    {opTask.comments[opTask.comments.length - 1].body}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-warning italic flex items-center gap-1">
+                                    <Clock className="h-3 w-3" /> Waiting for response...
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       ) : (
                         <>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-success mb-1 block">Operator Response:</span>
-                          {sentTask.comments && sentTask.comments.length > 0 ? (
-                            <div className="text-xs text-foreground bg-secondary/50 p-2 rounded">
-                              {sentTask.comments[sentTask.comments.length - 1].body}
-                            </div>
+                          {currentUserId === actorId && sentTaskOperator?.status !== "done" ? (
+                            <CheckInResponseForm task={sentTaskOperator!} />
                           ) : (
-                            <div className="text-xs text-warning italic flex items-center gap-1">
-                              <Clock className="h-3 w-3" /> Waiting for operator response...
-                            </div>
+                            <>
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-success mb-1 block">Your Response:</span>
+                              {sentTaskOperator?.comments && sentTaskOperator.comments.length > 0 ? (
+                                <div className="text-xs text-foreground bg-secondary/50 p-2 rounded whitespace-pre-wrap">
+                                  {sentTaskOperator.comments[sentTaskOperator.comments.length - 1].body}
+                                </div>
+                              ) : null}
+                            </>
                           )}
                         </>
                       )}

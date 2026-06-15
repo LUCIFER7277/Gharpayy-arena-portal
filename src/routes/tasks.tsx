@@ -71,7 +71,7 @@ function TasksPage() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
-    let list = tasks;
+    let list = tasks.filter((t) => t.relatedTo !== "Admin Check-In");
     if (scope === "mine") list = list.filter((t) => t.assigneeId === actor.id);
     else if (scope === "team")
       list = list.filter((t) => {
