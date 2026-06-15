@@ -70,8 +70,14 @@ export function missionFor(actor: Employee): MissionItem[] {
         tone: "urgent",
       });
     }
+    const roster = getRoster();
     const assigned = tasksAssignedBy(actor.id)
-      .filter((t) => t.status !== "done")
+      .filter((t) => {
+        if (t.status === "done") return false;
+        const assignee = roster.find((e) => e.id === t.assigneeId);
+        if (assignee && assignee.role.toLowerCase().includes("admin")) return false;
+        return true;
+      })
       .slice(0, 3);
     for (const t of assigned) {
       items.push({
@@ -79,7 +85,7 @@ export function missionFor(actor: Employee): MissionItem[] {
         weight: 40,
         kicker: "You assigned · in flight",
         title: t.title,
-        body: `Owner: ${getRoster().find((e) => e.id === t.assigneeId)?.name ?? "—"}`,
+        body: `Owner: ${roster.find((e) => e.id === t.assigneeId)?.name ?? "—"}`,
         to: "/tasks",
         tone: "info",
       });

@@ -596,7 +596,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       "Closures",
       "Blockers",
       "Pulse Text",
-      "Console Status",
+      "Proof of Work",
       "EOD Time",
       "EOD Status",
       "EOD Brief",
@@ -616,9 +616,9 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
 
       group.regularEntries.forEach((e, idx) => {
         // --- TSV Fallback ---
-        const name = idx === 0 ? group.empName : "";
-        const role = idx === 0 ? group.role : "";
-        const team = idx === 0 ? group.team : "";
+        const name = group.empName;
+        const role = group.role;
+        const team = group.team;
         const outEodTime = idx === 0 ? eodTime : "";
         const outEodStatus = idx === 0 ? eodStatus : "";
         const outEodText = idx === 0 ? eodText : "";
@@ -641,12 +641,11 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
             e.onTime ? "On Time" : "Late",
             e.calls?.toString() || "", e.tours?.toString() || "", e.closures?.toString() || "",
             e.blockers?.replace(/\n/g, " ") || "", e.text.replace(/\n/g, " "),
-            idx === 0 ? `${health.score}% (${health.label})` : "",
+            e.mediaUrls?.length ? e.mediaUrls.join(", ") : "",
             outEodTime, outEodStatus, outEodText, outEodBlockers
           ]);
         } else {
-          const health = dayHealth(group.empId);
-          rows.push([name, role, team, "No intraday slots", "", "", "", "", "", "", "", idx === 0 ? `${health.score}% (${health.label})` : "", outEodTime, outEodStatus, outEodText, outEodBlockers]);
+          rows.push([name, role, team, "No intraday slots", "", "", "", "", "", "", "", "", outEodTime, outEodStatus, outEodText, outEodBlockers]);
         }
 
         // --- HTML Table Generation with Styling and Rowspans ---
@@ -656,11 +655,9 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
         const eodStyle = `border: 1px solid #d1d5db; border-left: 2px solid #9ca3af; padding: 8px; vertical-align: top; background-color: #f8fafc;`;
         const eodTextStyle = `border: 1px solid #d1d5db; border-left: 2px solid #9ca3af; padding: 8px; vertical-align: top; background-color: #f8fafc; width: 300px; white-space: pre-wrap; word-wrap: break-word;`;
         
-        if (idx === 0) {
-          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle} font-weight: bold; background-color: #ffffff;">${group.empName}</td>`;
-          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle} background-color: #ffffff;">${group.role}</td>`;
-          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle} background-color: #ffffff;">${group.team}</td>`;
-        }
+        htmlRow += `<td style="${cellStyle} font-weight: bold; background-color: #ffffff;">${group.empName}</td>`;
+        htmlRow += `<td style="${cellStyle} background-color: #ffffff;">${group.role}</td>`;
+        htmlRow += `<td style="${cellStyle} background-color: #ffffff;">${group.team}</td>`;
 
         if (e) {
           let slotLabel: string = e.slot;
@@ -679,14 +676,14 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
           htmlRow += `<td style="${cellStyle}">${e.closures?.toString() || ""}</td>`;
           htmlRow += `<td style="${cellStyle}">${e.blockers?.replace(/\n/g, " ") || ""}</td>`;
           htmlRow += `<td style="${textStyle}">${e.text}</td>`;
+          const mediaLinks = e.mediaUrls?.length ? e.mediaUrls.map((url, i) => `<a href="${url}" target="_blank">Image ${i+1}</a>`).join(", ") : "";
+          htmlRow += `<td style="${cellStyle}">${mediaLinks}</td>`;
         } else {
-          htmlRow += `<td colspan="8" style="${cellStyle} color: #6b7280; font-style: italic; text-align: center;">No intraday slots submitted</td>`;
+          htmlRow += `<td colspan="9" style="${cellStyle} color: #6b7280; font-style: italic; text-align: center;">No intraday slots submitted</td>`;
         }
 
         if (idx === 0) {
-          const health = dayHealth(group.empId);
           const eodStatusColor = group.eodEntry?.onTime ? '#16a34a' : group.eodEntry ? '#ea580c' : '#6b7280';
-          htmlRow += `<td rowspan="${rowCount}" style="${cellStyle}"><b>${health.score}%</b><br/><span style="font-size:10px">${health.label}</span></td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodStyle}">${eodTime}</td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodStyle} color: ${eodStatusColor}; font-weight: bold;">${eodStatus}</td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodTextStyle}">${group.eodEntry?.text || ""}</td>`;
@@ -780,7 +777,6 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                 <th className="px-3 py-3 border-r border-border/20 min-w-[150px]">Blockers</th>
                 <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">Pulse Text</th>
                 <th className="px-3 py-3 border-r border-border/20">Proof of Work</th>
-                <th className="px-3 py-3 border-r border-border/20">Console Status</th>
                 <th className="px-3 py-3 border-r border-border/20">EOD Time</th>
                 <th className="px-3 py-3 border-r border-border/20">EOD Status</th>
                 <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">EOD Brief</th>
@@ -862,10 +858,6 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
 
                         {idx === 0 ? (
                           <>
-                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20">
-                              <div className="font-medium">{dayHealth(group.empId).score}%</div>
-                              <div className="text-[10px] text-muted-foreground">{dayHealth(group.empId).label}</div>
-                            </td>
                             {group.eodEntry ? (
                               <>
                                 <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">

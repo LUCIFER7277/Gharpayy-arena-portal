@@ -24,6 +24,12 @@ function TaskThroughputPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const filteredTasks = tasks.filter(task => {
+    const assignee = roster.find(e => e.id === task.assigneeId);
+    if (assignee && assignee.role.toLowerCase().includes("admin")) return false;
+    return true;
+  });
+
   const getEmpName = (id?: string) => {
     if (!id) return "—";
     const emp = roster.find((e) => e.id === id);
@@ -79,14 +85,14 @@ function TaskThroughputPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tasks.length === 0 ? (
+            {filteredTasks.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   No tasks found in the organization.
                 </TableCell>
               </TableRow>
             ) : (
-              tasks.map((task) => (
+              filteredTasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell>
                     <div className="font-medium">{task.title}</div>
