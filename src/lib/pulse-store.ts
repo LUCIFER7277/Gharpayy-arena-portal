@@ -86,6 +86,10 @@ export function hydratePulse() {
   return store.hydrateFromApi();
 }
 
+export function flushPulseSync() {
+  return store.flushSync();
+}
+
 export function todayISO(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

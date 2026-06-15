@@ -12,6 +12,7 @@ import {
   getEntries,
   orgComplianceToday,
   submitPulse,
+  flushPulseSync,
   subscribe,
   todayISO,
 } from "@/lib/pulse-store";
@@ -337,6 +338,8 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
       blockers,
       mediaUrls,
     });
+    // Immediately flush to MongoDB so data persists across refresh
+    void flushPulseSync();
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -786,20 +789,16 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                 groupedEntries.map((group) => (
                   <Fragment key={group.empId}>
                     {group.regularEntries.map((e, idx) => (
-                      <tr key={e?.id || `empty-${group.empId}`} className={`hover:bg-muted/30 transition-colors ${idx === group.regularEntries.length - 1 ? "border-b border-border" : "border-b-0"}`}>
-                        {idx === 0 ? (
-                          <>
-                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
-                              {group.empName}
-                            </td>
-                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
-                              {group.role}
-                            </td>
-                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
-                              {group.team}
-                            </td>
-                          </>
-                        ) : null}
+                      <tr key={e?.id || `empty-${group.empId}-${idx}`} className={`hover:bg-muted/30 transition-colors ${idx === group.regularEntries.length - 1 ? "border-b-2 border-border" : ""}`}>
+                        <td className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
+                          {group.empName}
+                        </td>
+                        <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                          {group.role}
+                        </td>
+                        <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                          {group.team}
+                        </td>
                         
                         {e ? (
                           <>
