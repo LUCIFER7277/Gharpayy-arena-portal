@@ -35,6 +35,7 @@ function mapRecordRole(role: string): Role {
 
 function appRoleFromApiUser(role: ApiUser["role"]): AppRole {
   if (role === "admin") return "admin";
+  if (role === "hr") return "hr";
   if (role === "employee") return "employee";
   return "manager";
 }

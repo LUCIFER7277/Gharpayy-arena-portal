@@ -58,9 +58,7 @@ function PulsePage() {
 
   const [viewImages, setViewImages] = useState<string[] | null>(null);
 
-  const isAdminOrHr = tier === "leadership" || tier === "hr";
-
-  if (isAdminOrHr) {
+  if (canSeeAll) {
     return <AdminPulseView />;
   }
 
@@ -526,8 +524,11 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
 
   const groupedEntries = useMemo(() => {
     const groups: Record<string, typeof entries> = {};
+    const roster = getRoster();
     for (const e of entries) {
-      if (e.role?.toLowerCase() === "admin") continue;
+      const linked = roster.find(r => r.id === e.employeeId);
+      const eTier = linked ? tierOf(linked) : "teammate";
+      if (eTier === "leadership" || eTier === "hr" || eTier === "zone_leader" || eTier === "leader") continue;
       if (!groups[e.employeeId]) groups[e.employeeId] = [];
       groups[e.employeeId].push(e);
     }
@@ -559,8 +560,8 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     
     roster.forEach(emp => {
       const tier = tierOf(emp);
-      // Exclude Admin and HR
-      if (tier === "leadership" || tier === "hr") return;
+      // Exclude Admin, HR, and Managers
+      if (tier === "leadership" || tier === "hr" || tier === "zone_leader" || tier === "leader") return;
       
       if (!submittedIds.has(emp.id)) {
         const hasAttendance = attendanceEvents.some(e => e.employeeId === emp.id && todayKey(e.ts) === today);
