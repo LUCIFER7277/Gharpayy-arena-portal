@@ -26,12 +26,14 @@ export const Route = createFileRoute("/hrms")({
 
 const ROLE_ICON: Record<AppRole, React.ElementType> = {
   admin: ShieldCheck,
+  hr: ShieldCheck,
   manager: UserCog,
   employee: User,
 };
 
 const ROLE_TONE: Record<AppRole, string> = {
   admin: "bg-destructive/10 text-destructive border-destructive/30",
+  hr: "bg-warning/10 text-warning border-warning/30",
   manager: "bg-primary/10 text-primary border-primary/30",
   employee: "bg-info/10 text-info border-info/30",
 };
@@ -45,6 +47,7 @@ function HrmsPage() {
   const grouped = useMemo(
     () => ({
       admin: roster.filter((e) => e.appRole === "admin"),
+      hr: roster.filter((e) => e.appRole === "hr"),
       manager: roster.filter((e) => e.appRole === "manager"),
       employee: roster.filter((e) => e.appRole === "employee"),
     }),
@@ -82,8 +85,8 @@ function HrmsPage() {
         </p>
       </header>
 
-      <section className="grid grid-cols-3 gap-3 md:gap-4 mb-6">
-        {(["admin", "manager", "employee"] as AppRole[]).map((r) => {
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+        {(["admin", "hr", "manager", "employee"] as AppRole[]).map((r) => {
           const Icon = ROLE_ICON[r];
           const list = grouped[r];
           const active = activeRole === r;

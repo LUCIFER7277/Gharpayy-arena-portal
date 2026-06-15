@@ -23,6 +23,7 @@ export const Route = createFileRoute("/people")({
 
 const ROLE_TONE: Record<AppRole, string> = {
   admin: "bg-destructive/10 text-destructive border-destructive/30",
+  hr: "bg-warning/10 text-warning border-warning/30",
   manager: "bg-primary/10 text-primary border-primary/30",
   employee: "bg-info/10 text-info border-info/30",
 };
@@ -69,7 +70,7 @@ function PeoplePage() {
           />
         </div>
         <div className="flex gap-1 text-xs">
-          {(["all", "admin", "manager", "employee"] as const).map((r) => (
+          {(["all", "admin", "hr", "manager", "employee"] as const).map((r) => (
             <button
               key={r}
               onClick={() => setFilter(r)}

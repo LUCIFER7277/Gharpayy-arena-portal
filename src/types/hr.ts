@@ -13,7 +13,7 @@ export type Role =
   | "Coach"
   | "Recruiter"
   | "Property Partner";
-export type AppRole = "admin" | "manager" | "employee";
+export type AppRole = "admin" | "hr" | "manager" | "employee";
 
 export interface Employee {
   id: string;

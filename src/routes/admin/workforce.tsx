@@ -491,6 +491,7 @@ function Stat({
 
 function roleTone(appRole: AppRole) {
   if (appRole === "admin") return "border-destructive/30 text-destructive";
+  if (appRole === "hr") return "border-warning/30 text-warning";
   if (appRole === "manager") return "border-primary/30 text-primary";
   return "border-info/30 text-info";
 }

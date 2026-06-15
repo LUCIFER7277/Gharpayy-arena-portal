@@ -205,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setActor((prev) => {
       if (!prev) return null;
-      const actualAppRole = apiRole === "admin" ? "admin" : apiRole === "employee" ? "employee" : "manager";
+      const actualAppRole = apiRole === "admin" ? "admin" : apiRole === "hr" ? "hr" : apiRole === "employee" ? "employee" : "manager";
       return { ...prev, role: hrRole, appRole: actualAppRole };
     });
   }, []);

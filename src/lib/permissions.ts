@@ -47,6 +47,7 @@ export function tierOf(emp: Pick<Employee, "role" | "appRole">): Tier {
   if (LEADER_ROLES.includes(emp.role)) return "leader";
   if (RECRUITER_ROLES.includes(emp.role)) return "recruiter";
   if (emp.appRole === "admin") return "leadership";
+  if (emp.appRole === "hr") return "hr";
   return "teammate";
 }
 
@@ -68,12 +69,14 @@ export type Capability =
 
 export const ROLE_LABEL: Record<AppRole, string> = {
   admin: "Admin",
+  hr: "HR",
   manager: "Manager",
   employee: "Employee",
 };
 
 export const ROLE_DESC: Record<AppRole, string> = {
   admin: "Full surface area. Owns the system.",
+  hr: "People, pulse, policy.",
   manager: "Owns a team. Coaches, approves, decides.",
   employee: "Owns their day. Executes, learns, climbs.",
 };
