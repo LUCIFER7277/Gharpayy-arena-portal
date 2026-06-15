@@ -17,7 +17,7 @@ import {
   todayISO,
 } from "@/lib/pulse-store";
 import { getEventsFor, todayKey } from "@/lib/attendance-store";
-import { dayHealth } from "@/lib/console-store";
+import { dayHealth, subscribeConsole } from "@/lib/console-store";
 import { Avatar } from "@/components/Avatar";
 import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon } from "lucide-react";
 
@@ -518,7 +518,14 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const [v, setV] = useState(0);
   const [copied, setCopied] = useState(false);
   const [viewImages, setViewImages] = useState<string[] | null>(null);
-  useEffect(() => subscribe(() => setV((x) => x + 1)), []);
+  useEffect(() => {
+    const unsubPulse = subscribe(() => setV((x) => x + 1));
+    const unsubConsole = subscribeConsole(() => setV((x) => x + 1));
+    return () => {
+      unsubPulse();
+      unsubConsole();
+    };
+  }, []);
 
   const entries = useMemo(() => getEntries({ date: todayISO() }), [v]);
 
@@ -854,29 +861,35 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                         )}
 
                         {idx === 0 ? (
-                          group.eodEntry ? (
-                            <>
-                              <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">
-                                {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-US", {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })}
-                              </td>
-                              <td rowSpan={group.regularEntries.length} className={`px-3 py-2 align-top font-medium border-r border-border/20 ${group.eodEntry.onTime ? "text-success" : "text-destructive"}`}>
-                                {group.eodEntry.onTime ? "On Time" : "Late"}
-                              </td>
-                              <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
-                                {group.eodEntry.text}
-                              </td>
-                              <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words text-foreground/90">
-                                {group.eodEntry.blockers ?? ""}
-                              </td>
-                            </>
-                          ) : (
-                            <td colSpan={4} rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground italic opacity-70">
-                              Pending EOD
+                          <>
+                            <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20">
+                              <div className="font-medium">{dayHealth(group.empId).score}%</div>
+                              <div className="text-[10px] text-muted-foreground">{dayHealth(group.empId).label}</div>
                             </td>
-                          )
+                            {group.eodEntry ? (
+                              <>
+                                <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">
+                                  {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-US", {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </td>
+                                <td rowSpan={group.regularEntries.length} className={`px-3 py-2 align-top font-medium border-r border-border/20 ${group.eodEntry.onTime ? "text-success" : "text-destructive"}`}>
+                                  {group.eodEntry.onTime ? "On Time" : "Late"}
+                                </td>
+                                <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
+                                  {group.eodEntry.text}
+                                </td>
+                                <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words text-foreground/90">
+                                  {group.eodEntry.blockers ?? ""}
+                                </td>
+                              </>
+                            ) : (
+                              <td colSpan={4} rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground italic opacity-70">
+                                Pending EOD
+                              </td>
+                            )}
+                          </>
                         ) : null}
                       </tr>
                     ))}

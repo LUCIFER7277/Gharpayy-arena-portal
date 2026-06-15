@@ -163,6 +163,10 @@ export function useConsoleDay(actorId: string): DayState {
   );
 }
 
+export function subscribeConsole(cb: () => void): () => void {
+  return store.subscribe(cb);
+}
+
 // ---- Mutations ----
 export function bumpKpi(actorId: string, kpiId: string, delta: number) {
   ensureDay(actorId);

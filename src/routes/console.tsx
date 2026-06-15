@@ -19,7 +19,10 @@ import {
   Sparkles,
   Activity,
   Target,
+  ChevronDown,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useRoleFeature } from "@/hooks/useRoleFeature";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { tierOf, hasConsoleCapability } from "@/lib/permissions";
@@ -494,7 +497,7 @@ function CommWindows({
   day: ReturnType<typeof useConsoleDay>;
 }) {
   const [open, setOpen] = useState<string | null>(null);
-  const [selectedTarget, setSelectedTarget] = useState<string>("all");
+  const [selectedTargets, setSelectedTargets] = useState<string[]>(["all"]);
   const [draftTexts, setDraftTexts] = useState<Record<string, string>>({});
   
   const allTasks = useTasks();
@@ -526,16 +529,67 @@ function CommWindows({
           }
         />
         {isLeadership && actorId === currentUserId && (
-          <select
-            value={selectedTarget}
-            onChange={(e) => setSelectedTarget(e.target.value)}
-            className="text-xs bg-secondary/40 border border-border rounded p-2 min-w-[180px] font-medium"
-          >
-            <option value="all">-- Send to All Operators --</option>
-            {operators.map(op => (
-              <option key={op.id} value={op.id}>{op.name} ({op.role})</option>
-            ))}
-          </select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="text-xs bg-secondary/40 border border-border rounded p-2 min-w-[180px] font-medium flex items-center justify-between gap-2">
+                <span>
+                  {selectedTargets.includes("all") || selectedTargets.length === operators.length
+                    ? "-- Send to All Operators --"
+                    : selectedTargets.length === 0
+                    ? "-- Select Operators --"
+                    : `${selectedTargets.length} Operator${selectedTargets.length > 1 ? "s" : ""} Selected`}
+                </span>
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[240px] p-2" align="end">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 px-2 py-1.5 hover:bg-secondary/40 rounded cursor-pointer">
+                  <Checkbox
+                    checked={selectedTargets.includes("all") || selectedTargets.length === operators.length}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedTargets(["all"]);
+                      } else {
+                        setSelectedTargets([]);
+                      }
+                    }}
+                  />
+                  <span className="text-xs font-semibold">Select All</span>
+                </label>
+                <div className="h-px bg-border my-1" />
+                <div className="max-h-[200px] overflow-y-auto space-y-1 pr-1">
+                  {operators.map(op => {
+                    const isSelected = selectedTargets.includes("all") || selectedTargets.includes(op.id);
+                    return (
+                      <label key={op.id} className="flex items-center gap-2 px-2 py-1 hover:bg-secondary/40 rounded cursor-pointer">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              if (selectedTargets.includes("all")) {
+                                // Already all, doing nothing
+                              } else {
+                                const next = [...selectedTargets, op.id];
+                                setSelectedTargets(next.length === operators.length ? ["all"] : next);
+                              }
+                            } else {
+                              if (selectedTargets.includes("all")) {
+                                setSelectedTargets(operators.map(o => o.id).filter(id => id !== op.id));
+                              } else {
+                                setSelectedTargets(selectedTargets.filter(id => id !== op.id));
+                              }
+                            }
+                          }}
+                        />
+                        <span className="text-xs truncate">{op.name} ({op.role})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
       <div className="space-y-2">
@@ -619,9 +673,9 @@ function CommWindows({
                           e.stopPropagation();
                           if (!currentUserId || operators.length === 0) return;
                           
-                          const targetOps = selectedTarget === "all" 
+                          const targetOps = selectedTargets.includes("all") || selectedTargets.length === operators.length
                             ? operators 
-                            : operators.filter(o => o.id === selectedTarget);
+                            : operators.filter(o => selectedTargets.includes(o.id));
                             
                           for (const op of targetOps) {
                             // avoid duplicates
