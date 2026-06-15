@@ -661,7 +661,8 @@ function CommWindows({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.open(`https://wa.me/?text=${encodeURIComponent(currentText)}`, "_blank");
+                          const waText = currentText.replace(/\r?\n/g, '\r\n');
+                          window.open(`https://wa.me/?text=${encodeURIComponent(waText)}`, "_blank");
                         }}
                         className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-[#25D366] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white transition-colors text-xs font-medium"
                       >
@@ -720,7 +721,8 @@ function CommWindows({
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      window.open(`https://wa.me/?text=${encodeURIComponent(t.text)}`, "_blank");
+                                      const waText = (opTask.description || "").replace(/\r?\n/g, '\r\n');
+                                      window.open(`https://wa.me/?text=${encodeURIComponent(waText)}`, "_blank");
                                     }}
                                     className="text-[#25D366] hover:text-[#20bd5a] p-1 bg-[#25D366]/10 rounded flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider"
                                   >
@@ -996,36 +998,39 @@ const ADMIN_TEMPLATES = [
     id: "check_1pm",
     title: "1 PM Initial Check",
     time: "1 PM",
-    text: `1 PM CHECK-IN
-Drafts done (Target: 30) - 
-Super Leads - 
-U1 Calls connected (Target: 30) - 
-Tours planned / done - 
-CX Issues / Blockers - 
+    text: `*1 PM CHECK-IN*
 
-*Prioritize value creation, maintain a focused agenda, and optimize time management.*`
+*Drafts done (Target: 30)* - 
+*Super Leads* - 
+*U1 Calls connected (Target: 30)* - 
+*Tours planned / done* - 
+*CX Issues / Blockers* - 
+
+_Prioritize value creation, maintain a focused agenda, and optimize time management._`
   },
   {
     id: "check_5pm",
     title: "5 PM Mid-Day Check",
     time: "5 PM",
-    text: `5 PM CHECK-IN (Target: 40% more than 1 PM)
-Drafts done - 
-Super Leads - 
-U1 Calls connected - 
-Tours planned / done - 
-CX Issues / Blockers - `
+    text: `*5 PM CHECK-IN (Target: 40% more than 1 PM)*
+
+*Drafts done* - 
+*Super Leads* - 
+*U1 Calls connected* - 
+*Tours planned / done* - 
+*CX Issues / Blockers* - `
   },
   {
     id: "check_8pm",
     title: "8 PM EOD Check",
     time: "8 PM",
-    text: `8 PM EOD WRAP-UP
-Total Drafts - 
-Total Super Leads - 
-Total U1 Calls connected - 
-Total Tours planned / done - 
-Key learnings / Blockers for tomorrow - `
+    text: `*8 PM EOD WRAP-UP*
+
+*Total Drafts* - 
+*Total Super Leads* - 
+*Total U1 Calls connected* - 
+*Total Tours planned / done* - 
+*Key learnings / Blockers for tomorrow* - `
   }
 ];
 
