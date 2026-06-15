@@ -518,6 +518,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const [v, setV] = useState(0);
   const [copied, setCopied] = useState(false);
   const [viewImages, setViewImages] = useState<string[] | null>(null);
+  const [isExternalView, setIsExternalView] = useState(false);
   useEffect(() => {
     const unsubPulse = subscribe(() => setV((x) => x + 1));
     const unsubConsole = subscribeConsole(() => setV((x) => x + 1));
@@ -526,6 +527,27 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       unsubConsole();
     };
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewMediaId = params.get("viewMedia");
+    if (viewMediaId) {
+      const allEntries = getEntries({});
+      const entry = allEntries.find((e) => e.id === viewMediaId);
+      if (entry && entry.mediaUrls && entry.mediaUrls.length > 0) {
+        setViewImages(entry.mediaUrls);
+        setIsExternalView(true);
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  const closeViewer = () => {
+    setViewImages(null);
+    if (isExternalView) {
+      window.close();
+    }
+  };
 
   const entries = useMemo(() => getEntries({ date: todayISO() }), [v]);
 
@@ -641,7 +663,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
             e.onTime ? "On Time" : "Late",
             e.calls?.toString() || "", e.tours?.toString() || "", e.closures?.toString() || "",
             e.blockers?.replace(/\n/g, " ") || "", e.text.replace(/\n/g, " "),
-            e.mediaUrls?.length ? e.mediaUrls.join(", ") : "",
+            e.mediaUrls?.length ? `[${e.mediaUrls.length} Image(s) Uploaded]` : "",
             outEodTime, outEodStatus, outEodText, outEodBlockers
           ]);
         } else {
@@ -676,7 +698,9 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
           htmlRow += `<td style="${cellStyle}">${e.closures?.toString() || ""}</td>`;
           htmlRow += `<td style="${cellStyle}">${e.blockers?.replace(/\n/g, " ") || ""}</td>`;
           htmlRow += `<td style="${textStyle}">${e.text}</td>`;
-          const mediaLinks = e.mediaUrls?.length ? e.mediaUrls.map((url, i) => `<a href="${url}" target="_blank">Image ${i+1}</a>`).join(", ") : "";
+          const origin = window.location.origin;
+          const path = window.location.pathname;
+          const mediaLinks = e.mediaUrls?.length ? `<a href="${origin}${path}?viewMedia=${e.id}" target="_blank">View ${e.mediaUrls.length} Image(s)</a>` : "";
           htmlRow += `<td style="${cellStyle}">${mediaLinks}</td>`;
         } else {
           htmlRow += `<td colspan="9" style="${cellStyle} color: #6b7280; font-style: italic; text-align: center;">No intraday slots submitted</td>`;
@@ -918,11 +942,11 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       {viewImages && (
         <div 
           className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-start p-4 md:p-10 backdrop-blur-sm cursor-pointer overflow-y-auto"
-          onClick={() => setViewImages(null)}
+          onClick={closeViewer}
         >
           <div className="relative max-w-5xl w-full flex flex-col items-center gap-8 py-10 my-auto" onClick={e => e.stopPropagation()}>
             <button 
-              onClick={() => setViewImages(null)}
+              onClick={closeViewer}
               className="sticky top-4 self-end md:-mr-12 bg-secondary text-foreground rounded-full p-2 hover:bg-destructive hover:text-white transition-colors z-10 shadow-lg"
             >
               <X className="h-5 w-5" />
