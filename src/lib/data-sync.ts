@@ -14,6 +14,8 @@ import { hydrateOneOnOnes } from "./oneonone-store";
 import { hydrateRecruiting } from "./recruiting-store";
 import { hydrateZones } from "./zones-store";
 import { hydratePlaybooks } from "./playbooks-store";
+import { hydrateMessages } from "./message-store";
+import { initSocket } from "./socket-client";
 import { tierOf } from "./permissions";
 import type { Employee } from "@/types/hr";
 import type { ApiUser } from "./api-client";
@@ -52,6 +54,9 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
       employees = await fetchEmployeeRoster(u);
     }
 
+    // Connect to real-time socket
+    initSocket();
+
     // Determine if the current user has recruiting access (leadership, hr, or recruiter tier)
     const me = u?.employeeId ? employees.find((e) => e.id === u.employeeId) : null;
     const tier = me ? tierOf(me) : (u?.role === "admin" ? "leadership" : "teammate");
@@ -70,6 +75,7 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
       hydrateOneOnOnes(),
       hydrateZones(),
       hydratePlaybooks(),
+      hydrateMessages(),
       hasRecruiting ? hydrateRecruiting() : Promise.resolve(false),
     ]);
 
@@ -81,8 +87,9 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
       if (apiEnabled && getToken()) {
         hydrateTasks();
         hydrateNotifications();
+        hydrateMessages();
       }
-    }, 10_000); // 10 seconds polling for real-time updates
+    }, 5000); // 5 seconds polling for real-time updates
   }
 
   try {

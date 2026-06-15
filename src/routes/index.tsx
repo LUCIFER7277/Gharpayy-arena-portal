@@ -15,6 +15,7 @@ import { lastNDays } from "@/lib/day-score";
 import { Avatar } from "@/components/Avatar";
 import { AttendancePanel } from "@/components/AttendancePanel";
 import { MissionBrief } from "@/components/MissionBrief";
+import { DailyQuote } from "@/components/DailyQuote";
 import { EmployeeStatsModal } from "@/components/EmployeeStatsModal";
 import { Progress } from "@/components/ui/progress";
 import { useRoleFeature } from "@/hooks/useRoleFeature";
@@ -515,6 +516,7 @@ function TeammateHome({ actor }: { actor: Employee }) {
         actor={actor}
         sub={`Time, Tasks, Goals — your three pillars. ${TIER_TAGLINE.teammate}`}
       />
+      <DailyQuote />
       <MissionBrief actor={actor} />
       <HeroPillars actor={actor} />
 
@@ -603,6 +605,9 @@ function LeaderHome({ actor }: { actor: Employee }) {
         actor={actor}
         sub={`Your pod's Time, Tasks, Goals at a glance. ${TIER_TAGLINE.leader}`}
       />
+      
+      <DailyQuote />
+      
       <MissionBrief actor={actor} />
 
       {/* Personal pillars first — leaders punch in too */}
@@ -706,6 +711,9 @@ function HRHome({ actor }: { actor: Employee }) {
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1300px] mx-auto">
       <HomeHeader actor={actor} sub={`Time, Tasks, Goals across the org. ${TIER_TAGLINE.hr}`} />
+      
+      <DailyQuote />
+      
       <MissionBrief actor={actor} />
 
       {/* Org-wide rollup of the three pillars */}
@@ -810,6 +818,7 @@ function LeadershipHome({ actor }: { actor: Employee }) {
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1400px] mx-auto">
       <HomeHeader actor={actor} sub={`Org-wide Time, Tasks, Goals. ${TIER_TAGLINE.leadership}`} />
+      <DailyQuote />
       <MissionBrief actor={actor} />
 
       {/* The three pillars, org-wide, are the headline */}
@@ -991,6 +1000,9 @@ function ZoneLeaderHome({ actor }: { actor: Employee }) {
         actor={actor}
         sub={`Zone-wide Time, Tasks, Goals. ${TIER_TAGLINE.zone_leader}`}
       />
+      
+      <DailyQuote />
+      
       <MissionBrief actor={actor} />
 
       {/* Personal pillars — zone leaders punch in too */}

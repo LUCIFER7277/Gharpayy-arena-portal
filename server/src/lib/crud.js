@@ -170,14 +170,18 @@ export function crudRouter(
               filter.reportId = empId;
             }
           } else if (modelName === "Employee") {
-            // Standard employee sees themselves and members of hierarchy
+            // Standard employee sees themselves, members of hierarchy, AND all HR/Admin staff
             if (isManager(req.user)) {
               filter.$or = [
                 { id: empId },
                 { id: { $in: Array.from(reportIds) } },
+                { role: { $in: ["Admin", "HR"] } }
               ];
             } else {
-              filter.id = empId;
+              filter.$or = [
+                { id: empId },
+                { role: { $in: ["Admin", "HR"] } }
+              ];
             }
           } else if (["Leave", "Attendance", "AttendanceEvent", "PulseEntry"].includes(modelName)) {
             // Restrict views to self or reporting tree for managers

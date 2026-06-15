@@ -34,6 +34,7 @@ export const LAUNCH_ROUTES = new Set<string>([
   "/live-attendance",     // Live Attendance
   "/task-throughput",     // Task Throughput
   "/employee-stats/$id",  // Employee Stats
+  "/inbox",               // Inbox
 ]);
 
 // ─── Feature key whitelist ───────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export const ENABLED_FEATURES = new Set<string>([
   "orgGoals",
   "liveAttendance",
   "taskThroughput",
+  "inbox",
 ]);
 
 // ─── Route → feature key map ─────────────────────────────────────────────────
@@ -83,6 +85,7 @@ export const FEATURE_MAP: Record<string, string> = {
   "/live-attendance":     "liveAttendance",
   "/task-throughput":     "taskThroughput",
   "/employee-stats/$id":  "home",
+  "/inbox":               "inbox",
 };
 
 // ─── Role permission matrix ───────────────────────────────────────────────────
@@ -108,6 +111,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "orgGoals",
     "liveAttendance",
     "taskThroughput",
+    "inbox",
   ],
   hr: [
     "home",
@@ -124,6 +128,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "orgGoals",
     "liveAttendance",
     "taskThroughput",
+    "inbox",
   ],
   manager: [
     "home",
@@ -136,6 +141,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "kudos",
     "oneOnOnes",
     "liveAttendance",
+    "inbox",
   ],
   employee: [
     "home",
@@ -144,5 +150,6 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "tasks",
     "kudos",
     "oneOnOnes",
+    "inbox",
   ],
 };

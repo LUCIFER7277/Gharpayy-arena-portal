@@ -280,3 +280,27 @@ export const CAND_STAGE_ORDER: CandidateStage[] = [
   "hired",
   "rejected",
 ];
+
+export interface ChatMessage {
+  id: string;
+  threadId: string;
+  fromId: string;
+  body: string;
+  ts: number;
+  // If the message contains an action widget (e.g. Leave Request)
+  actionType?: "leave_request" | "leave_approved" | "leave_rejected";
+  actionPayload?: {
+    leaveId?: string;
+    startDate?: string;
+    endDate?: string;
+    reason?: string;
+    type?: LeaveType;
+  };
+}
+
+export interface ChatThread {
+  id: string;
+  participantIds: string[]; // typically [employeeId, adminId]
+  updatedAt: number;
+  lastMessage?: string;
+}

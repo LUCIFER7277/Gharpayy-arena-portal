@@ -434,6 +434,33 @@ export const FlyFeed = mongoose.model("FlyFeed", FlyFeedSchema);
 export const KpiDefinition = mongoose.model("KpiDefinition", KpiDefinitionSchema);
 export const KpiTarget = mongoose.model("KpiTarget", KpiTargetSchema);
 
+// --- Chat System ---
+const ChatThreadSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    participantIds: [{ type: String, required: true, index: true }],
+    lastMessage: String,
+    updatedAt: { type: Number, default: () => Date.now() },
+  },
+  { timestamps: true }
+);
+
+const ChatMessageSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    threadId: { type: String, required: true, index: true },
+    fromId: { type: String, required: true, index: true },
+    body: { type: String, required: true },
+    ts: { type: Number, default: () => Date.now() },
+    actionType: { type: String }, // leave_request, leave_approved, etc.
+    actionPayload: { type: Schema.Types.Mixed },
+  },
+  { timestamps: true }
+);
+
+export const ChatThread = mongoose.model("ChatThread", ChatThreadSchema);
+export const ChatMessage = mongoose.model("ChatMessage", ChatMessageSchema);
+
 // --- Zones & Properties ---
 const ZoneSchema = new Schema(
   {

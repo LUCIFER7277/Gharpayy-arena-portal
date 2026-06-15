@@ -1,7 +1,8 @@
+import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Bot, Loader2 } from "lucide-react";
 import type { Employee } from "@/types/hr";
-import { missionFor, TIER_MISSION_LABEL } from "@/lib/priority-engine";
+import { fetchAiMissionFor, fallbackMissionFor, type MissionItem, TIER_MISSION_LABEL } from "@/lib/priority-engine";
 import { tierOf } from "@/lib/permissions";
 import { useEvents } from "@/lib/event-bus";
 
@@ -23,7 +24,28 @@ export function MissionBrief({ actor }: { actor: Employee }) {
   // re-render when event spine moves
   useEvents();
   const tier = tierOf(actor);
-  const items = missionFor(actor);
+  
+  const [items, setItems] = useState<MissionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    
+    fetchAiMissionFor(actor).then(fetchedItems => {
+      if (mounted) {
+        setItems(fetchedItems);
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (mounted) {
+        setItems(fallbackMissionFor(actor));
+        setLoading(false);
+      }
+    });
+
+    return () => { mounted = false; };
+  }, [actor]);
 
   return (
     <section className="rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 p-4 md:p-5 mb-6">
@@ -44,7 +66,12 @@ export function MissionBrief({ actor }: { actor: Employee }) {
         </span>
       </header>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <div className="py-8 flex flex-col items-center justify-center text-muted-foreground animate-pulse">
+          <Loader2 className="h-6 w-6 animate-spin mb-3 text-primary/50" />
+          <div className="text-sm">AI is analyzing your context...</div>
+        </div>
+      ) : items.length === 0 ? (
         <div className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border rounded-md">
           Inbox zero. Floor is clean. Pick a stretch goal.
         </div>

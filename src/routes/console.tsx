@@ -61,7 +61,7 @@ import {
   type KpiTarget,
 } from "@/lib/kpi-governance-api";
 import { AdminPulseView } from "./pulse";
-
+import { api } from "@/lib/api-client";
 export const Route = createFileRoute("/console")({
   component: ConsolePage,
   head: () => ({
@@ -499,6 +499,8 @@ function CommWindows({
   const [open, setOpen] = useState<string | null>(null);
   const [selectedTargets, setSelectedTargets] = useState<string[]>(["all"]);
   const [draftTexts, setDraftTexts] = useState<Record<string, string>>({});
+  const [customTemplates, setCustomTemplates] = useState<{id: string, title: string, time: string, text: string}[]>([]);
+  const [generatingCustom, setGeneratingCustom] = useState(false);
   
   const allTasks = useTasks();
   const { user, actor: loggedInActor } = useAuth();
@@ -593,7 +595,7 @@ function CommWindows({
         )}
       </div>
       <div className="space-y-2">
-        {ADMIN_TEMPLATES.map((t) => {
+        {[...ADMIN_TEMPLATES, ...customTemplates].map((t) => {
           const sentTaskOperator = allTasks.find(task => task.relatedTo === "Admin Check-In" && task.title.includes(t.title) && task.assigneeId === actorId);
           const sentTasksAdmin = isLeadership ? allTasks.filter(task => task.relatedTo === "Admin Check-In" && task.title.includes(t.title) && task.assignedById === currentUserId) : [];
           
@@ -616,8 +618,17 @@ function CommWindows({
                   <div className={`mt-0.5 rounded ${isSent ? "text-success" : "text-muted-foreground"}`}>
                     <MessageSquare className="h-4 w-4" />
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold">{t.title}</div>
+                  <div className="flex-1 text-left">
+                    {t.id.startsWith("custom_") && isOpen && isLeadership ? (
+                      <input
+                        value={t.title}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setCustomTemplates(prev => prev.map(ct => ct.id === t.id ? { ...ct, title: e.target.value } : ct))}
+                        className="text-sm font-semibold bg-transparent border-b border-primary/30 focus:border-primary outline-none px-0 py-0 w-full"
+                      />
+                    ) : (
+                      <div className="text-sm font-semibold">{t.title}</div>
+                    )}
                     <div className="text-xs text-muted-foreground">Admin Check-In · {t.time}</div>
                   </div>
                 </div>
@@ -635,7 +646,7 @@ function CommWindows({
               </button>
               {isOpen && (
                 <div className="border-t border-border p-3 space-y-2">
-                  {isLeadership && !isSent ? (
+                  {isLeadership ? (
                     <textarea
                       value={currentText}
                       onChange={(e) => setDraftTexts(prev => ({ ...prev, [t.id]: e.target.value }))}
@@ -649,6 +660,26 @@ function CommWindows({
 
                   {isLeadership && (
                     <div className="flex gap-2">
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const res = await api.post<{ text: string }>("/ai/template", {
+                              mode: "generate_template",
+                              title: t.title,
+                              context: pb.key
+                            });
+                            if (res && res.text) {
+                              setDraftTexts(prev => ({ ...prev, [t.id]: res.text }));
+                            }
+                          } catch (err) {
+                            console.error("Failed to generate AI template", err);
+                          }
+                        }}
+                        className="h-8 px-3 inline-flex items-center gap-1.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white transition-colors text-xs font-medium"
+                      >
+                        <Sparkles className="h-3 w-3" /> Auto-draft
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1039,6 +1070,8 @@ _Prioritize value creation, maintain a focused agenda, and optimize time managem
 function CheckInResponseForm({ task }: { task: AppTask }) {
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [polishing, setPolishing] = useState(false);
+  const allTasks = useTasks();
 
   const handleSend = () => {
     if (!text.trim()) return;
@@ -1046,6 +1079,44 @@ function CheckInResponseForm({ task }: { task: AppTask }) {
     addComment(task.id, task.assigneeId, text);
     setStatus(task.id, "done", task.assigneeId);
     setTimeout(() => setSubmitting(false), 500);
+  };
+
+  const handleAIPolish = async () => {
+    if (!text.trim()) return;
+    setPolishing(true);
+    try {
+      const res = await api.post<{ text: string }>("/ai/template", {
+        mode: "polish_pulse",
+        context: text
+      });
+      if (res && res.text) {
+        setText(res.text);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPolishing(false);
+    }
+  };
+
+  const handleAiFill = async () => {
+    setSubmitting(true);
+    try {
+      const myActiveTasks = allTasks.filter(t => t.assigneeId === task.assigneeId && t.status !== "done").map(t => ({ title: t.title, status: t.status }));
+      const myCompletedTasks = allTasks.filter(t => t.assigneeId === task.assigneeId && t.status === "done").map(t => ({ title: t.title, status: "completed" }));
+      const res = await api.post<{ text: string }>("/ai/template", {
+        mode: "fill_response",
+        context: task.description,
+        tasks: [...myActiveTasks, ...myCompletedTasks]
+      });
+      if (res && res.text) {
+        setText(res.text);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -1056,13 +1127,23 @@ function CheckInResponseForm({ task }: { task: AppTask }) {
         placeholder="Paste your completed check-in here..."
         className="w-full text-xs bg-secondary/40 border border-border rounded p-3 min-h-[80px] resize-y"
       />
-      <button
-        onClick={handleSend}
-        disabled={!text.trim() || submitting}
-        className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-      >
-        <Send className="h-3.5 w-3.5" /> Send Response
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={handleAIPolish}
+          disabled={!text.trim() || polishing || submitting}
+          className="flex-1 flex items-center justify-center gap-2 bg-purple-500/10 text-purple-600 border border-purple-500/30 hover:bg-purple-500 hover:text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+        >
+          <Sparkles className="h-3.5 w-3.5" /> {polishing ? "Polishing..." : "AI Polish"}
+        </button>
+
+        <button
+          onClick={handleSend}
+          disabled={!text.trim() || submitting}
+          className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+        >
+          <Send className="h-3.5 w-3.5" /> Send Response
+        </button>
+      </div>
     </div>
   );
 }

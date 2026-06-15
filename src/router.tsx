@@ -61,6 +61,15 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
     defaultErrorComponent: DefaultErrorComponent,
+    defaultNotFoundComponent: () => (
+      <div className="flex h-full w-full items-center justify-center p-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">404 Not Found</h2>
+          <p className="text-muted-foreground mb-4">The route you requested does not exist.</p>
+          <a href="/" className="text-primary hover:underline">Go back home</a>
+        </div>
+      </div>
+    ),
   });
 
   return router;

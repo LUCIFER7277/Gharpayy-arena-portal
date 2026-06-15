@@ -18,6 +18,7 @@ import {
 } from "@/lib/pulse-store";
 import { getEventsFor, todayKey } from "@/lib/attendance-store";
 import { dayHealth, subscribeConsole } from "@/lib/console-store";
+import { api } from "@/lib/api-client";
 import { Avatar } from "@/components/Avatar";
 import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon } from "lucide-react";
 
@@ -292,6 +293,34 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
   const [blockers, setBlockers] = useState(existing?.blockers || "");
   const [mediaUrls, setMediaUrls] = useState<string[]>(existing?.mediaUrls || []);
   const [saved, setSaved] = useState(false);
+  const [polishing, setPolishing] = useState(false);
+
+  const handleAIPolish = async () => {
+    if (slot.key !== "eod" && !text.trim()) return;
+    setPolishing(true);
+    try {
+      let mode = "polish_pulse";
+      let contextStr = text;
+      
+      if (slot.key === "eod") {
+        mode = "generate_eod";
+        const earlierEntries = getEntries({ employeeId, date: todayISO() }).filter(e => e.slot !== "eod");
+        contextStr = earlierEntries.map(e => `[${e.slot}]: ${e.text}`).join("\n\n");
+      }
+
+      const res = await api.post<{ text: string }>("/ai/template", {
+        mode,
+        context: contextStr
+      });
+      if (res && res.text) {
+        setText(res.text);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPolishing(false);
+    }
+  };
 
   useEffect(() => {
     const e = getEntries({ employeeId, date: todayISO(), slot: slot.key })[0];
@@ -359,6 +388,16 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
           placeholder="Type it the way you'd say it on a call. No fluff."
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
         />
+        <div className="flex justify-end mt-[-8px]">
+          <button
+            onClick={handleAIPolish}
+            disabled={(slot.key !== "eod" && !text.trim()) || polishing}
+            className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-purple-500/30 bg-purple-500/10 text-purple-600 hover:bg-purple-500 hover:text-white transition-colors disabled:opacity-50 font-medium"
+          >
+            <Sparkles className="h-3 w-3" />
+            {polishing ? (slot.key === "eod" ? "Generating..." : "Polishing...") : (slot.key === "eod" ? "Auto-fill EOD" : "AI Polish")}
+          </button>
+        </div>
         <div className="grid grid-cols-3 gap-3">
           <NumberField label="Calls" value={calls} onChange={setCalls} />
           <NumberField label="Tours" value={tours} onChange={setTours} />

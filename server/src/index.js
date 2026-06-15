@@ -38,7 +38,11 @@ import permissionsRoutes from "./routes/permissions.js";
 import zonesRoutes from "./routes/zones.js";
 import playbooksRoutes from "./routes/playbooks.js";
 import orgGoalsRoutes from "./routes/org-goals.js";
+import aiRoutes from "./routes/ai.js";
+import messagesRoutes from "./routes/messages.js";
+import threadsRoutes from "./routes/threads.js";
 import { toHttpError } from "./lib/errors.js";
+import { Server as SocketIOServer } from "socket.io";
 
 const app = express();
 
@@ -117,6 +121,9 @@ app.use("/api/permissions", permissionsRoutes);
 app.use("/api/zones", zonesRoutes);
 app.use("/api/playbooks", playbooksRoutes);
 app.use("/api/org-goals", orgGoalsRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/messages", messagesRoutes);
+app.use("/api/threads", threadsRoutes);
 
 // --- error handler ---
 app.use((err, req, res, _next) => {
@@ -178,6 +185,51 @@ if (!process.env.JWT_SECRET) {
 function startHttpServer() {
   const server = app.listen(PORT, () => {
     console.log(`[api] listening on :${PORT}`);
+  });
+
+  // Attach Socket.io
+  const io = new SocketIOServer(server, {
+    cors: {
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        if (origins.length === 0) return cb(null, true);
+        if (origins.includes(origin)) return cb(null, true);
+        try {
+          const url = new URL(origin);
+          if (["8080", "5173", "5174", "3000"].includes(url.port)) return cb(null, true);
+          if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return cb(null, true);
+        } catch (e) {}
+        return cb(null, false);
+      },
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
+
+  // Make io accessible to routers if needed
+  app.set("io", io);
+
+  io.on("connection", (socket) => {
+    console.log(`[socket] Client connected: ${socket.id}`);
+    
+    // Client should join a room for their employeeId
+    socket.on("join", (employeeId) => {
+      console.log(`[socket] ${socket.id} joining room ${employeeId}`);
+      socket.join(employeeId);
+    });
+
+    // Handle generic chat notification emitted from client to bypass complex backend hooks
+    socket.on("notify_chat", ({ targetIds }) => {
+      if (Array.isArray(targetIds)) {
+        targetIds.forEach(id => {
+          socket.to(id).emit("chat_update");
+        });
+      }
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`[socket] Client disconnected: ${socket.id}`);
+    });
   });
 
   server.on("error", (err) => {
