@@ -773,6 +773,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                 <th className="px-3 py-3 border-r border-border/20 min-w-[150px]">Blockers</th>
                 <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">Pulse Text</th>
                 <th className="px-3 py-3 border-r border-border/20">Proof of Work</th>
+                <th className="px-3 py-3 border-r border-border/20">Console Status</th>
                 <th className="px-3 py-3 border-r border-border/20">EOD Time</th>
                 <th className="px-3 py-3 border-r border-border/20">EOD Status</th>
                 <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">EOD Brief</th>
