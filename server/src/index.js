@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { toHttpError } from "./lib/errors.js";
 import { Server as SocketIOServer } from "socket.io";
 import { initializeApp, cert } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 import fs from "fs";
 
 // __dirname polyfill for ESM — must be before config()
@@ -215,8 +216,8 @@ if (!process.env.JWT_SECRET) {
 }
 
 function startHttpServer() {
-  const server = app.listen(PORT, () => {
-    console.log(`[api] listening on :${PORT}`);
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[api] listening on 0.0.0.0:${PORT}`);
   });
 
   // Attach Socket.io
@@ -276,7 +277,7 @@ function startHttpServer() {
                 },
                 tokens: tokenStrings,
               };
-              const response = await admin.messaging().sendEachForMulticast(message);
+              const response = await getMessaging().sendEachForMulticast(message);
               console.log('[fcm] Sent push notification:', response.successCount, 'success,', response.failureCount, 'failed');
             }
           } catch (e) {
