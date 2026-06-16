@@ -32,13 +32,17 @@ if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
 
   messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Received background message ', payload);
-    const notificationTitle = payload.notification?.title || 'Arena Chat';
-    const notificationOptions = {
-      body: payload.notification?.body || 'You have a new message.',
-      icon: '/vite.svg'
-    };
-
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    
+    // Firebase Web SDK automatically displays notifications if the payload includes
+    // a "notification" object. We only manually show it if it's a data-only payload.
+    if (!payload.notification) {
+      const notificationTitle = payload.data?.title || 'Arena Chat';
+      const notificationOptions = {
+        body: payload.data?.body || 'You have a new message.',
+        icon: '/vite.svg'
+      };
+      return self.registration.showNotification(notificationTitle, notificationOptions);
+    }
   });
 } else {
   console.warn("[firebase-messaging-sw.js] Please update firebaseConfig with your actual Firebase keys for background notifications to work.");
