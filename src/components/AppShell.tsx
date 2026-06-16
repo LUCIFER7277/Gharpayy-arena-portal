@@ -140,6 +140,13 @@ const NAV: NavItem[] = [
     adminOnly: true,
   },
   {
+    to: "/admin/zones",
+    label: "Manage Zones",
+    icon: MapIcon,
+    tiers: ["leadership"],
+    adminOnly: true,
+  },
+  {
     to: "/admin/kpis",
     label: "KPI Governance",
     icon: Target,

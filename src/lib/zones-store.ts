@@ -56,6 +56,23 @@ export async function hydrateZones() {
   }
 }
 
+export async function createZone(data: Partial<Zone>) {
+  const newZone = await api.post<Zone>("/zones", data);
+  const current = store.read();
+  store.write({ ...current, zones: [...current.zones, newZone] });
+  return newZone;
+}
+
+export async function updateZone(id: string, data: Partial<Zone>) {
+  const updatedZone = await api.put<Zone>(`/zones/${id}`, data);
+  const current = store.read();
+  store.write({
+    ...current,
+    zones: current.zones.map((z) => (z.id === id ? updatedZone : z)),
+  });
+  return updatedZone;
+}
+
 export function propertiesOfZone(zoneId: string) {
   const { properties } = store.read();
   return properties.filter(p => p.zoneId === zoneId);
