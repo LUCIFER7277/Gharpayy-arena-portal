@@ -62,22 +62,27 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
     const tier = me ? tierOf(me) : (u?.role === "admin" ? "leadership" : "teammate");
     const hasRecruiting = ["leadership", "hr", "recruiter"].includes(tier);
 
+    // Phase 1: Critical stores — hydrate these first so the home page renders with real data
     await Promise.all([
+      hydrateAttendance(),
       hydrateTasks(),
+      hydratePulse(),
+      hydrateNotifications(),
+    ]);
+
+    // Phase 2: Secondary stores — hydrate in background, UI will reactively update
+    Promise.all([
       hydrateLeaves(),
       hydrateKudos(),
       hydrateCalendar(),
       hydrateConsole(),
       hydrateFly(),
-      hydrateAttendance(),
-      hydratePulse(),
-      hydrateNotifications(),
       hydrateOneOnOnes(),
       hydrateZones(),
       hydratePlaybooks(),
       hydrateMessages(),
       hasRecruiting ? hydrateRecruiting() : Promise.resolve(false),
-    ]);
+    ]).catch((err) => console.warn("[sync] secondary hydrate error:", err));
 
     return employees;
   })();

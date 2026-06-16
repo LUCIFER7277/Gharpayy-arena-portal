@@ -114,7 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setEmployees(session.employees);
       setActor(session.actor);
       setStatus("authenticated");
-      await runOrgSync(session.user);
+      // Fire-and-forget: hydrate stores in background so the UI renders immediately
+      runOrgSync(session.user).catch((err) =>
+        console.warn('[AuthContext] background sync error:', err)
+      );
     } catch {
       logout();
     }
@@ -135,7 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setEmployees(session.employees);
       setActor(session.actor);
       setStatus("authenticated");
-      await runOrgSync(session.user);
+      // Fire-and-forget: hydrate stores in background
+      runOrgSync(session.user).catch((err) =>
+        console.warn('[AuthContext] background sync error:', err)
+      );
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Login failed";
       setError(msg);
@@ -218,8 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       employees,
       dataReady,
       error,
-      isLoading:
-        status === "loading" || actionLoading || (status === "authenticated" && !dataReady),
+      isLoading: status === "loading" || actionLoading,
       apiEnabled,
       login,
       signup,
