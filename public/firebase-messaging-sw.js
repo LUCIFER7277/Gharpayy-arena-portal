@@ -44,6 +44,27 @@ if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
       return self.registration.showNotification(notificationTitle, notificationOptions);
     }
   });
+
+  // Handle clicking on the notification
+  self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    // This looks to see if the current is already open and focuses if it is
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        // Find a client that is focused, or at least open
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // If no client is open, open a new window
+        if (clients.openWindow) {
+          return clients.openWindow('/');
+        }
+      })
+    );
+  });
 } else {
   console.warn("[firebase-messaging-sw.js] Please update firebaseConfig with your actual Firebase keys for background notifications to work.");
 }
