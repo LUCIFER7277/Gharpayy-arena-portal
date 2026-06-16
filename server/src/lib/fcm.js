@@ -1,4 +1,5 @@
-import admin from "firebase-admin";
+import { getApps } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 
 /**
  * Helper to securely dispatch a push notification to a user's registered FCM devices.
@@ -9,7 +10,7 @@ import admin from "firebase-admin";
  * @param {string} body - The notification body
  */
 export async function sendPushNotification(toId, title, body) {
-  if (admin.apps.length === 0) return;
+  if (getApps().length === 0) return;
   if (!toId) return;
 
   try {
@@ -27,7 +28,7 @@ export async function sendPushNotification(toId, title, body) {
         tokens: tokens.map((t) => t.token),
       };
       
-      const response = await admin.messaging().sendEachForMulticast(message);
+      const response = await getMessaging().sendEachForMulticast(message);
       console.log(`[fcm] Push sent to ${toId}: ${response.successCount} success, ${response.failureCount} failed`);
     }
   } catch (e) {

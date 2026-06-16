@@ -10,8 +10,6 @@ import {
   getManagerHierarchyIds,
   logSecurityAudit,
 } from "./auth-helpers.js";
-import admin from "firebase-admin";
-
 /**
  * Builds a generic REST router for a Mongoose model:
  *   GET    /            list (with optional ?employeeId=&date=&limit=)
