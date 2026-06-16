@@ -26,14 +26,14 @@
     {
       "src": "/screenshot-wide.png",
       "type": "image/png",
-      "sizes": "1024x1024",
+      "sizes": "1280x720",
       "form_factor": "wide",
       "label": "Gharpayy Arena dashboard with KPI cards, daily pulse, and team activity"
     },
     {
       "src": "/screenshot-narrow.png",
       "type": "image/png",
-      "sizes": "1024x1024",
+      "sizes": "720x1280",
       "form_factor": "narrow",
       "label": "Gharpayy Arena mobile view with quick stats and bottom navigation"
     }
