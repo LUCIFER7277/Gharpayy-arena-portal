@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTasks, hydrateTasks } from "@/lib/task-store";
 import { useRosterState } from "@/hooks/useRoster";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -65,6 +65,9 @@ function TaskThroughputPage() {
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1200px] mx-auto">
       <header className="mb-5">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4 transition-colors">
+          &larr; Back to Dashboard
+        </Link>
         <div className="font-mono text-[11px] uppercase tracking-widest text-primary mb-1.5">
           Org · Pillar 02
         </div>

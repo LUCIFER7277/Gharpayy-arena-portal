@@ -101,6 +101,9 @@ function ScorePage() {
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1200px] mx-auto">
       <header className="mb-6">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4 transition-colors">
+          &larr; Back to Dashboard
+        </Link>
         <div className="font-mono text-[11px] uppercase tracking-widest text-primary mb-1.5">
           Performance Scorecard
         </div>

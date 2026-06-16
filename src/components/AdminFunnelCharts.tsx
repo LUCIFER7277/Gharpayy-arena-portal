@@ -12,7 +12,7 @@ import { useMemo } from "react";
 import type { Employee } from "@/types/hr";
 import { useTasks } from "@/lib/task-store";
 
-export function AdminFunnelCharts({ roster }: { roster: Employee[] }) {
+export function AdminFunnelCharts({ roster = [] }: { roster?: Employee[] }) {
   const tasks = useTasks();
 
   const metrics = useMemo(() => {

@@ -65,6 +65,9 @@ function OrgGoalsPage() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
       <header>
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4 transition-colors">
+          &larr; Back to Dashboard
+        </Link>
         <div className="text-xs font-mono uppercase tracking-widest text-primary mb-2">
           Org-Wide Performance
         </div>
