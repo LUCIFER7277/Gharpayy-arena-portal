@@ -463,19 +463,36 @@ function NumberField({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const num = parseInt(value || "0", 10);
   return (
     <div>
       <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
         {label}
       </div>
-      <input
-        type="number"
-        min="0"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="0"
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
+      <div className="flex items-center gap-2 w-full min-w-0">
+        <button
+          onClick={() => onChange(String(Math.max(0, num - 1)))}
+          className="h-10 w-10 flex-shrink-0 rounded-xl border border-border hover:bg-secondary text-lg leading-none"
+          aria-label={`decrease ${label}`}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          min="0"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="0"
+          className="h-10 flex-1 min-w-0 text-center text-lg font-semibold bg-background border border-border rounded-xl px-2"
+        />
+        <button
+          onClick={() => onChange(String(num + 1))}
+          className="h-10 w-10 flex-shrink-0 rounded-xl border border-border hover:bg-secondary text-lg leading-none"
+          aria-label={`increase ${label}`}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

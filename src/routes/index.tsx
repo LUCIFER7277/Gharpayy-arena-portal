@@ -61,8 +61,17 @@ function HomeHeader({ actor, sub }: { actor: Employee; sub: string }) {
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return (
     <header className="mb-5">
-      <div className="font-mono text-[10px] md:text-xs uppercase tracking-widest text-primary mb-2">
-        {TIER_LABEL[tier]} · Core Arena
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-mono text-[10px] md:text-xs uppercase tracking-widest text-primary">
+          {TIER_LABEL[tier]} · Core Arena
+        </div>
+        <Link 
+          to="/pulse" 
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-mono text-[10px] md:text-xs uppercase tracking-widest"
+        >
+          <Clock className="h-3 w-3" />
+          Daily Pulse
+        </Link>
       </div>
       <h1 className="font-display text-2xl md:text-4xl font-semibold leading-tight">
         {greet}, {actor.name.split(" ")[0]}.

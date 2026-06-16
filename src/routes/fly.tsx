@@ -207,8 +207,8 @@ function DailyTab({ actor }: { actor: Employee }) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4 mb-3">
           {numField("Connected calls", "connectedCalls", Phone)}
-          {numField("Visits scheduled", "visitsScheduled", CalIcon)}
-          {numField("Visits completed", "visitsCompleted", MapPin)}
+          {numField("Tours scheduled", "visitsScheduled", CalIcon)}
+          {numField("Tours completed", "visitsCompleted", MapPin)}
           {numField("Hot leads", "hotLeads", Flame)}
           {numField("Bookings done", "bookings", IndianRupee)}
           <div className="rounded-lg border border-border bg-card p-3">
@@ -279,7 +279,7 @@ function DailyTab({ actor }: { actor: Employee }) {
                 </div>
                 <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-mono uppercase tracking-widest mb-2">
                   <Stat n={u.connectedCalls} l="Calls" />
-                  <Stat n={u.visitsCompleted} l="Visits" />
+                  <Stat n={u.visitsCompleted} l="Tours" />
                   <Stat n={u.hotLeads} l="Hot" />
                   <Stat n={u.bookings} l="Book" />
                   <Stat n={u.visitsScheduled} l="Sched" />
@@ -871,7 +871,7 @@ function LeadershipTab() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KPI label="Calls today" value={roll.totals.calls} icon={Phone} tone="info" />
-        <KPI label="Visits done" value={roll.totals.visitsCompleted} icon={MapPin} tone="primary" />
+        <KPI label="Tours done" value={roll.totals.visitsCompleted} icon={MapPin} tone="primary" />
         <KPI label="Bookings" value={roll.totals.bookings} icon={IndianRupee} tone="success" />
         <KPI label="Hot leads" value={roll.totals.hotLeads} icon={Flame} tone="warning" />
         <KPI
@@ -926,7 +926,7 @@ function LeadershipTab() {
           <div className="grid grid-cols-[1fr_repeat(5,_minmax(0,40px))] gap-2 items-center pt-2 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
             <span></span>
             <span className="text-center">Calls</span>
-            <span className="text-center">Visits</span>
+            <span className="text-center">Tours</span>
             <span className="text-center">Hot</span>
             <span className="text-center">Book</span>
             <span className="text-center">Block</span>
