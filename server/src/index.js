@@ -29,9 +29,19 @@ try {
       credential: admin.credential.cert(serviceAccount)
     });
     isFcmEnabled = true;
-    console.log("[fcm] Firebase Admin initialized");
+    console.log("[fcm] Firebase Admin initialized from service account JSON");
+  } else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      })
+    });
+    isFcmEnabled = true;
+    console.log("[fcm] Firebase Admin initialized from environment variables");
   } else {
-    console.warn("[fcm] firebase-service-account.json not found. Push notifications disabled.");
+    console.warn("[fcm] firebase credentials not found. Push notifications disabled.");
   }
 } catch (e) {
   console.error("[fcm] Failed to initialize Firebase Admin:", e);
