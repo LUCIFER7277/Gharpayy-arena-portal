@@ -79,13 +79,7 @@ function LiveAttendancePage() {
     };
   }, []);
 
-  if (rosterLoading || loadingEvents) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+
 
   const employees = roster.filter((e) => e.role !== "Admin");
   
@@ -121,23 +115,29 @@ function LiveAttendancePage() {
         </p>
       </header>
 
-      <div className="mb-4 flex gap-2 text-sm">
-        {(["All", "Clocked In", "On Break", "In Field"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-md border font-medium transition-colors ${
-              filter === f
-                ? "bg-primary text-primary-foreground border-primary"
-                : "border-border text-muted-foreground hover:border-primary/40"
-            }`}
-          >
-            {f === "Clocked In" ? "In Office" : f}
-          </button>
-        ))}
-      </div>
+      {rosterLoading || loadingEvents ? (
+        <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 flex gap-2 text-sm">
+            {(["All", "Clocked In", "On Break", "In Field"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-md border font-medium transition-colors ${
+                  filter === f
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                {f === "Clocked In" ? "In Office" : f}
+              </button>
+            ))}
+          </div>
 
-      <div className="rounded-xl bg-card border border-border overflow-hidden">
+          <div className="rounded-xl bg-card border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -185,9 +185,11 @@ function LiveAttendancePage() {
                 </TableCell>
               </TableRow>
             )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

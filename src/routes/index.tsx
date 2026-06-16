@@ -106,7 +106,7 @@ function PillarHeader({
         </div>
       </div>
       {hasFeature(href) && (
-        <Link to={href} className="text-[11px] text-primary font-mono uppercase tracking-widest">
+        <Link to={href} preload="intent" className="text-[11px] text-primary font-mono uppercase tracking-widest">
           Open →
         </Link>
       )}

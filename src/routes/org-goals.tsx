@@ -42,24 +42,6 @@ function OrgGoalsPage() {
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 text-center text-destructive">
-        <AlertCircle className="h-10 w-10 mx-auto mb-3 opacity-50" />
-        <p>Error loading org goals data.</p>
-        <p className="text-xs opacity-70 mt-2">{String(error)}</p>
-      </div>
-    );
-  }
-
   const sortedData = (data || []).sort((a, b) => b.metrics.total - a.metrics.total);
 
   return (
@@ -77,8 +59,20 @@ function OrgGoalsPage() {
         </p>
       </header>
 
-      <div className="rounded-xl border border-border bg-card overflow-x-auto">
-        <table className="w-full text-sm text-left">
+      {isLoading ? (
+        <div className="flex h-[40vh] items-center justify-center border rounded-xl bg-card">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="p-8 text-center text-destructive border rounded-xl bg-card">
+          <AlertCircle className="h-10 w-10 mx-auto mb-3 opacity-50" />
+          <p>Error loading org goals data.</p>
+          <p className="text-xs opacity-70 mt-2">{String(error)}</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-card overflow-x-auto">
+          <table className="w-full text-sm text-left">
+
           <thead className="bg-muted/30 text-muted-foreground text-xs font-mono uppercase tracking-wider">
             <tr>
               <th className="px-4 py-3 font-medium">Rank</th>
@@ -176,6 +170,7 @@ function OrgGoalsPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
