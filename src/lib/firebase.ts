@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { api } from "./api-client";
+import { toast } from "sonner";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -28,8 +29,19 @@ export async function requestNotificationPermissionAndGetToken() {
     if (permission === "granted") {
       const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       
-      // Fix: Wait for the service worker to become active before trying to subscribe
+      // Wait for the service worker to become active before trying to subscribe
       await navigator.serviceWorker.ready;
+
+      // If there is an installing worker, wait for it to activate
+      if (registration.installing) {
+        await new Promise<void>((resolve) => {
+          registration.installing?.addEventListener('statechange', (e: any) => {
+            if (e.target.state === 'activated') {
+              resolve();
+            }
+          });
+        });
+      }
       
       const token = await getToken(messaging, {
         vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
@@ -56,6 +68,16 @@ export async function requestNotificationPermissionAndGetToken() {
 if (messaging) {
   onMessage(messaging, (payload) => {
     console.log("[fcm] Message received in foreground:", payload);
-    // You can show a toast notification here if you prefer
+    const title = payload.notification?.title || "New Notification";
+    const body = payload.notification?.body || "You have a new message.";
+    toast(title, {
+      description: body,
+      action: {
+        label: "View",
+        onClick: () => {
+          // Could navigate or open panel
+        }
+      }
+    });
   });
 }

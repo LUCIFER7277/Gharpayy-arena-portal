@@ -6,6 +6,10 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 // Note: We can't use process.env here directly since this is served static.
 // The query parameters or a config file approach could be used, but for simplicity,
 // we'll rely on the standard Firebase approach of inserting the sender ID if known,
