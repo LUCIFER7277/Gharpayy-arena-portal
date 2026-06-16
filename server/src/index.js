@@ -307,6 +307,7 @@ import { runWorkforceMigrations } from "./lib/migrations.js";
 import { seedKpis } from "./lib/seed-kpis.js";
 import { seedPlaybooks } from "./lib/seed-playbooks.js";
 import { seedAdmins } from "./lib/seed-admins.js";
+import { seedZones } from "./lib/seed-zones.js";
 
 // ... dynamic import used in fallback ...
 
@@ -322,6 +323,7 @@ async function connectDb() {
     console.log("[api] mongo connected");
     // await seedAdmins();
     await runWorkforceMigrations();
+    await seedZones();
     try {
       // await seedKpis();
     } catch (kpiErr) {
@@ -350,6 +352,7 @@ async function connectDb() {
         console.log("[api] in‑memory MongoDB connected");
         // await seedAdmins();
         await runWorkforceMigrations();
+        await seedZones();
         try {
           // await seedKpis();
         } catch (kpiErr) {
