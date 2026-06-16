@@ -27,6 +27,10 @@ export async function requestNotificationPermissionAndGetToken() {
     const permission = await Notification.requestPermission();
     if (permission === "granted") {
       const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      
+      // Fix: Wait for the service worker to become active before trying to subscribe
+      await navigator.serviceWorker.ready;
+      
       const token = await getToken(messaging, {
         vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
         serviceWorkerRegistration: registration,

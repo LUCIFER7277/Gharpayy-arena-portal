@@ -2,6 +2,10 @@ importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js");
 
 // We need to initialize the app in the service worker too.
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
 // Note: We can't use process.env here directly since this is served static.
 // The query parameters or a config file approach could be used, but for simplicity,
 // we'll rely on the standard Firebase approach of inserting the sender ID if known,
