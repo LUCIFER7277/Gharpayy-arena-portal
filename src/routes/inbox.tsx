@@ -156,14 +156,17 @@ function ChatView({ actorId, colleagueId, isHRorAdmin, onBack }: { actorId: stri
   const messages = useMessages(thread.id);
   const [text, setText] = useState("");
   
-  const handleSend = (decision?: "approved" | "rejected") => {
+  const handleSend = (decision?: string | any) => {
+    // protect against event objects
+    const actualDecision = (decision === "approved" || decision === "rejected") ? decision : undefined;
+    
     let msgText = text.trim();
-    if (!msgText && decision) {
-      msgText = decision === "approved" ? "Approved." : "Rejected.";
+    if (!msgText && actualDecision) {
+      msgText = actualDecision === "approved" ? "Approved." : "Rejected.";
     }
     if (!msgText) return;
 
-    const actionType = decision ? (decision === "approved" ? "leave_approved" : "leave_rejected") : undefined;
+    const actionType = actualDecision ? (actualDecision === "approved" ? "leave_approved" : "leave_rejected") : undefined;
     sendMessage(actorId, thread.id, msgText, actionType);
     setText("");
   };
@@ -232,22 +235,24 @@ function ChatView({ actorId, colleagueId, isHRorAdmin, onBack }: { actorId: stri
           
           <div className="flex items-center justify-end gap-2 shrink-0">
             {isHRorAdmin && (
-              <>
+              <div className="hidden md:flex gap-2">
                 <button 
                   onClick={() => handleSend("approved")}
-                  className="h-12 px-4 bg-success/15 hover:bg-success/25 text-success rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-colors flex-1 sm:flex-none"
+                  title="Approve Leave"
+                  className="h-12 px-4 bg-success/15 hover:bg-success/25 text-success rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-colors"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Approve</span>
+                  <span>Approve</span>
                 </button>
                 <button 
                   onClick={() => handleSend("rejected")}
-                  className="h-12 px-4 bg-destructive/15 hover:bg-destructive/25 text-destructive rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-colors flex-1 sm:flex-none"
+                  title="Reject Leave"
+                  className="h-12 px-4 bg-destructive/15 hover:bg-destructive/25 text-destructive rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-colors"
                 >
                   <XCircle className="h-4 w-4" />
-                  <span className="hidden sm:inline">Reject</span>
+                  <span>Reject</span>
                 </button>
-              </>
+              </div>
             )}
             <button 
               onClick={() => handleSend()}

@@ -94,7 +94,7 @@ export function crudRouter(
               isOwner = item.fromId === empId || item.fromId === userId; // allow by employeeId or userId
               break;
             case "ChatThread":
-              isOwner = Array.isArray(item.participantIds) && item.participantIds.includes(empId);
+              isOwner = Array.isArray(item.participantIds) && (item.participantIds.includes(empId) || item.participantIds.includes(userId));
               break;
             default:
               isOwner = false;
@@ -231,12 +231,12 @@ export function crudRouter(
           } else if (modelName === "Notification") {
             filter.toId = empId;
           } else if (modelName === "ChatThread") {
-            filter.participantIds = empId;
+            filter.participantIds = { $in: [empId, req.user.id].filter(Boolean) };
           } else if (modelName === "ChatMessage") {
             // Only return messages from threads this employee participates in
             const mongoose = (await import("mongoose")).default;
             const ChatThread = mongoose.models.ChatThread || mongoose.model("ChatThread");
-            const myThreads = await ChatThread.find({ participantIds: empId }).select("id").lean();
+            const myThreads = await ChatThread.find({ participantIds: { $in: [empId, req.user.id].filter(Boolean) } }).select("id").lean();
             filter.threadId = { $in: myThreads.map(t => t.id) };
           }
         }
