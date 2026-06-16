@@ -461,6 +461,18 @@ const ChatMessageSchema = new Schema(
 export const ChatThread = mongoose.model("ChatThread", ChatThreadSchema);
 export const ChatMessage = mongoose.model("ChatMessage", ChatMessageSchema);
 
+// --- FCM Tokens ---
+const FCMTokenSchema = new Schema(
+  {
+    token: { type: String, required: true, unique: true },
+    userId: { type: String, required: true, index: true },
+    employeeId: { type: String, index: true },
+    deviceType: { type: String, default: "web" },
+  },
+  { timestamps: true }
+);
+export const FCMToken = mongoose.model("FCMToken", FCMTokenSchema);
+
 // --- Zones & Properties ---
 const ZoneSchema = new Schema(
   {
@@ -534,3 +546,5 @@ const AuditLogSchema = new Schema(
 
 export const RolePermission = mongoose.model("RolePermission", RolePermissionSchema);
 export const AuditLog = mongoose.model("AuditLog", AuditLogSchema);
+
+

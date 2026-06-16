@@ -115,6 +115,11 @@ router.post(
             read: false,
           }));
           await Notification.insertMany(notifications);
+          
+          const { sendPushNotification } = await import("../lib/fcm.js");
+          for (const notif of notifications) {
+            await sendPushNotification(notif.toId, notif.title, notif.body);
+          }
         }
 
         const token = signToken(user);

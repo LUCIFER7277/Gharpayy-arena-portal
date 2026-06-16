@@ -10,6 +10,7 @@ import {
   getManagerHierarchyIds,
   logSecurityAudit,
 } from "./auth-helpers.js";
+import admin from "firebase-admin";
 
 /**
  * Builds a generic REST router for a Mongoose model:
@@ -91,6 +92,12 @@ export function crudRouter(
             case "OneOnOne":
               isOwner = item.managerId === empId;
               break;
+            case "ChatMessage":
+              isOwner = item.fromId === empId || item.fromId === userId; // allow by employeeId or userId
+              break;
+            case "ChatThread":
+              isOwner = Array.isArray(item.participantIds) && item.participantIds.includes(empId);
+              break;
             default:
               isOwner = false;
           }
@@ -116,14 +123,35 @@ export function crudRouter(
       }
 
       let upserted = 0;
+      const newNotifications = [];
       for (const raw of items) {
         if (!raw?.id) continue;
         const updateData = { ...raw };
         delete updateData._id;
         delete updateData.__v;
+
+        let isNew = false;
+        if (modelName === "Notification") {
+          const existing = await Model.findOne({ id: raw.id }).lean();
+          if (!existing) isNew = true;
+        }
+
         await Model.updateOne({ id: raw.id }, { $set: updateData }, { upsert: true });
         upserted += 1;
+
+        if (isNew) {
+          newNotifications.push(updateData);
+        }
       }
+
+      // Dispatch FCM Push for newly created System Notifications
+      if (modelName === "Notification" && newNotifications.length > 0) {
+        const { sendPushNotification } = await import("./fcm.js");
+        for (const notif of newNotifications) {
+          await sendPushNotification(notif.toId, notif.title, notif.message || notif.body);
+        }
+      }
+
       res.json({ ok: true, upserted });
     }),
   );
@@ -204,6 +232,14 @@ export function crudRouter(
             }
           } else if (modelName === "Notification") {
             filter.toId = empId;
+          } else if (modelName === "ChatThread") {
+            filter.participantIds = empId;
+          } else if (modelName === "ChatMessage") {
+            // Only return messages from threads this employee participates in
+            const mongoose = (await import("mongoose")).default;
+            const ChatThread = mongoose.models.ChatThread || mongoose.model("ChatThread");
+            const myThreads = await ChatThread.find({ participantIds: empId }).select("id").lean();
+            filter.threadId = { $in: myThreads.map(t => t.id) };
           }
         }
       }
@@ -335,6 +371,12 @@ export function crudRouter(
 
       try {
         const doc = await Model.create(payload);
+        
+        if (modelName === "Notification") {
+          const { sendPushNotification } = await import("./fcm.js");
+          await sendPushNotification(doc.toId, doc.title, doc.message || doc.body);
+        }
+        
         res.status(201).json({ item: doc.toObject() });
       } catch (err) {
         if (err.code === 11000) return res.status(409).json({ error: "Duplicate id" });

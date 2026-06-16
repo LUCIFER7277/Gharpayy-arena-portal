@@ -51,6 +51,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isImpersonating, revertImpersonation } from "@/lib/api-client";
 import { useRoleFeature } from "../hooks/useRoleFeature";
 import ComingSoon from "./ComingSoon";
+import { requestNotificationPermissionAndGetToken } from "@/lib/firebase";
 
 type NavItem = {
   to: string;
@@ -232,6 +233,14 @@ export function AppShell() {
   useEffect(() => {
     setDrawerOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    // Automatically try to request or refresh push token 2 seconds after dashboard load
+    const timer = setTimeout(() => {
+      requestNotificationPermissionAndGetToken().catch(console.error);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

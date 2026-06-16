@@ -8,12 +8,34 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 
+import { toHttpError } from "./lib/errors.js";
+import { Server as SocketIOServer } from "socket.io";
+import admin from "firebase-admin";
+import fs from "fs";
+
 // __dirname polyfill for ESM — must be before config()
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 config({ path: path.resolve(__dirname, "../.env") });
 
 console.log("[boot] JWT_SECRET loaded:", process.env.JWT_SECRET ? "YES" : "MISSING");
+
+let isFcmEnabled = false;
+try {
+  const serviceAccountPath = path.resolve(__dirname, "../firebase-service-account.json");
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    isFcmEnabled = true;
+    console.log("[fcm] Firebase Admin initialized");
+  } else {
+    console.warn("[fcm] firebase-service-account.json not found. Push notifications disabled.");
+  }
+} catch (e) {
+  console.error("[fcm] Failed to initialize Firebase Admin:", e);
+}
 
 import authRoutes from "./routes/auth.js";
 import employeesRoutes from "./routes/employees.js";
@@ -41,8 +63,7 @@ import orgGoalsRoutes from "./routes/org-goals.js";
 import aiRoutes from "./routes/ai.js";
 import messagesRoutes from "./routes/messages.js";
 import threadsRoutes from "./routes/threads.js";
-import { toHttpError } from "./lib/errors.js";
-import { Server as SocketIOServer } from "socket.io";
+import fcmRoutes from "./routes/fcm.js";
 
 const app = express();
 
@@ -124,6 +145,7 @@ app.use("/api/org-goals", orgGoalsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/messages", messagesRoutes);
 app.use("/api/threads", threadsRoutes);
+app.use("/api/fcm", fcmRoutes);
 
 // --- error handler ---
 app.use((err, req, res, _next) => {
@@ -219,11 +241,38 @@ function startHttpServer() {
     });
 
     // Handle generic chat notification emitted from client to bypass complex backend hooks
-    socket.on("notify_chat", ({ targetIds }) => {
+    socket.on("notify_chat", async ({ targetIds }) => {
       if (Array.isArray(targetIds)) {
         targetIds.forEach(id => {
           socket.to(id).emit("chat_update");
         });
+
+        if (isFcmEnabled) {
+          try {
+            const { FCMToken } = await import("./models/index.js");
+            const tokens = await FCMToken.find({
+              $or: [
+                { employeeId: { $in: targetIds } },
+                { userId: { $in: targetIds } }
+              ]
+            }).lean();
+
+            if (tokens.length > 0) {
+              const tokenStrings = tokens.map(t => t.token);
+              const message = {
+                notification: {
+                  title: 'New Message',
+                  body: 'You have a new message in Arena Chat',
+                },
+                tokens: tokenStrings,
+              };
+              const response = await admin.messaging().sendEachForMulticast(message);
+              console.log('[fcm] Sent push notification:', response.successCount, 'success,', response.failureCount, 'failed');
+            }
+          } catch (e) {
+            console.error('[fcm] Error sending push notification:', e);
+          }
+        }
       }
     });
 
