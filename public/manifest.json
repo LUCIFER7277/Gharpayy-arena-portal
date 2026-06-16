@@ -1,47 +1,21 @@
 {
   "short_name": "Arena",
   "name": "Gharpayy Arena Portal",
-  "description": "Gharpayy Arena is the all-in-one workspace for real-estate teams - daily pulse, attendance, tasks, coaching, recruiting, zones, and live war-room dashboards in a single app.",
+  "description": "Gharpayy Arena is the all-in-one workspace for real-estate teams.",
   "icons": [
     {
       "src": "/icon-192x192.png",
       "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any"
+      "sizes": "192x192"
     },
     {
       "src": "/icon-512x512.png",
       "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "maskable"
+      "sizes": "512x512"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshot-wide.png",
-      "type": "image/png",
-      "sizes": "1280x720",
-      "form_factor": "wide",
-      "label": "Gharpayy Arena dashboard with KPI cards, daily pulse, and team activity"
-    },
-    {
-      "src": "/screenshot-narrow.png",
-      "type": "image/png",
-      "sizes": "720x1280",
-      "form_factor": "narrow",
-      "label": "Gharpayy Arena mobile view with quick stats and bottom navigation"
-    }
-  ],
-  "id": "gharpayy-arena",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "any",
   "theme_color": "#000000",
   "background_color": "#ffffff"
 }
