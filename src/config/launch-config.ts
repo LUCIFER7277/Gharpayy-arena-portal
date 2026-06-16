@@ -35,6 +35,7 @@ export const LAUNCH_ROUTES = new Set<string>([
   "/task-throughput",     // Task Throughput
   "/employee-stats/$id",  // Employee Stats
   "/inbox",               // Inbox
+  "/admin/zones",         // Manage Zones
 ]);
 
 // ─── Feature key whitelist ───────────────────────────────────────────────────
@@ -60,6 +61,7 @@ export const ENABLED_FEATURES = new Set<string>([
   "liveAttendance",
   "taskThroughput",
   "inbox",
+  "manageZones",
 ]);
 
 // ─── Route → feature key map ─────────────────────────────────────────────────
@@ -86,6 +88,7 @@ export const FEATURE_MAP: Record<string, string> = {
   "/task-throughput":     "taskThroughput",
   "/employee-stats/$id":  "home",
   "/inbox":               "inbox",
+  "/admin/zones":         "manageZones",
 };
 
 // ─── Role permission matrix ───────────────────────────────────────────────────
@@ -112,6 +115,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "liveAttendance",
     "taskThroughput",
     "inbox",
+    "manageZones",
   ],
   hr: [
     "home",
