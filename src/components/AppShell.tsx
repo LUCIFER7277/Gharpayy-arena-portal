@@ -236,12 +236,6 @@ export function AppShell() {
 
   useEffect(() => {
     bootArena();
-    // Register the PWA service worker for offline caching
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.warn('[sw] Registration failed:', err);
-      });
-    }
   }, []);
   useEffect(() => {
     setDrawerOpen(false);
