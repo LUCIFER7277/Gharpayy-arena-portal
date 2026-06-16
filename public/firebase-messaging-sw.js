@@ -39,7 +39,7 @@ if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
       const notificationTitle = payload.data?.title || 'Arena Chat';
       const notificationOptions = {
         body: payload.data?.body || 'You have a new message.',
-        icon: '/vite.svg'
+        icon: '/icon-192x192.png'
       };
       return self.registration.showNotification(notificationTitle, notificationOptions);
     }
