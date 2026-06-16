@@ -346,8 +346,8 @@ export function AppShell() {
               key={to}
               to={to}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${active
-                  ? "bg-sidebar-hover text-white"
-                  : "text-sidebar-foreground hover:bg-sidebar-hover hover:text-white"
+                ? "bg-sidebar-hover text-white"
+                : "text-sidebar-foreground hover:bg-sidebar-hover hover:text-white"
                 }`}
             >
               <Icon className="h-4 w-4" />

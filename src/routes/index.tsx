@@ -38,6 +38,7 @@ import {
   Square,
   CheckCircle2,
 } from "lucide-react";
+import { AdminFunnelCharts } from "@/components/AdminFunnelCharts";
 
 export const Route = createFileRoute("/")({
   component: ArenaHome,
@@ -821,7 +822,8 @@ function HRHome({ actor }: { actor: Employee }) {
 function LeadershipHome({ actor }: { actor: Employee }) {
   const hasFeature = useRoleFeature();
   const [selectedEmpId, setSelectedEmpId] = useState<string | null>(null);
-  const orgRoster = getRoster().filter((e) => e.role !== "Admin");
+  const { employees } = useAttendanceState();
+  const orgRoster = employees.filter((e) => e.role !== "Admin");
   const s = teamSummary(orgRoster);
   const sorted = [...orgRoster].sort((a, b) => b.performance - a.performance);
   return (
@@ -877,6 +879,8 @@ function LeadershipHome({ actor }: { actor: Employee }) {
           </div>
         </div>
       </section>
+
+      <AdminFunnelCharts roster={orgRoster} />
 
       <section className="grid md:grid-cols-3 gap-4 mb-6">
         {s.top ? (
