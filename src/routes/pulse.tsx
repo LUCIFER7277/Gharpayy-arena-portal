@@ -22,7 +22,7 @@ import { api } from "@/lib/api-client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { Avatar } from "@/components/Avatar";
-import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon, Filter } from "lucide-react";
+import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon, Filter, Search, SlidersHorizontal } from "lucide-react";
 
 export const Route = createFileRoute("/pulse")({
   component: PulsePage,
@@ -577,11 +577,21 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [viewImages, setViewImages] = useState<string[] | null>(null);
   const [isExternalView, setIsExternalView] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [slotFilter, setSlotFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "onTime" | "late">("all");
+  const [callsFilter, setCallsFilter] = useState<string>("all");
+  const [toursFilter, setToursFilter] = useState<string>("all");
+  const [closuresFilter, setClosuresFilter] = useState<string>("all");
+  const [blockersFilter, setBlockersFilter] = useState<"all" | "hasBlockers">("all");
+  const [mediaFilter, setMediaFilter] = useState<string>("all");
 
   const teams = Array.from(new Set(getRoster().map((e) => e.team).filter(Boolean)));
+  const roles = Array.from(new Set(getRoster().map((e) => e.role).filter(Boolean)));
 
   useEffect(() => {
     const unsubPulse = subscribe(() => setV((x) => x + 1));
@@ -615,7 +625,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
 
   const entries = useMemo(() => getEntries({ date: todayISO() }), [v]);
 
-  const groupedEntries = useMemo(() => {
+  const { filteredEntries: groupedEntries, counts } = useMemo(() => {
     const groups: Record<string, typeof entries> = {};
     const roster = getRoster();
     for (const e of entries) {
@@ -641,8 +651,34 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       };
     });
 
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((g) => 
+        g.empName.toLowerCase().includes(q) || 
+        g.regularEntries.some(e => e && e.text.toLowerCase().includes(q)) ||
+        (g.eodEntry && g.eodEntry.text.toLowerCase().includes(q))
+      );
+    }
+
     if (teamFilter !== "all") {
       result = result.filter((g) => g.team === teamFilter);
+    }
+
+    if (roleFilter !== "all") {
+      result = result.filter((g) => g.role === roleFilter);
+    }
+
+    if (slotFilter !== "all") {
+      result = result.filter((g) => {
+        if (slotFilter === "eod") return !!g.eodEntry;
+        return g.regularEntries.some(e => e && e.slot === slotFilter);
+      });
+      if (slotFilter !== "eod") {
+        result = result.map(g => {
+          const filtered = g.regularEntries.filter(e => e && e.slot === slotFilter);
+          return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+        });
+      }
     }
 
     if (statusFilter !== "all") {
@@ -654,8 +690,99 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       });
     }
 
-    return result;
-  }, [entries, teamFilter, statusFilter]);
+    const counts = {
+      hasCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) > 0)).length,
+      noCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) === 0)).length,
+      hasTours: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) > 0)).length,
+      noTours: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) === 0)).length,
+      hasClosures: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) > 0)).length,
+      noClosures: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) === 0)).length,
+      hasBlockers: result.filter(g => g.regularEntries.some(e => e && !!e.blockers) || !!g.eodEntry?.blockers).length,
+      noBlockers: result.filter(g => g.regularEntries.some(e => e && !e.blockers) || (g.eodEntry && !g.eodEntry.blockers)).length,
+      hasMedia: result.filter(g => g.regularEntries.some(e => e && e.mediaUrls && e.mediaUrls.length > 0) || (g.eodEntry && g.eodEntry.mediaUrls && g.eodEntry.mediaUrls.length > 0)).length,
+      noMedia: result.filter(g => g.regularEntries.some(e => e && (!e.mediaUrls || e.mediaUrls.length === 0)) || (g.eodEntry && (!g.eodEntry.mediaUrls || g.eodEntry.mediaUrls.length === 0))).length,
+    };
+
+    if (callsFilter === "hasCalls") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) > 0));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) > 0);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (callsFilter === "noCalls") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) === 0));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) === 0);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    }
+
+    if (toursFilter === "hasTours") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) > 0));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) > 0);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (toursFilter === "noTours") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) === 0));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) === 0);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    }
+
+    if (closuresFilter === "hasClosures") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) > 0));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) > 0);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (closuresFilter === "noClosures") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) === 0));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) === 0);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    }
+
+    if (mediaFilter === "hasMedia") {
+      result = result.filter((g) => g.regularEntries.some(e => e && e.mediaUrls && e.mediaUrls.length > 0) || (g.eodEntry && g.eodEntry.mediaUrls && g.eodEntry.mediaUrls.length > 0));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && e.mediaUrls && e.mediaUrls.length > 0);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (mediaFilter === "noMedia") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (!e.mediaUrls || e.mediaUrls.length === 0)) || (g.eodEntry && (!g.eodEntry.mediaUrls || g.eodEntry.mediaUrls.length === 0)));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (!e.mediaUrls || e.mediaUrls.length === 0));
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    }
+
+    if (blockersFilter === "hasBlockers") {
+      result = result.filter((g) => {
+        const hasEodBlocker = !!g.eodEntry?.blockers;
+        const hasRegularBlocker = g.regularEntries.some(e => e && !!e.blockers);
+        return hasEodBlocker || hasRegularBlocker;
+      });
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && !!e.blockers);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (blockersFilter === "noBlockers") {
+      result = result.filter((g) => {
+        const noEodBlocker = !g.eodEntry?.blockers;
+        const noRegularBlocker = g.regularEntries.some(e => e && !e.blockers);
+        return noEodBlocker || noRegularBlocker;
+      });
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && !e.blockers);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    }
+
+    return { filteredEntries: result, counts };
+  }, [entries, teamFilter, roleFilter, slotFilter, statusFilter, callsFilter, toursFilter, closuresFilter, blockersFilter, mediaFilter, searchQuery]);
 
   const { absentEmployees, missingPulseEmployees } = useMemo(() => {
     const roster = getRoster();
@@ -851,41 +978,171 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
               Live feed of all daily pulses across the organization.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {teams.length > 0 && (
-              <div className="w-[140px]">
-                <Select value={teamFilter} onValueChange={(val) => setTeamFilter(val)}>
-                  <SelectTrigger className="h-10 text-xs bg-card">
-                    <SelectValue placeholder="All teams" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All teams</SelectItem>
-                    {teams.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <div className="flex flex-col gap-4 w-full md:w-auto mt-4 md:mt-0">
+            <div className="flex flex-wrap items-center gap-3 w-full justify-start md:justify-end">
+              <div className="relative w-full md:w-[240px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search name, text, or brief..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex h-10 w-full rounded-lg border border-input bg-card pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
+                />
+              </div>
+
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-all ${
+                  showFilters 
+                    ? "bg-primary/10 border-primary/30 text-primary shadow-sm" 
+                    : "bg-card border-border text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {(teamFilter !== "all" || roleFilter !== "all" || slotFilter !== "all" || statusFilter !== "all" || callsFilter !== "all" || toursFilter !== "all" || closuresFilter !== "all" || blockersFilter !== "all" || mediaFilter !== "all") && (
+                  <span className="flex h-2 w-2 rounded-full bg-primary" />
+                )}
+              </button>
+
+              <button
+                onClick={copyToClipboard}
+                className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                {copied ? <CheckCircle2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                {copied ? "Copied" : "Export"}
+              </button>
+            </div>
+
+            {showFilters && (
+              <div className="p-4 rounded-xl border border-border bg-card/50 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                {teams.length > 0 && (
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Team</label>
+                    <Select value={teamFilter} onValueChange={(val) => setTeamFilter(val)}>
+                      <SelectTrigger className="h-9 text-xs bg-card">
+                        <SelectValue placeholder="All teams" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All teams</SelectItem>
+                        {teams.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {roles.length > 0 && (
+                  <div>
+                    <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Role</label>
+                    <Select value={roleFilter} onValueChange={(val) => setRoleFilter(val)}>
+                      <SelectTrigger className="h-9 text-xs bg-card">
+                        <SelectValue placeholder="All roles" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All roles</SelectItem>
+                        {roles.map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Slot</label>
+                  <Select value={slotFilter} onValueChange={(val) => setSlotFilter(val)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="All slots" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All slots</SelectItem>
+                      {SLOTS.map((s) => (
+                        <SelectItem key={s.key} value={s.key}>{s.label.split(" · ")[0]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Status</label>
+                  <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as any)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="onTime">All On Time</SelectItem>
+                      <SelectItem value="late">Has Late/Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Calls</label>
+                  <Select value={callsFilter} onValueChange={(val) => setCallsFilter(val)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="Calls: All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Calls: All</SelectItem>
+                      <SelectItem value="hasCalls">Has Calls ({counts.hasCalls})</SelectItem>
+                      <SelectItem value="noCalls">No Calls ({counts.noCalls})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Tours</label>
+                  <Select value={toursFilter} onValueChange={(val) => setToursFilter(val)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="Tours: All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tours: All</SelectItem>
+                      <SelectItem value="hasTours">Has Tours ({counts.hasTours})</SelectItem>
+                      <SelectItem value="noTours">No Tours ({counts.noTours})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Closures</label>
+                  <Select value={closuresFilter} onValueChange={(val) => setClosuresFilter(val)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="Closures: All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Closures: All</SelectItem>
+                      <SelectItem value="hasClosures">Has Closures ({counts.hasClosures})</SelectItem>
+                      <SelectItem value="noClosures">No Closures ({counts.noClosures})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Blockers</label>
+                  <Select value={blockersFilter} onValueChange={(val) => setBlockersFilter(val as any)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="All blockers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All pulses</SelectItem>
+                      <SelectItem value="hasBlockers">Has Blockers ({counts.hasBlockers})</SelectItem>
+                      <SelectItem value="noBlockers">No Blockers ({counts.noBlockers})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Proof of Work</label>
+                  <Select value={mediaFilter} onValueChange={(val) => setMediaFilter(val)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="Proof: All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Proof: All</SelectItem>
+                      <SelectItem value="hasMedia">Has Media ({counts.hasMedia})</SelectItem>
+                      <SelectItem value="noMedia">No Media ({counts.noMedia})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
-            <div className="w-[160px]">
-              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as any)}>
-                <SelectTrigger className="h-10 text-xs bg-card">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="onTime">All On Time</SelectItem>
-                  <SelectItem value="late">Has Late/Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <button
-              onClick={copyToClipboard}
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              {copied ? <CheckCircle2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-              {copied ? "Copied to clipboard" : "Copy as Excel"}
-            </button>
           </div>
         </header>
       )}
