@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Send, Flame, Loader2 } from "lucide-react";
 import { teamSummary } from "@/lib/team-metrics";
 import { getRoster } from "@/lib/roster";
@@ -16,18 +16,82 @@ export const Route = createFileRoute("/command")({
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const SUGGESTIONS = [
-  "Who are my A players today and why?",
-  "Diagnose Vikram Joshi. Give me the exact corrective action.",
-  "Generate today's war room summary.",
-  "Which leads are at risk of being lost? What's the next action?",
-];
+
 
 function CommandCenter() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const dynamicSuggestions = useMemo(() => {
+    const roster = getRoster();
+    const summary = teamSummary(roster);
+    
+    // Fallback if no roster data
+    if (!roster.length) {
+      const fallbackPool = [
+        "What are our top priorities today?",
+        "Generate a general team performance summary.",
+        "How can we improve conversion rates?",
+        "What are the best practices for handling stale leads?",
+        "What is the market outlook for this quarter?",
+        "Give me a quick breakdown of standard operating procedures.",
+        "How can we better support our zone leaders?",
+        "What are the key metrics we should track this week?",
+        "Outline a strategy to decrease lead response time.",
+        "What are the most common blockers for our sales team?",
+      ];
+      const todaySeed = new Date().getDate();
+      return [
+        fallbackPool[todaySeed % fallbackPool.length],
+        fallbackPool[(todaySeed + 1) % fallbackPool.length],
+        fallbackPool[(todaySeed + 4) % fallbackPool.length],
+        fallbackPool[(todaySeed + 7) % fallbackPool.length],
+      ];
+    }
+
+    // Pick random items for variety
+    const randomEmployee = roster[Math.floor(Math.random() * roster.length)];
+    const topPerformer = summary.top || randomEmployee;
+    const bottomPerformer = summary.bottom || randomEmployee;
+    
+    // Get unique zones
+    const zones = Array.from(new Set(roster.map(e => e.team).filter(Boolean)));
+    const randomZone = zones.length > 0 ? zones[Math.floor(Math.random() * zones.length)] : "the field";
+
+    const list = [];
+    
+    // Suggestion 1: Focus on Top Performers or specific zone
+    if (Math.random() > 0.5 && zones.length > 0) {
+      list.push(`Who are my A players in ${randomZone} today and why?`);
+    } else {
+      list.push(`Why is ${topPerformer.name} leading in performance today?`);
+    }
+
+    // Suggestion 2: War Room or General Summary
+    if (zones.length > 1) {
+      list.push(`Generate today's war room summary comparing ${zones[0]} and ${zones[1]}.`);
+    } else {
+      list.push(`Generate today's complete operational war room summary.`);
+    }
+
+    // Suggestion 3: Corrective action
+    if (summary.bottom && summary.bottom.id !== summary.top?.id) {
+      list.push(`Diagnose ${summary.bottom.name}'s performance. Give me the exact corrective action.`);
+    } else {
+      list.push(`What specific coaching does ${randomEmployee.name} need to improve conversions?`);
+    }
+
+    // Suggestion 4: Risk / Leads
+    if (randomEmployee.leadsActive > 0) {
+      list.push(`Which of ${randomEmployee.name}'s ${randomEmployee.leadsActive} active leads are at risk of being lost?`);
+    } else {
+      list.push("Which leads across the entire team are at risk of going stale today?");
+    }
+
+    return list;
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -135,7 +199,7 @@ function CommandCenter() {
                 Direct. Measurable. Actionable. No fluff.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
-                {SUGGESTIONS.map((s) => (
+                {dynamicSuggestions.map((s) => (
                   <button
                     key={s}
                     onClick={() => send(s)}
