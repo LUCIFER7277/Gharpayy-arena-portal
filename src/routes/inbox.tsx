@@ -6,7 +6,8 @@ import { useNotifications, markRead } from "@/lib/notification-store";
 import { getRoster, employeeName } from "@/lib/roster";
 import { tierOf } from "@/lib/permissions";
 import { Avatar } from "@/components/Avatar";
-import { Send, CheckCircle2, XCircle, MessageSquare, ArrowLeft, Search } from "lucide-react";
+import { Send, CheckCircle2, XCircle, MessageSquare, ArrowLeft, Search, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/inbox")({
   component: InboxPage,
@@ -29,6 +30,10 @@ function InboxPage() {
   // Default active tab: first active thread or empty
   const [activeTabId, setActiveTabId] = useState<string>("");
   const [search, setSearch] = useState("");
+
+  const [readFilter, setReadFilter] = useState<"all" | "unread">("all");
+  const notifications = useNotifications(actor.id);
+  const unreadFrom = notifications.filter(n => !n.read && n.actionTo === "/inbox").map(n => n.fromId);
 
   const actorRoster = getRoster().find(e => e.id === actor.id);
   
@@ -59,11 +64,12 @@ function InboxPage() {
     return true;
   });
 
-  // Filter colleagues by search
-  const filteredColleagues = colleagues.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
-    (c.role && c.role.toLowerCase().includes(search.toLowerCase()))
-  );
+  // Filter colleagues by search and read state
+  const filteredColleagues = colleagues.filter(c => {
+    if (readFilter === "unread" && !unreadFrom.includes(c.id)) return false;
+    return c.name.toLowerCase().includes(search.toLowerCase()) || 
+      (c.role && c.role.toLowerCase().includes(search.toLowerCase()));
+  });
 
   // Sort colleagues: those with active threads first, then alphabetical
   filteredColleagues.sort((a, b) => {
@@ -83,15 +89,28 @@ function InboxPage() {
       <div className={`w-full md:w-80 border-r border-border bg-card flex flex-col ${activeTabId && window.innerWidth < 768 ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border shrink-0">
           <h1 className="font-display text-xl font-semibold mb-3">Messages</h1>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Search colleagues..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full h-9 bg-secondary border-none rounded-lg pl-9 pr-3 text-sm focus:ring-1 focus:ring-primary outline-none"
-            />
+          <div className="flex gap-2 items-center">
+            <div className="w-[140px] shrink-0">
+              <Select value={readFilter} onValueChange={(val) => setReadFilter(val as any)}>
+                <SelectTrigger className="h-9 text-xs bg-card">
+                  <SelectValue placeholder="All messages" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All messages</SelectItem>
+                  <SelectItem value="unread">Unread only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="Search colleagues..." 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full h-9 bg-secondary border-none rounded-lg pl-9 pr-3 text-sm focus:ring-1 focus:ring-primary outline-none"
+              />
+            </div>
           </div>
         </div>
         
@@ -122,9 +141,6 @@ function InboxPage() {
           {filteredColleagues.length === 0 && (
             <div className="px-3 py-6 text-center text-sm text-muted-foreground break-words whitespace-pre-wrap text-left">
               No colleagues found.
-              <br/><br/>
-              Debug Roster ({getRoster().length}):
-              {getRoster().map(r => `\n${r.name} - role:${r.role} appRole:${r.appRole} isHR:${r.role === "HR"}`).join("")}
             </div>
           )}
         </div>

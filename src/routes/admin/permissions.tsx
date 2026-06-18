@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, ShieldAlert, Activity, Check, X } from "lucide-react";
+import { Shield, ShieldAlert, Activity, Check, X, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { getPermissions, updatePermission, type RolePermission } from "@/api/permissions";
 import { ENABLED_FEATURES, FEATURE_MAP, ROLE_MATRIX } from "@/config/launch-config";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/admin/permissions")({
   component: PermissionsPage,
@@ -17,6 +18,7 @@ function PermissionsPage() {
   const { user } = useAuth();
   const [permissions, setPermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState<string>("All");
 
   const roles = ["employee", "manager", "hr", "admin"];
   const queryClient = useQueryClient();
@@ -26,10 +28,21 @@ function PermissionsPage() {
       ...Object.values(FEATURE_MAP),
       "teamIntelligence",
       "leadershipActions",
-      "adminFeatures",
-      "hrCapabilities",
     ])
   );
+
+  const FEATURE_CATEGORIES: Record<string, string[]> = {
+    "All": features,
+    "Daily Operations": ["home", "tasks", "taskThroughput", "inbox", "calendar", "coach"],
+    "Attendance & Pulse": ["selfieAttendance", "dailyPulse", "liveAttendance"],
+    "People & Culture": ["kudos", "oneOnOnes", "hrCapabilities"],
+    "Intelligence & Planning": ["flyBoard", "liveRoster", "orgGoals", "teamIntelligence", "leadershipActions"],
+    "Admin & Settings": ["kpiGovernance", "manageZones", "workforce", "adminPermissions", "adminFeatures", "operatorConsole"],
+  };
+
+  const filteredFeatures = categoryFilter === "All" 
+    ? features 
+    : features.filter(f => FEATURE_CATEGORIES[categoryFilter]?.includes(f));
 
   const loadPermissions = async () => {
     try {
@@ -109,7 +122,20 @@ function PermissionsPage() {
           <span className="text-sm font-mono uppercase tracking-widest">Loading matrix...</span>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-border rounded-xl bg-card">
+        <div className="space-y-4">
+          <div className="w-[200px]">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="h-10 text-xs bg-card">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(FEATURE_CATEGORIES).map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="overflow-x-auto border border-border rounded-xl bg-card">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground font-mono uppercase text-[10px] tracking-wider border-b border-border">
               <tr>
@@ -122,34 +148,43 @@ function PermissionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {features.map((feature) => {
-                const isGloballyEnabled = ENABLED_FEATURES.has(feature);
-                return (
-                  <tr key={feature} className="hover:bg-secondary/10 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">{feature}</div>
-                      {!isGloballyEnabled && (
-                        <div className="text-[10px] text-warning mt-1">Not in launch mode</div>
-                      )}
-                    </td>
-                    {roles.map((role) => {
-                      const enabled = isFeatureEnabledForRole(role, feature);
-                      return (
-                        <td key={`${role}-${feature}`} className="px-4 py-3 text-center">
-                          <Switch
-                            checked={enabled}
-                            onCheckedChange={() => handleToggle(role, feature, enabled)}
-                            disabled={!isGloballyEnabled && user.role !== "admin"} // admins can toggle even if globally disabled just in case
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
+              {filteredFeatures.length === 0 ? (
+                <tr>
+                  <td colSpan={roles.length + 1} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                    No features in this category.
+                  </td>
+                </tr>
+              ) : (
+                filteredFeatures.map((feature) => {
+                  const isGloballyEnabled = ENABLED_FEATURES.has(feature);
+                  return (
+                    <tr key={feature} className="hover:bg-secondary/10 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-foreground">{feature}</div>
+                        {!isGloballyEnabled && (
+                          <div className="text-[10px] text-warning mt-1">Not in launch mode</div>
+                        )}
+                      </td>
+                      {roles.map((role) => {
+                        const enabled = isFeatureEnabledForRole(role, feature);
+                        return (
+                          <td key={`${role}-${feature}`} className="px-4 py-3 text-center">
+                            <Switch
+                              checked={enabled}
+                              onCheckedChange={() => handleToggle(role, feature, enabled)}
+                              disabled={!isGloballyEnabled && user.role !== "admin"} // admins can toggle even if globally disabled just in case
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
+      </div>
       )}
     </div>
   );

@@ -19,8 +19,10 @@ import {
 import { getEventsFor, todayKey } from "@/lib/attendance-store";
 import { dayHealth, subscribeConsole } from "@/lib/console-store";
 import { api } from "@/lib/api-client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format } from "date-fns";
 import { Avatar } from "@/components/Avatar";
-import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon, Filter } from "lucide-react";
 
 export const Route = createFileRoute("/pulse")({
   component: PulsePage,
@@ -575,6 +577,12 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [viewImages, setViewImages] = useState<string[] | null>(null);
   const [isExternalView, setIsExternalView] = useState(false);
+
+  const [teamFilter, setTeamFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "onTime" | "late">("all");
+
+  const teams = Array.from(new Set(getRoster().map((e) => e.team).filter(Boolean)));
+
   useEffect(() => {
     const unsubPulse = subscribe(() => setV((x) => x + 1));
     const unsubConsole = subscribeConsole(() => setV((x) => x + 1));
@@ -620,7 +628,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     const slotOrder: Record<string, number> = { slot1: 1, slot2: 2, slot3: 3, eod: 4 };
     Object.values(groups).forEach(g => g.sort((a,b) => (slotOrder[a.slot] || 99) - (slotOrder[b.slot] || 99)));
     
-    return Object.values(groups).map(empEntries => {
+    let result = Object.values(groups).map(empEntries => {
       const eodEntry = empEntries.find(e => e.slot === "eod");
       const regularEntries = empEntries.filter(e => e.slot !== "eod");
       return {
@@ -632,7 +640,22 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
         regularEntries: regularEntries.length > 0 ? regularEntries : [null]
       };
     });
-  }, [entries]);
+
+    if (teamFilter !== "all") {
+      result = result.filter((g) => g.team === teamFilter);
+    }
+
+    if (statusFilter !== "all") {
+      result = result.filter((g) => {
+        const eod = g.eodEntry;
+        const allOnTime = g.regularEntries.every((e) => e === null || e.onTime) && (!eod || eod.onTime);
+        if (statusFilter === "onTime") return allOnTime;
+        return !allOnTime;
+      });
+    }
+
+    return result;
+  }, [entries, teamFilter, statusFilter]);
 
   const { absentEmployees, missingPulseEmployees } = useMemo(() => {
     const roster = getRoster();
@@ -828,7 +851,34 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
               Live feed of all daily pulses across the organization.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            {teams.length > 0 && (
+              <div className="w-[140px]">
+                <Select value={teamFilter} onValueChange={(val) => setTeamFilter(val)}>
+                  <SelectTrigger className="h-10 text-xs bg-card">
+                    <SelectValue placeholder="All teams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All teams</SelectItem>
+                    {teams.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="w-[160px]">
+              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as any)}>
+                <SelectTrigger className="h-10 text-xs bg-card">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="onTime">All On Time</SelectItem>
+                  <SelectItem value="late">Has Late/Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <button
               onClick={copyToClipboard}
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
@@ -839,6 +889,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
           </div>
         </header>
       )}
+
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto pb-4">

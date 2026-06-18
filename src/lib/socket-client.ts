@@ -33,7 +33,7 @@ export function initSocket() {
 
       // If HR/Admin, actor might be resolved by email
       const roster = getRoster();
-      const actor = roster.find(e => e.id === user.employeeId) || roster.find(e => e.email === user.email);
+      const actor = roster.find(e => e.id === user.employeeId) || roster.find(e => (e as any).email === user.email);
       if (actor && actor.id !== user.id && actor.id !== user.employeeId) {
         socket?.emit("join", actor.id);
       }

@@ -5,8 +5,8 @@ import { liveStatusFor } from "@/lib/attendance-store";
 import { computeScore } from "@/lib/score-engine";
 import { Avatar } from "@/components/Avatar";
 import { useState } from "react";
-import { Search, Loader2 } from "lucide-react";
-
+import { Search, Loader2, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RoleGate } from "@/components/RoleGate";
 
 export const Route = createFileRoute("/people")({
@@ -31,10 +31,15 @@ const ROLE_TONE: Record<AppRole, string> = {
 function PeoplePage() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<AppRole | "all">("all");
+
+  const [teamFilter, setTeamFilter] = useState<string>("all");
   const { roster, loading, isEmpty } = useRosterState();
+
+  const teams = Array.from(new Set(roster.map((e) => e.team).filter(Boolean)));
 
   const list = roster.filter((e) => {
     if (filter !== "all" && e.appRole !== filter) return false;
+    if (teamFilter !== "all" && e.team !== teamFilter) return false;
     if (!q) return true;
     const hay = (e.name + " " + e.role + " " + e.team + " " + (e.zone ?? "")).toLowerCase();
     return hay.includes(q.toLowerCase());
@@ -59,27 +64,49 @@ function PeoplePage() {
           Everyone in the Arena. {roster.length} people · synced from database.
         </p>
       </header>
-      <div className="mb-4 flex flex-col sm:flex-row gap-2">
-        <div className="flex-1 inline-flex items-center gap-2 h-10 px-3 rounded-md bg-card border border-border">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by name, role, team…"
-            className="flex-1 bg-transparent text-sm outline-none"
-          />
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="w-[140px] shrink-0">
+            <Select value={filter} onValueChange={(val) => setFilter(val as any)}>
+              <SelectTrigger className="h-10 text-xs bg-card">
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="employee">Employee</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {teams.length > 0 && (
+            <div className="w-[140px] shrink-0">
+              <Select value={teamFilter} onValueChange={(val) => setTeamFilter(val)}>
+                <SelectTrigger className="h-10 text-xs bg-card">
+                  <SelectValue placeholder="All teams" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All teams</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="flex-1 inline-flex items-center gap-2 h-10 px-3 rounded-md bg-card border border-border">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search by name, role, team…"
+              className="flex-1 bg-transparent text-sm outline-none"
+            />
+          </div>
         </div>
-        <div className="flex gap-1 text-xs">
-          {(["all", "admin", "hr", "manager", "employee"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setFilter(r)}
-              className={`px-3 py-2 rounded-md border font-medium ${filter === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
-            >
-              {r === "all" ? "All" : r.charAt(0).toUpperCase() + r.slice(1)}
-            </button>
-          ))}
-        </div>
+
+
       </div>
       {isEmpty && (
         <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">

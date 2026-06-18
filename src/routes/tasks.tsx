@@ -15,6 +15,7 @@ import { type AppTask, type TaskPriority, type TaskStatus } from "@/types/hr";
 import { getRoster } from "@/lib/roster";
 import { Avatar } from "@/components/Avatar";
 import { TaskDetailSheet } from "@/components/TaskDetailSheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Plus,
@@ -69,6 +70,7 @@ function TasksPage() {
   const [draftOpen, setDraftOpen] = useState(false);
   const [activeCol, setActiveCol] = useState<TaskStatus>("todo");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
 
   const visible = useMemo(() => {
     let list = tasks.filter((t) => t.relatedTo !== "Admin Check-In");
@@ -80,10 +82,13 @@ function TasksPage() {
         const e = getRoster().find((x) => x.id === t.assigneeId);
         return e && (e.team === actor.team || e.managerId === actor.id);
       });
+    if (priorityFilter !== "all") {
+      list = list.filter((t) => t.priority === priorityFilter);
+    }
     return [...list].sort(
       (a, b) => priorityRank(b.priority) - priorityRank(a.priority) || a.dueAt - b.dueAt,
     );
-  }, [tasks, scope, actor.id, actor.team]);
+  }, [tasks, scope, actor.id, actor.team, priorityFilter]);
 
   const counts = useMemo(
     () => ({
@@ -122,13 +127,27 @@ function TasksPage() {
         </button>
       </header>
 
-      <div className="mb-4 flex items-center gap-2 text-xs">
-        <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+      <div className="mb-4 flex items-center gap-2 text-xs flex-wrap">
+        <div className="w-[140px]">
+          <Select value={priorityFilter} onValueChange={(val) => setPriorityFilter(val as any)}>
+            <SelectTrigger className="h-8 text-xs bg-card">
+              <SelectValue placeholder="All priorities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All priorities</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="med">Med</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="h-4 w-px bg-border mx-1" />
         {(["mine", "team", "all"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setScope(s)}
-            className={`px-3 py-1 rounded-full border font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-full border font-medium transition-colors ${
               scope === s
                 ? "bg-primary text-primary-foreground border-primary"
                 : "border-border text-muted-foreground hover:border-primary/40"
@@ -141,6 +160,7 @@ function TasksPage() {
           {counts.todo} todo · {counts.doing} doing · {counts.done} done
         </span>
       </div>
+
 
       {/* Mobile: column tabs */}
       <div className="md:hidden mb-3 grid grid-cols-3 gap-1 bg-secondary p-1 rounded-md">

@@ -2,6 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCalendarEvents, eventColor } from "@/lib/calendar-store";
 import { getRoster } from "@/lib/roster";
 import { Avatar } from "@/components/Avatar";
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { CalendarDays, Filter, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/calendar")({
   component: CalendarPage,
@@ -25,9 +30,23 @@ function dayBucket(ts: number): string {
 }
 
 function CalendarPage() {
+
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("");
+
   const events = useCalendarEvents();
   const groups = new Map<string, typeof events>();
   events.forEach((e) => {
+    if (typeFilter !== "all" && e.type !== typeFilter) return;
+
+    if (dateFilter) {
+      const evDate = new Date(e.startAt);
+      const y = evDate.getFullYear();
+      const m = String(evDate.getMonth() + 1).padStart(2, "0");
+      const d = String(evDate.getDate()).padStart(2, "0");
+      if (`${y}-${m}-${d}` !== dateFilter) return;
+    }
+
     const key = dayBucket(e.startAt);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(e);
@@ -35,16 +54,66 @@ function CalendarPage() {
 
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1100px] mx-auto">
-      <header className="mb-5">
-        <div className="font-mono text-[11px] uppercase tracking-widest text-primary mb-1.5">
-          Schedule
+      <header className="mb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <div className="font-mono text-[11px] uppercase tracking-widest text-primary mb-1.5">
+            Schedule
+          </div>
+          <h1 className="font-display text-2xl md:text-4xl font-semibold tracking-tight">Calendar</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Shifts, tours, tasks, leaves — one timeline.
+          </p>
         </div>
-        <h1 className="font-display text-2xl md:text-4xl font-semibold tracking-tight">Calendar</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Shifts, tours, tasks, leaves — one timeline.
-        </p>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="h-10 rounded-lg border border-border bg-background px-3 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer shadow-sm transition-all"
+            aria-label="Select date to filter"
+          />
+          {dateFilter && (
+            <button
+              onClick={() => setDateFilter("")}
+              className="h-10 px-3 rounded-lg border border-border bg-secondary text-xs hover:bg-secondary/70 transition-colors shadow-sm flex items-center gap-1"
+              title="Clear date filter"
+            >
+              <X className="h-3.5 w-3.5" /> Clear
+            </button>
+          )}
+        </div>
       </header>
+
+      <div className="mb-5 flex flex-col gap-3">
+        <div className="w-[140px]">
+          <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as any)}>
+            <SelectTrigger className="h-10 text-xs bg-card">
+              <SelectValue placeholder="All events" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All events</SelectItem>
+              <SelectItem value="shift">Shift</SelectItem>
+              <SelectItem value="tour">Tour</SelectItem>
+              <SelectItem value="task">Task</SelectItem>
+              <SelectItem value="leave">Leave</SelectItem>
+              <SelectItem value="holiday">Holiday</SelectItem>
+              <SelectItem value="birthday">Birthday</SelectItem>
+              <SelectItem value="1:1">1:1</SelectItem>
+              <SelectItem value="town_hall">Town Hall</SelectItem>
+              <SelectItem value="anniversary">Anniversary</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="space-y-5">
+        {groups.size === 0 && (
+          <div className="p-8 text-center text-sm text-muted-foreground border border-border rounded-xl bg-card">
+            No events found.
+          </div>
+        )}
         {Array.from(groups.entries()).map(([day, items]) => (
           <section key={day}>
             <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-2">

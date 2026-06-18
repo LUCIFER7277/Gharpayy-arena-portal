@@ -64,7 +64,7 @@ export async function createZone(data: Partial<Zone>) {
 }
 
 export async function updateZone(id: string, data: Partial<Zone>) {
-  const updatedZone = await api.put<Zone>(`/zones/${id}`, data);
+  const updatedZone = await api.patch<Zone>(`/zones/${id}`, data);
   const current = store.read();
   store.write({
     ...current,

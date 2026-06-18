@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, Plus, Edit, Map as MapIcon, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Edit, Map as MapIcon, RefreshCw, Filter, Search } from "lucide-react";
 import { toast } from "sonner";
 import { AdminGate } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,10 @@ function ZonesAdminPage() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [editZone, setEditZone] = useState<Zone | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  
+
+  const [cityFilter, setCityFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +111,37 @@ function ZonesAdminPage() {
         </div>
       </header>
 
+      {/* Filters */}
+      <div className="mb-5 flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="w-[140px]">
+            <Select value={cityFilter} onValueChange={(val) => setCityFilter(val)}>
+              <SelectTrigger className="h-9 text-xs bg-card">
+                <SelectValue placeholder="All cities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All cities</SelectItem>
+                {Array.from(new Set(zones.map((z) => z.city).filter(Boolean)))
+                  .sort()
+                  .map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="relative flex-1 w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search zones..."
+              className="pl-9 h-9 bg-background"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
@@ -119,7 +155,16 @@ function ZonesAdminPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {zones.map((zone) => (
+            {zones
+              .filter((z) => cityFilter === "all" || z.city === cityFilter)
+              .filter(
+                (z) =>
+                  searchQuery.trim() === "" ||
+                  z.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  z.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (z.city && z.city.toLowerCase().includes(searchQuery.toLowerCase()))
+              )
+              .map((zone) => (
               <tr key={zone.id} className="hover:bg-muted/30">
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{zone.id}</td>
                 <td className="px-4 py-3 font-medium">{zone.name}</td>

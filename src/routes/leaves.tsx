@@ -6,7 +6,8 @@ import { type LeaveStatus, type LeaveType } from "@/types/hr";
 import { getRoster } from "@/lib/roster";
 import { Avatar } from "@/components/Avatar";
 import { toast } from "sonner";
-import { Plus, X, Check, Clock } from "lucide-react";
+import { Plus, X, Check, Clock, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/leaves")({
   component: LeavesPage,
@@ -34,6 +35,16 @@ function LeavesPage() {
     return emp && (emp.managerId === actor.id || actor.appRole === "admin" || actor.role === "HR");
   });
 
+
+  const [statusFilter, setStatusFilter] = useState<LeaveStatus | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<LeaveType | "all">("all");
+
+  const visibleLeaves = (tab === "mine" ? mine : queue).filter((l) => {
+    if (statusFilter !== "all" && l.status !== statusFilter) return false;
+    if (typeFilter !== "all" && l.type !== typeFilter) return false;
+    return true;
+  });
+
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1100px] mx-auto">
       <header className="mb-5 flex items-end justify-between gap-3">
@@ -52,23 +63,59 @@ function LeavesPage() {
         </button>
       </header>
 
-      <div className="mb-4 grid grid-cols-2 gap-1 bg-secondary p-1 rounded-md max-w-xs">
-        <button
-          onClick={() => setTab("mine")}
-          className={`text-xs font-medium py-1.5 rounded ${tab === "mine" ? "bg-card shadow-sm" : "text-muted-foreground"}`}
-        >
-          My leaves
-        </button>
-        <button
-          onClick={() => setTab("queue")}
-          className={`text-xs font-medium py-1.5 rounded ${tab === "queue" ? "bg-card shadow-sm" : "text-muted-foreground"}`}
-        >
-          Approval queue
-        </button>
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
+        <div className="w-[130px]">
+          <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as any)}>
+            <SelectTrigger className="h-8 text-xs bg-card">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-[120px]">
+          <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as any)}>
+            <SelectTrigger className="h-8 text-xs bg-card">
+              <SelectValue placeholder="All types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="Casual">Casual</SelectItem>
+              <SelectItem value="Sick">Sick</SelectItem>
+              <SelectItem value="Earned">Earned</SelectItem>
+              <SelectItem value="Unpaid">Unpaid</SelectItem>
+              <SelectItem value="WFH">WFH</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="h-4 w-px bg-border mx-1" />
+        <div className="grid grid-cols-2 gap-1 bg-secondary p-1 rounded-md max-w-xs">
+          <button
+            onClick={() => setTab("mine")}
+            className={`text-xs font-medium px-3 py-1.5 rounded ${
+              tab === "mine" ? "bg-card shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            My leaves
+          </button>
+          <button
+            onClick={() => setTab("queue")}
+            className={`text-xs font-medium px-3 py-1.5 rounded ${
+              tab === "queue" ? "bg-card shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            Approval queue
+          </button>
+        </div>
       </div>
 
+
       <div className="rounded-2xl bg-card border border-border overflow-hidden divide-y divide-border">
-        {(tab === "mine" ? mine : queue).map((l) => {
+        {visibleLeaves.map((l) => {
           const emp = getRoster().find((e) => e.id === l.employeeId);
           const canReview = tab === "queue" && l.status === "pending";
           return (
@@ -119,7 +166,7 @@ function LeavesPage() {
             </div>
           );
         })}
-        {(tab === "mine" ? mine : queue).length === 0 && (
+        {visibleLeaves.length === 0 && (
           <div className="px-5 py-12 text-center text-sm text-muted-foreground">
             <Clock className="h-5 w-5 mx-auto mb-2 opacity-40" />
             Nothing here.

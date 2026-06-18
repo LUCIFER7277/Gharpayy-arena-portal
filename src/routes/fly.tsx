@@ -25,6 +25,7 @@ import { getRoster } from "@/lib/roster";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { Avatar } from "@/components/Avatar";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useDailyUpdates,
   useRetroItems,
@@ -138,6 +139,9 @@ function FlyPage() {
 function DailyTab({ actor }: { actor: Employee }) {
   const updates = useDailyUpdates();
   const existing = todayUpdateFor(actor.id);
+  const [zoneFilter, setZoneFilter] = useState<string>("all");
+  const zones = Array.from(new Set(updates.map((u) => u.zone).filter(Boolean)));
+  const visibleUpdates = updates.filter((u) => zoneFilter === "all" || u.zone === zoneFilter);
   const [form, setForm] = useState(() => ({
     connectedCalls: existing?.connectedCalls ?? 0,
     visitsScheduled: existing?.visitsScheduled ?? 0,
@@ -255,14 +259,27 @@ function DailyTab({ actor }: { actor: Employee }) {
       </section>
 
       <aside>
-        <h2 className="font-display text-xl font-semibold mb-3">Team updates today</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display text-xl font-semibold">Team updates today</h2>
+          <div className="w-[130px]">
+            <Select value={zoneFilter} onValueChange={setZoneFilter}>
+              <SelectTrigger className="h-8 text-xs bg-card">
+                <SelectValue placeholder="All Zones" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Zones</SelectItem>
+                {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="space-y-3">
-          {updates.length === 0 && (
+          {visibleUpdates.length === 0 && (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg p-6 text-center">
-              No updates yet — be the first.
+              No updates match.
             </div>
           )}
-          {updates.map((u) => {
+          {visibleUpdates.map((u) => {
             const author = empOf(u.authorId);
             return (
               <article key={u.id} className="rounded-lg border border-border bg-card p-3">
@@ -344,6 +361,9 @@ function Textarea({
 // =================== RETRO TAB ===================
 function RetroTab({ actor }: { actor: Employee }) {
   const items = useRetroItems();
+  const [authorFilter, setAuthorFilter] = useState<string>("all");
+  const authors = Array.from(new Set(items.map(i => i.authorId)));
+  const visibleItems = items.filter(i => authorFilter === "all" || i.authorId === authorFilter);
   const cols: { kind: RetroKind; title: string; color: string; placeholder: string }[] = [
     {
       kind: "start",
@@ -365,15 +385,30 @@ function RetroTab({ actor }: { actor: Employee }) {
     },
   ];
   return (
-    <div className="grid md:grid-cols-3 gap-4">
-      {cols.map((col) => (
-        <RetroColumn
-          key={col.kind}
-          col={col}
-          items={items.filter((i) => i.kind === col.kind)}
-          actorId={actor.id}
-        />
-      ))}
+    <div>
+      <div className="flex justify-end mb-4">
+        <div className="w-[150px]">
+          <Select value={authorFilter} onValueChange={setAuthorFilter}>
+            <SelectTrigger className="h-8 text-xs bg-card">
+              <SelectValue placeholder="All People" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All People</SelectItem>
+              {authors.map(a => <SelectItem key={a} value={a}>{empName(a)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-3 gap-4">
+        {cols.map((col) => (
+          <RetroColumn
+            key={col.kind}
+            col={col}
+            items={visibleItems.filter((i) => i.kind === col.kind)}
+            actorId={actor.id}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -508,6 +543,8 @@ function FeedTab({ actor }: { actor: Employee }) {
   const feed = useFeed();
   const [body, setBody] = useState("");
   const [kind, setKind] = useState<FeedKind>("win");
+  const [kindFilter, setKindFilter] = useState<FeedKind | "all">("all");
+  const visibleFeed = feed.filter(f => kindFilter === "all" || f.kind === kindFilter);
 
   function onPost() {
     if (!body.trim()) return;
@@ -521,17 +558,20 @@ function FeedTab({ actor }: { actor: Employee }) {
       <div className="rounded-lg border border-border bg-card p-3 mb-4">
         <div className="flex items-center gap-2 mb-2">
           <Avatar id={actor.id} size={28} />
-          <select
-            value={kind}
-            onChange={(e) => setKind(e.target.value as FeedKind)}
-            className="h-8 px-2 bg-background border border-border rounded text-xs font-mono uppercase tracking-widest"
-          >
-            {(Object.keys(FEED_KIND_META) as FeedKind[]).map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
+          <div className="w-[120px]">
+            <Select value={kind} onValueChange={(val) => setKind(val as FeedKind)}>
+              <SelectTrigger className="h-8 text-xs font-mono uppercase tracking-widest bg-background border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(FEED_KIND_META) as FeedKind[]).map((k) => (
+                  <SelectItem key={k} value={k}>
+                    {k}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <textarea
           value={body}
@@ -550,8 +590,24 @@ function FeedTab({ actor }: { actor: Employee }) {
         </div>
       </div>
 
+      <div className="flex justify-end mb-3">
+        <div className="w-[140px]">
+          <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as any)}>
+            <SelectTrigger className="h-8 text-xs bg-card">
+              <SelectValue placeholder="All Events" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Events</SelectItem>
+              {(Object.keys(FEED_KIND_META) as FeedKind[]).map(k => (
+                <SelectItem key={k} value={k}>{k}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="space-y-3">
-        {feed.map((f) => (
+        {visibleFeed.map((f) => (
           <FeedCard key={f.id} ev={f} actorId={actor.id} />
         ))}
       </div>
@@ -639,6 +695,8 @@ function ActionItemsTab({ actor }: { actor: Employee }) {
   const [title, setTitle] = useState("");
   const [assignee, setAssignee] = useState(actor.id);
   const [dueDays, setDueDays] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const visibleItems = items.filter(t => statusFilter === "all" || t.status === statusFilter);
 
   function create() {
     if (!title.trim()) return;
@@ -665,26 +723,32 @@ function ActionItemsTab({ actor }: { actor: Employee }) {
             placeholder="Fix WiFi at Oryn Girls"
             className="h-10 px-3 bg-background border border-border rounded-md text-sm"
           />
-          <select
-            value={assignee}
-            onChange={(e) => setAssignee(e.target.value)}
-            className="h-10 px-2 bg-background border border-border rounded-md text-sm"
-          >
-            {getRoster().map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={dueDays}
-            onChange={(e) => setDueDays(parseInt(e.target.value))}
-            className="h-10 px-2 bg-background border border-border rounded-md text-sm"
-          >
-            <option value={1}>Tomorrow</option>
-            <option value={3}>3 days</option>
-            <option value={7}>1 week</option>
-          </select>
+          <div className="w-full">
+            <Select value={assignee} onValueChange={(val) => setAssignee(val)}>
+              <SelectTrigger className="h-10 bg-background border-border text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getRoster().map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full">
+            <Select value={dueDays.toString()} onValueChange={(val) => setDueDays(parseInt(val))}>
+              <SelectTrigger className="h-10 bg-background border-border text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Tomorrow</SelectItem>
+                <SelectItem value="3">3 days</SelectItem>
+                <SelectItem value="7">1 week</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <button
             onClick={create}
             className="h-10 px-4 bg-primary text-primary-foreground rounded-md text-sm font-medium"
@@ -694,8 +758,25 @@ function ActionItemsTab({ actor }: { actor: Employee }) {
         </div>
       </div>
 
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-display text-lg font-semibold">Action Items List</h3>
+        <div className="w-[120px]">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 text-xs bg-card">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="todo">To Do</SelectItem>
+              <SelectItem value="doing">Doing</SelectItem>
+              <SelectItem value="done">Done</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="space-y-2">
-        {items.map((t) => (
+        {visibleItems.map((t) => (
           <div
             key={t.id}
             className="flex items-center gap-3 rounded-md border border-border bg-card p-3"
@@ -731,9 +812,9 @@ function ActionItemsTab({ actor }: { actor: Employee }) {
             </span>
           </div>
         ))}
-        {items.length === 0 && (
+        {visibleItems.length === 0 && (
           <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg p-6 text-center">
-            No action items yet.
+            No action items match.
           </div>
         )}
       </div>

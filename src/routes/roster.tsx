@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   MapPin,
   Camera,
@@ -272,34 +273,40 @@ function RosterPage() {
             />
           </div>
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-            <div className="relative shrink-0">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <select
-                value={teamFilter}
-                onChange={(e) => setTeamFilter(e.target.value)}
-                className="h-10 pl-9 pr-8 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none min-w-[140px]"
-              >
-                <option value="all">All Teams</option>
-                {teams.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+            <div className="w-[140px] shrink-0">
+              <Select value={teamFilter} onValueChange={(val) => setTeamFilter(val)}>
+                <SelectTrigger className="h-10 text-xs bg-background">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue placeholder="All Teams" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Teams</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="relative shrink-0">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 pl-9 pr-8 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none min-w-[140px]"
-              >
-                <option value="all">All Statuses</option>
-                <option value="clocked_in">Clocked In</option>
-                <option value="absent">Absent / Off</option>
-                <option value="break">On Break</option>
-                <option value="field">In Field</option>
-              </select>
+            <div className="w-[140px] shrink-0">
+              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
+                <SelectTrigger className="h-10 text-xs bg-background">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                    <SelectValue placeholder="All Statuses" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="clocked_in">Clocked In</SelectItem>
+                  <SelectItem value="absent">Absent / Off</SelectItem>
+                  <SelectItem value="break">On Break</SelectItem>
+                  <SelectItem value="field">In Field</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
