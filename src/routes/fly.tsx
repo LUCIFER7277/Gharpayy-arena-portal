@@ -48,6 +48,7 @@ import {
 import { useTasks, createTask, setStatus as setTaskStatus } from "@/lib/task-store";
 import { fetchDailyBrief, type SummaryOut } from "@/lib/daily-brief-api";
 import { toast } from "sonner";
+import { useZoneStore } from "@/lib/zones-store";
 
 export const Route = createFileRoute("/fly")({
   component: FlyPage,
@@ -140,7 +141,8 @@ function DailyTab({ actor }: { actor: Employee }) {
   const updates = useDailyUpdates();
   const existing = todayUpdateFor(actor.id);
   const [zoneFilter, setZoneFilter] = useState<string>("all");
-  const zones = Array.from(new Set(updates.map((u) => u.zone).filter(Boolean)));
+  const { zones: storeZones } = useZoneStore();
+  const zones = storeZones.map(z => z.name).sort();
   const visibleUpdates = updates.filter((u) => zoneFilter === "all" || u.zone === zoneFilter);
   const [form, setForm] = useState(() => ({
     connectedCalls: existing?.connectedCalls ?? 0,
@@ -537,6 +539,7 @@ const FEED_KIND_META: Record<FeedKind, { color: string; icon: typeof Flame }> = 
   issue: { color: "text-destructive border-destructive/30 bg-destructive/10", icon: AlertTriangle },
   win: { color: "text-success border-success/30 bg-success/10", icon: Trophy },
   system: { color: "text-muted-foreground border-border bg-secondary", icon: Sparkles },
+  tour: { color: "text-info border-info/30 bg-info/10", icon: CalIcon },
 };
 
 function FeedTab({ actor }: { actor: Employee }) {

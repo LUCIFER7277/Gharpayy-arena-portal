@@ -47,6 +47,14 @@ import { CommandPalette } from "./CommandPalette";
 import { GiveKudoModal } from "./GiveKudoModal";
 import { Avatar } from "./Avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { isImpersonating, revertImpersonation } from "@/lib/api-client";
 import { useRoleFeature } from "../hooks/useRoleFeature";
@@ -300,46 +308,6 @@ export function AppShell() {
         </button>
       </div>
 
-      <div className="px-3 py-3 border-b border-sidebar-border">
-        <div className="text-[10px] uppercase tracking-widest font-mono text-sidebar-foreground/60 mb-1.5 px-1">
-          Signed in
-        </div>
-        <div className="px-1">
-          <div className="text-sm font-medium text-white truncate">{actor.name}</div>
-          <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60 font-mono truncate">
-            {actor.role} · {actor.team}
-          </div>
-          {user?.email && (
-            <div className="text-[10px] text-sidebar-foreground/50 truncate mt-0.5">
-              {user.email}
-            </div>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 mt-1 -ml-1 px-2 py-0 gap-1.5 text-[11px] font-medium text-sidebar-foreground/90 hover:bg-sidebar-hover hover:text-white [&_svg]:size-3.5"
-            onClick={() => {
-              logout();
-              navigate({ to: "/login", replace: true });
-              setDrawerOpen(false);
-            }}
-          >
-            <LogOut className="shrink-0" />
-            Sign out
-          </Button>
-
-
-        </div>
-        <div className="flex items-center gap-2 mt-2 px-1 text-[10px] text-sidebar-foreground/70">
-          <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
-          <span className="font-mono uppercase tracking-widest">{status}</span>
-          <span className="ml-auto inline-flex items-center px-1.5 py-0.5 rounded border border-primary/30 bg-primary/15 text-primary font-mono uppercase tracking-widest text-[9px]">
-            {TIER_LABEL[tier]}
-          </span>
-        </div>
-      </div>
-
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto no-scrollbar">
         {visibleNav.map(({ to, label, icon: Icon }) => {
           const active = location.pathname === to;
@@ -376,6 +344,44 @@ export function AppShell() {
         <div className="flex items-center gap-2 px-2 py-2 mt-2 text-[10px] text-sidebar-foreground/60">
           <Sparkles className="h-3 w-3 text-primary" />
           <span className="font-mono uppercase tracking-widest">Gharpayy workspace</span>
+        </div>
+      </div>
+      <div className="p-3 border-t border-sidebar-border mt-auto">
+        <div className="flex flex-col gap-3 rounded-xl bg-sidebar-hover/20 p-3 border border-sidebar-border/40 hover:bg-sidebar-hover/40 transition-all duration-300 group">
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              <Avatar id={actor.id} size={36} className="ring-2 ring-background/10 shadow-sm" />
+              <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-sidebar ${statusDot}`} title={status} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-white truncate tracking-tight">{actor.name}</div>
+              <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/90 font-mono truncate mt-0.5">
+                {actor.role}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                logout();
+                navigate({ to: "/login", replace: true });
+                setDrawerOpen(false);
+              }}
+              className="h-8 w-8 rounded-full hover:bg-destructive/20 hover:text-destructive text-sidebar-foreground/70 flex items-center justify-center transition-all shrink-0"
+              title="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-between pt-2.5 border-t border-sidebar-border/30">
+            <div className="flex items-center gap-1.5 truncate">
+               <span className="text-[10px] text-sidebar-foreground/70 truncate">
+                  {user?.email || actor.team}
+               </span>
+            </div>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary font-mono uppercase tracking-widest text-[9px] shrink-0">
+              {TIER_LABEL[tier]}
+            </span>
+          </div>
         </div>
       </div>
     </aside>
@@ -482,34 +488,52 @@ export function AppShell() {
                 <Settings className="h-4 w-4" />
               </Link>
             )}
-            {isFeatureEnabled("/score") ? (
-              <Link
-                to="/score"
-                className="ml-1 inline-flex items-center gap-2 px-1 sm:px-2 py-1 rounded-md hover:bg-secondary transition-colors"
-              >
-                <Avatar id={actor.id} size={28} />
-                <div className="hidden lg:block">
-                  <div className="text-xs font-semibold leading-tight">
-                    {actor.name.split(" ")[0]}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="ml-1 inline-flex items-center gap-2 px-1 sm:px-2 py-1 rounded-md hover:bg-secondary transition-colors text-left focus:outline-none">
+                  <Avatar id={actor.id} size={28} />
+                  <div className="hidden lg:block">
+                    <div className="text-xs font-semibold leading-tight">
+                      {actor.name.split(" ")[0]}
+                    </div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mt-0.5">
+                      {actor.role}
+                    </div>
                   </div>
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                    {actor.role}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 z-50">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{actor.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email || actor.team}
+                    </p>
                   </div>
-                </div>
-              </Link>
-            ) : (
-              <div className="ml-1 inline-flex items-center gap-2 px-1 sm:px-2 py-1 rounded-md cursor-default">
-                <Avatar id={actor.id} size={28} />
-                <div className="hidden lg:block">
-                  <div className="text-xs font-semibold leading-tight">
-                    {actor.name.split(" ")[0]}
-                  </div>
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                    {actor.role}
-                  </div>
-                </div>
-              </div>
-            )}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {isFeatureEnabled("/score") && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/score" className="w-full cursor-pointer flex items-center">
+                      <Trophy className="mr-2 h-4 w-4" />
+                      <span>My Score</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    logout();
+                    navigate({ to: "/login", replace: true });
+                    setDrawerOpen(false);
+                  }}
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <div className="flex-1 min-w-0 overflow-y-auto">

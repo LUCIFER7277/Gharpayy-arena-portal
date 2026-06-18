@@ -16,6 +16,8 @@ import { getRoster } from "@/lib/roster";
 import { Avatar } from "@/components/Avatar";
 import { TaskDetailSheet } from "@/components/TaskDetailSheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { api } from "@/lib/api-client";
 import { toast } from "sonner";
 import {
   Plus,
@@ -71,24 +73,62 @@ function TasksPage() {
   const [activeCol, setActiveCol] = useState<TaskStatus>("todo");
   const [openId, setOpenId] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
+  const [isUpdatingShare, setIsUpdatingShare] = useState(false);
+
+  const me = useMemo(() => getRoster().find((e) => e.id === actor.id), [actor.id]);
+  const [hideTasks, setHideTasks] = useState(me?.hideTasks ?? false);
+
+  const toggleHideTasks = async () => {
+    if (!me || isUpdatingShare) return;
+    const next = !hideTasks;
+    setHideTasks(next);
+    setIsUpdatingShare(true);
+    try {
+       await api.patch(`/employees/${me.id}`, { hideTasks: next });
+       const idx = getRoster().findIndex(x => x.id === me.id);
+       if (idx >= 0) {
+          getRoster()[idx].hideTasks = next;
+       }
+       toast.success(next ? "Tasks are now hidden from peers" : "Tasks are visible to peers");
+    } catch (e) {
+       setHideTasks(!next);
+       toast.error("Failed to update task visibility");
+    } finally {
+       setIsUpdatingShare(false);
+    }
+  };
 
   const visible = useMemo(() => {
-    let list = tasks.filter((t) => t.relatedTo !== "Admin Check-In");
-    if (scope === "mine") list = list.filter((t) => t.assigneeId === actor.id);
-    else if (scope === "team")
+    let list = tasks.filter((t) => {
+      if (t.relatedTo === "Admin Check-In") return false;
+      if (t.assigneeId === actor.id || t.assignedById === actor.id) return true;
+      if (["admin", "hr", "manager"].includes(actor.appRole)) return true;
+      
+      const e = getRoster().find((x) => x.id === t.assigneeId);
+      if (!e) return true;
+      if (e.hideTasks === true) return false;
+      
+      return true;
+    });
+
+    if (scope === "mine") {
+      list = list.filter((t) => t.assigneeId === actor.id);
+    } else if (scope === "team") {
       list = list.filter((t) => {
         if (t.assigneeId === actor.id) return false; // Exclude own tasks from team view
         if (t.assignedById === actor.id) return true;
         const e = getRoster().find((x) => x.id === t.assigneeId);
         return e && (e.team === actor.team || e.managerId === actor.id);
       });
+    }
+
     if (priorityFilter !== "all") {
       list = list.filter((t) => t.priority === priorityFilter);
     }
     return [...list].sort(
       (a, b) => priorityRank(b.priority) - priorityRank(a.priority) || a.dueAt - b.dueAt,
     );
-  }, [tasks, scope, actor.id, actor.team, priorityFilter]);
+  }, [tasks, scope, actor.id, actor.team, actor.appRole, priorityFilter]);
 
   const counts = useMemo(
     () => ({
@@ -156,6 +196,12 @@ function TasksPage() {
             {s === "mine" ? "My tasks" : s === "team" ? "My team" : "Everyone"}
           </button>
         ))}
+        {actor.appRole === "employee" && (
+          <div className="flex items-center gap-2 ml-4">
+             <Switch checked={hideTasks} onCheckedChange={toggleHideTasks} disabled={isUpdatingShare} />
+             <span className="text-muted-foreground">Hide tasks from peers</span>
+          </div>
+        )}
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           {counts.todo} todo · {counts.doing} doing · {counts.done} done
         </span>

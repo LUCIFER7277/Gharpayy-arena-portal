@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import {
   fmtDuration,
@@ -328,10 +328,34 @@ function RosterPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Tile label="Clocked In" value={counts["Clocked In"]} tone="success" />
-            <Tile label="On Break" value={counts["On Break"]} tone="warning" />
-            <Tile label="In Field" value={counts["In Field"]} tone="primary" />
-            <Tile label="Off / Absent" value={counts["Off"]} tone="muted" />
+            <Tile 
+              label="Clocked In" 
+              value={counts["Clocked In"]} 
+              tone="success" 
+              onClick={() => setStatusFilter(statusFilter === "clocked_in" ? "all" : "clocked_in")}
+              isActive={statusFilter === "clocked_in"}
+            />
+            <Tile 
+              label="On Break" 
+              value={counts["On Break"]} 
+              tone="warning" 
+              onClick={() => setStatusFilter(statusFilter === "break" ? "all" : "break")}
+              isActive={statusFilter === "break"}
+            />
+            <Tile 
+              label="In Field" 
+              value={counts["In Field"]} 
+              tone="primary" 
+              onClick={() => setStatusFilter(statusFilter === "field" ? "all" : "field")}
+              isActive={statusFilter === "field"}
+            />
+            <Tile 
+              label="Off / Absent" 
+              value={counts["Off"]} 
+              tone="muted" 
+              onClick={() => setStatusFilter(statusFilter === "absent" ? "all" : "absent")}
+              isActive={statusFilter === "absent"}
+            />
           </div>
 
           {rows.length === 0 && !isToday && (
@@ -342,7 +366,11 @@ function RosterPage() {
 
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
             {rows.map((row) => (
-              <RosterCard key={row.empId} row={row} isToday={isToday} />
+              <RosterCard 
+                key={row.empId} 
+                row={row} 
+                isToday={isToday} 
+              />
             ))}
           </div>
         </>
@@ -365,6 +393,8 @@ function formatEventKind(kind: string) {
 
 function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
+  
   const sortedEvents = [...row.events].sort(
     (a: AttEvent | RosterEvent, b: AttEvent | RosterEvent) => b.ts - a.ts,
   );
@@ -372,7 +402,10 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
   const subtitleParts = [row.empTeam, row.empRole, row.empAppRole].filter(Boolean);
 
   return (
-    <Card className={`p-5 flex flex-col h-full border ${row.status === "Off" ? "border-destructive/20 bg-destructive/5" : "border-border shadow-sm bg-card hover:border-primary/20 hover:shadow-md transition-all"}`}>
+    <Card 
+      onClick={() => navigate({ to: `/employee/${row.empId}` })}
+      className={`p-5 flex flex-col h-full border ${row.status === "Off" ? "border-destructive/20 bg-destructive/5" : "border-border shadow-sm bg-card hover:border-primary/20 hover:shadow-md transition-all"} cursor-pointer`}
+    >
       <div className="flex items-start gap-4">
         <Avatar className="h-14 w-14 shrink-0 border-2 border-background shadow-sm ring-1 ring-border">
           <AvatarFallback className={`${row.status === "Off" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"} font-medium`}>
@@ -511,10 +544,14 @@ function Tile({
   label,
   value,
   tone,
+  onClick,
+  isActive,
 }: {
   label: string;
   value: number;
   tone: "success" | "warning" | "primary" | "muted";
+  onClick?: () => void;
+  isActive?: boolean;
 }) {
   const cls =
     tone === "success"
@@ -524,8 +561,15 @@ function Tile({
         : tone === "primary"
           ? "border-primary/30 bg-primary/5 text-primary"
           : "border-border bg-muted/30 text-muted-foreground";
+
+  const activeClass = isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "";
+  const clickableClass = onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : "";
+
   return (
-    <Card className={`p-4 border ${cls}`}>
+    <Card 
+      className={`p-4 border ${cls} ${activeClass} ${clickableClass}`}
+      onClick={onClick}
+    >
       <div className="text-[10px] uppercase tracking-widest font-mono">{label}</div>
       <div className="font-display text-3xl font-semibold tabular-nums mt-1">{value}</div>
     </Card>

@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { CalendarDays, Filter, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useZoneStore } from "@/lib/zones-store";
 
 export const Route = createFileRoute("/calendar")({
   component: CalendarPage,
@@ -33,11 +34,22 @@ function CalendarPage() {
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("");
+  const [zoneFilter, setZoneFilter] = useState<string>("all");
 
   const events = useCalendarEvents();
   const groups = new Map<string, typeof events>();
+  const roster = getRoster();
+  
+  const { zones } = useZoneStore();
+  const availableZones = zones.map(z => z.name).sort();
+
   events.forEach((e) => {
     if (typeFilter !== "all" && e.type !== typeFilter) return;
+
+    if (zoneFilter !== "all") {
+      const owner = e.ownerId ? roster.find((x) => x.id === e.ownerId) : null;
+      if (!owner || owner.zone !== zoneFilter) return;
+    }
 
     if (dateFilter) {
       const evDate = new Date(e.startAt);
@@ -86,7 +98,7 @@ function CalendarPage() {
         </div>
       </header>
 
-      <div className="mb-5 flex flex-col gap-3">
+      <div className="mb-5 flex flex-col sm:flex-row gap-3">
         <div className="w-[140px]">
           <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as any)}>
             <SelectTrigger className="h-10 text-xs bg-card">
@@ -103,6 +115,22 @@ function CalendarPage() {
               <SelectItem value="1:1">1:1</SelectItem>
               <SelectItem value="town_hall">Town Hall</SelectItem>
               <SelectItem value="anniversary">Anniversary</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="w-[140px]">
+          <Select value={zoneFilter} onValueChange={(val) => setZoneFilter(val)}>
+            <SelectTrigger className="h-10 text-xs bg-card">
+              <SelectValue placeholder="All zones" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All zones</SelectItem>
+              {availableZones.map((z) => (
+                <SelectItem key={z} value={z}>
+                  {z}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -148,6 +176,17 @@ function CalendarPage() {
                       {e.location && (
                         <div className="text-[11px] text-muted-foreground truncate">
                           {e.location}
+                        </div>
+                      )}
+                      {owner && (
+                        <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                          <span className="font-medium text-foreground/80">{owner.name}</span>
+                          {owner.zone && (
+                            <>
+                              <span>•</span>
+                              <span>{owner.zone}</span>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

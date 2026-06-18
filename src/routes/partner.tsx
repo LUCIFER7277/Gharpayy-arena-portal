@@ -27,11 +27,10 @@ import {
   ticketsOfPartner,
   useZoneStore,
   store as zoneStore,
-  occPct,
-  inr,
   type PartnerPayout,
   type PartnerTicket,
 } from "@/lib/zones-store";
+import { inr, occPct } from "@/data/zones";
 import type { Property, Zone } from "@/data/zones";
 import { getRoster } from "@/lib/roster";
 import { useAttendanceState } from "@/hooks/useAttendance";

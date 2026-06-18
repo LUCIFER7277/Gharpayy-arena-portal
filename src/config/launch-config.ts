@@ -38,6 +38,7 @@ export const LAUNCH_ROUTES = new Set<string>([
   "/admin/zones",         // Manage Zones
   "/calendar",            // Calendar
   "/command",             // Coach AI
+  "/employee/$empId",     // Employee Profile
 ]);
 
 // ─── Feature key whitelist ───────────────────────────────────────────────────
@@ -66,6 +67,7 @@ export const ENABLED_FEATURES = new Set<string>([
   "manageZones",
   "calendar",
   "coach",
+  "employeeProfile",
 ]);
 
 // ─── Route → feature key map ─────────────────────────────────────────────────
@@ -95,6 +97,7 @@ export const FEATURE_MAP: Record<string, string> = {
   "/admin/zones":         "manageZones",
   "/calendar":            "calendar",
   "/command":             "coach",
+  "/employee/$empId":     "employeeProfile",
 };
 
 // ─── Role permission matrix ───────────────────────────────────────────────────
@@ -124,6 +127,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "manageZones",
     "calendar",
     "coach",
+    "employeeProfile",
   ],
   hr: [
     "home",
@@ -142,6 +146,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "taskThroughput",
     "inbox",
     "calendar",
+    "employeeProfile",
   ],
   manager: [
     "home",
@@ -156,6 +161,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "liveAttendance",
     "inbox",
     "calendar",
+    "employeeProfile",
   ],
   employee: [
     "home",
@@ -166,5 +172,6 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "oneOnOnes",
     "inbox",
     "calendar",
+    "employeeProfile",
   ],
 };

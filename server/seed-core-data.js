@@ -5,10 +5,16 @@ import { Zone, Property, Playbook } from "./src/models/index.js";
 config({ path: "./.env" });
 
 const ZONES = [
-  { id: "z1", name: "Bandra Zone", city: "Mumbai", pods: 3, leaderId: "e22" },
-  { id: "z2", name: "Andheri Zone", city: "Mumbai", pods: 4, leaderId: "e23" },
-  { id: "z3", name: "Whitefield Zone", city: "Bangalore", pods: 3, leaderId: "e20" },
-  { id: "z4", name: "HSR Zone", city: "Bangalore", pods: 2, leaderId: "e21" },
+  // PG Zones
+  { id: "z1", name: "Kora Main", city: "Bangalore", leaderId: "e20", pods: 3, type: "PG" },
+  { id: "z2", name: "YPR Main", city: "Bangalore", leaderId: "e21", pods: 2, type: "PG" },
+  { id: "z3", name: "MWB", city: "Bangalore", leaderId: "e22", pods: 2, type: "PG" },
+  { id: "z4", name: "MTP", city: "Bangalore", leaderId: "e23", pods: 2, type: "PG" },
+  { id: "z5", name: "WFD/SJU", city: "Bangalore", leaderId: "e24", pods: 2, type: "PG" },
+  // Flat Zones
+  { id: "z6", name: "Kora Homes", city: "Bangalore", leaderId: "e25", pods: 2, type: "Flat" },
+  { id: "z7", name: "MWB Homes", city: "Bangalore", leaderId: "e26", pods: 2, type: "Flat" },
+  { id: "z8", name: "Bellandur", city: "Bangalore", leaderId: "e27", pods: 2, type: "Flat" },
 ];
 
 const PROPERTIES = [

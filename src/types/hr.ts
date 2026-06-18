@@ -43,6 +43,10 @@ export interface Employee {
   bio?: string;
   joinedYearsAgo?: number;
   birthdayMMDD?: string;
+  hideTasks?: boolean;
+  email?: string;
+  joinedAt?: number;
+  birthday?: string;
 }
 
 export type KudoTag =

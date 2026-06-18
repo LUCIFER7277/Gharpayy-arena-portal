@@ -4,6 +4,7 @@ import { Send, Flame, Loader2 } from "lucide-react";
 import { teamSummary } from "@/lib/team-metrics";
 import { getRoster } from "@/lib/roster";
 import { RoleGate } from "@/components/RoleGate";
+import { API_URL, getToken } from "@/lib/api-client";
 
 export const Route = createFileRoute("/command")({
   component: () => (
@@ -16,7 +17,81 @@ export const Route = createFileRoute("/command")({
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+function parseInlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*|__.*?__|\*.*?\*|_.*?_)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("__") && part.endsWith("__")) {
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={i} className="italic text-foreground">{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith("_") && part.endsWith("_")) {
+      return <em key={i} className="italic text-foreground">{part.slice(1, -1)}</em>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
 
+function parseMarkdown(text: string) {
+  if (!text) return null;
+  text = text.replace(/\r/g, '');
+  const blocks = text.split(/\n\n+/);
+  
+  return blocks.map((block, i) => {
+    block = block.trim();
+    if (!block) return null;
+
+    // Headings
+    const headingMatch = block.match(/^(#{1,6})\s+(.*)$/s);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const content = parseInlineMarkdown(headingMatch[2]);
+      if (level === 1) return <h1 key={i} className="text-xl md:text-2xl font-bold mt-6 mb-3 text-primary tracking-tight border-b border-border/50 pb-2">{content}</h1>;
+      if (level === 2) return <h2 key={i} className="text-lg font-bold mt-5 mb-2 text-primary/90">{content}</h2>;
+      if (level === 3) return <h3 key={i} className="text-base font-semibold mt-4 mb-2 text-foreground">{content}</h3>;
+      return <h4 key={i} className="text-sm font-semibold mt-3 mb-1 text-foreground/80">{content}</h4>;
+    }
+    
+    // Unordered lists
+    if (/^[-*]\s/m.test(block)) {
+      const items = block.split(/\n(?=[-*\d])/).filter(line => /^[-*]\s/.test(line.trim()));
+      if (items.length > 0) {
+        return (
+          <ul key={i} className="list-disc pl-5 mb-4 space-y-2 marker:text-primary/70">
+            {items.map((item, j) => (
+              <li key={j} className="text-foreground/90 pl-1 leading-relaxed">
+                {parseInlineMarkdown(item.trim().replace(/^[-*]\s+/, ""))}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+    }
+    
+    // Numbered lists
+    if (/^\d+\.\s/m.test(block)) {
+      const items = block.split(/\n(?=[-*\d])/).filter(line => /^\d+\.\s/.test(line.trim()));
+      if (items.length > 0) {
+        return (
+          <ol key={i} className="list-decimal pl-5 mb-4 space-y-2 marker:text-primary/70 marker:font-medium">
+            {items.map((item, j) => (
+              <li key={j} className="text-foreground/90 pl-1 leading-relaxed">
+                {parseInlineMarkdown(item.trim().replace(/^\d+\.\s+/, ""))}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+    }
+
+    // Paragraph
+    return <p key={i} className="mb-4 text-foreground/90 leading-relaxed">{parseInlineMarkdown(block)}</p>;
+  });
+}
 
 function CommandCenter() {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -111,10 +186,13 @@ function CommandCenter() {
     };
 
     try {
-      const resp = await fetch("/api/operator/coach", {
+      const token = getToken();
+      const baseUrl = API_URL || "/api";
+      const resp = await fetch(`${baseUrl}/operator/coach`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ messages: next, snapshot }),
       });
@@ -223,10 +301,10 @@ function CommandCenter() {
                     : "bg-card text-card-foreground border border-border/50 shadow-sm"
                 }`}
               >
-                <div className="whitespace-pre-wrap font-sans space-y-2 [&>p]:mb-2 [&>ul]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>li]:mb-1 [&>h3]:font-semibold [&>h3]:text-base [&>h3]:mt-4 [&>h3]:mb-2 [&>h4]:font-semibold [&>h4]:mt-3 [&>h4]:mb-1">
-                  {m.content ||
+                <div className="font-sans">
+                  {m.content ? parseMarkdown(m.content) : 
                     (loading ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="flex items-center gap-2 text-muted-foreground py-1">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <span className="text-sm">Synthesizing...</span>
                       </div>

@@ -20,9 +20,9 @@ import { getEventsFor, todayKey } from "@/lib/attendance-store";
 import { dayHealth, subscribeConsole } from "@/lib/console-store";
 import { api } from "@/lib/api-client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, addDays, subWeeks, addWeeks, isSameDay, isToday, subDays } from "date-fns";
 import { Avatar } from "@/components/Avatar";
-import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, Sparkles, Upload, X, Image as ImageIcon, Filter, Search, SlidersHorizontal } from "lucide-react";
+import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Sparkles, Upload, X, Image as ImageIcon, Filter, Search, SlidersHorizontal, Calendar } from "lucide-react";
 
 export const Route = createFileRoute("/pulse")({
   component: PulsePage,
@@ -571,6 +571,17 @@ function OrgComplianceCard() {
   );
 }
 
+// Helper: get ISO date string from a Date object (matches todayISO format)
+function dateToISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Helper: get the Mon–Sun days for the week containing `anchor`
+function getWeekDays(anchor: Date): Date[] {
+  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 }); // Monday
+  return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+}
+
 export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const { events: attendanceEvents } = useAttendanceState();
   const [v, setV] = useState(0);
@@ -578,20 +589,48 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const [viewImages, setViewImages] = useState<string[] | null>(null);
   const [isExternalView, setIsExternalView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [dateRangeOption, setDateRangeOption] = useState<string>("today");
+  const [customStart, setCustomStart] = useState<string>(todayISO());
+  const [customEnd, setCustomEnd] = useState<string>(todayISO());
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [slotFilter, setSlotFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "onTime" | "late">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "onTime" | "late" | "pending">("all");
   const [callsFilter, setCallsFilter] = useState<string>("all");
   const [toursFilter, setToursFilter] = useState<string>("all");
   const [closuresFilter, setClosuresFilter] = useState<string>("all");
   const [blockersFilter, setBlockersFilter] = useState<"all" | "hasBlockers">("all");
   const [mediaFilter, setMediaFilter] = useState<string>("all");
+  const [nameFilter, setNameFilter] = useState<string>("all");
 
-  const teams = Array.from(new Set(getRoster().map((e) => e.team).filter(Boolean)));
-  const roles = Array.from(new Set(getRoster().map((e) => e.role).filter(Boolean)));
+  const teams = useMemo(() => Array.from(new Set(getRoster().map((e) => e.team).filter(Boolean))), [v]);
+  const roles = useMemo(() => Array.from(new Set(getRoster().map((e) => e.role).filter(Boolean))), [v]);
+  const names = useMemo(() => Array.from(new Set(getRoster().map((e) => e.name).filter(Boolean))).sort(), [v]);
+
+  const { startIso, endIso, isSingleDay } = useMemo(() => {
+    const today = new Date();
+    if (dateRangeOption === "today") return { startIso: todayISO(), endIso: todayISO(), isSingleDay: true };
+    if (dateRangeOption === "yesterday") {
+      const y = subDays(today, 1);
+      return { startIso: dateToISO(y), endIso: dateToISO(y), isSingleDay: true };
+    }
+    if (dateRangeOption === "7days") return { startIso: dateToISO(subDays(today, 6)), endIso: todayISO(), isSingleDay: false };
+    if (dateRangeOption === "14days") return { startIso: dateToISO(subDays(today, 13)), endIso: todayISO(), isSingleDay: false };
+    if (dateRangeOption === "30days") return { startIso: dateToISO(subDays(today, 29)), endIso: todayISO(), isSingleDay: false };
+    if (dateRangeOption === "custom") {
+      const s = customStart || todayISO();
+      const e = customEnd || todayISO();
+      return { startIso: s, endIso: e, isSingleDay: s === e };
+    }
+    return { startIso: todayISO(), endIso: todayISO(), isSingleDay: true };
+  }, [dateRangeOption, customStart, customEnd]);
+
+  const dateRangeLabel = useMemo(() => {
+    if (isSingleDay) return format(new Date(startIso + "T12:00:00"), "d MMM yyyy");
+    return `${format(new Date(startIso + "T12:00:00"), "d MMM")} – ${format(new Date(endIso + "T12:00:00"), "d MMM yyyy")}`;
+  }, [startIso, endIso, isSingleDay]);
 
   useEffect(() => {
     const unsubPulse = subscribe(() => setV((x) => x + 1));
@@ -623,7 +662,10 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     }
   };
 
-  const entries = useMemo(() => getEntries({ date: todayISO() }), [v]);
+  const entries = useMemo(() => {
+    const allEntries = getEntries({});
+    return allEntries.filter(e => e.date >= startIso && e.date <= endIso);
+  }, [v, startIso, endIso]);
 
   const { filteredEntries: groupedEntries, counts } = useMemo(() => {
     const groups: Record<string, typeof entries> = {};
@@ -639,16 +681,27 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     Object.values(groups).forEach(g => g.sort((a,b) => (slotOrder[a.slot] || 99) - (slotOrder[b.slot] || 99)));
     
     let result = Object.values(groups).map(empEntries => {
-      const eodEntry = empEntries.find(e => e.slot === "eod");
-      const regularEntries = empEntries.filter(e => e.slot !== "eod");
-      return {
-        empId: empEntries[0].employeeId,
-        empName: empEntries[0].employeeName,
-        role: empEntries[0].role,
-        team: empEntries[0].team,
-        eodEntry,
-        regularEntries: regularEntries.length > 0 ? regularEntries : [null]
-      };
+      if (isSingleDay) {
+        const eodEntry = empEntries.find(e => e.slot === "eod");
+        const regularEntries = empEntries.filter(e => e.slot !== "eod");
+        return {
+          empId: empEntries[0].employeeId,
+          empName: empEntries[0].employeeName,
+          role: empEntries[0].role,
+          team: empEntries[0].team,
+          eodEntry,
+          regularEntries: regularEntries.length > 0 ? regularEntries : [null]
+        };
+      } else {
+        return {
+          empId: empEntries[0].employeeId,
+          empName: empEntries[0].employeeName,
+          role: empEntries[0].role,
+          team: empEntries[0].team,
+          eodEntry: undefined,
+          regularEntries: empEntries
+        };
+      }
     });
 
     if (searchQuery.trim() !== "") {
@@ -658,6 +711,10 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
         g.regularEntries.some(e => e && e.text.toLowerCase().includes(q)) ||
         (g.eodEntry && g.eodEntry.text.toLowerCase().includes(q))
       );
+    }
+
+    if (nameFilter !== "all") {
+      result = result.filter((g) => g.empName === nameFilter);
     }
 
     if (teamFilter !== "all") {
@@ -684,18 +741,36 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     if (statusFilter !== "all") {
       result = result.filter((g) => {
         const eod = g.eodEntry;
-        const allOnTime = g.regularEntries.every((e) => e === null || e.onTime) && (!eod || eod.onTime);
-        if (statusFilter === "onTime") return allOnTime;
-        return !allOnTime;
+        const hasLate = g.regularEntries.some((e) => e && !e.onTime) || (eod && !eod.onTime);
+        
+        if (statusFilter === "late") return hasLate;
+        
+        if (statusFilter === "pending") {
+          const isTodayDate = startIso === todayISO() && isSingleDay;
+          const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
+          return SLOTS.some(slot => {
+            const isExpected = !isTodayDate || currentMins >= slot.startMin;
+            if (!isExpected) return false;
+            if (slot.key === "eod") return !eod;
+            return !g.regularEntries.some(e => e && e.slot === slot.key);
+          });
+        }
+        
+        // onTime
+        return !hasLate;
       });
     }
 
     const counts = {
-      hasCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) > 0)).length,
+      highCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) >= 10)).length,
+      medCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9)).length,
+      lowCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4)).length,
       noCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) === 0)).length,
-      hasTours: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) > 0)).length,
+      multipleTours: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) >= 2)).length,
+      singleTour: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) === 1)).length,
       noTours: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) === 0)).length,
-      hasClosures: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) > 0)).length,
+      multipleClosures: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) >= 2)).length,
+      singleClosure: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) === 1)).length,
       noClosures: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) === 0)).length,
       hasBlockers: result.filter(g => g.regularEntries.some(e => e && !!e.blockers) || !!g.eodEntry?.blockers).length,
       noBlockers: result.filter(g => g.regularEntries.some(e => e && !e.blockers) || (g.eodEntry && !g.eodEntry.blockers)).length,
@@ -703,10 +778,22 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       noMedia: result.filter(g => g.regularEntries.some(e => e && (!e.mediaUrls || e.mediaUrls.length === 0)) || (g.eodEntry && (!g.eodEntry.mediaUrls || g.eodEntry.mediaUrls.length === 0))).length,
     };
 
-    if (callsFilter === "hasCalls") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) > 0));
+    if (callsFilter === "highVolume") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) >= 10));
       result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) > 0);
+        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) >= 10);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (callsFilter === "mediumVolume") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (callsFilter === "lowVolume") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4);
         return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
       });
     } else if (callsFilter === "noCalls") {
@@ -717,10 +804,16 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       });
     }
 
-    if (toursFilter === "hasTours") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) > 0));
+    if (toursFilter === "multipleTours") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) >= 2));
       result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) > 0);
+        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) >= 2);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (toursFilter === "singleTour") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) === 1));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) === 1);
         return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
       });
     } else if (toursFilter === "noTours") {
@@ -731,10 +824,16 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       });
     }
 
-    if (closuresFilter === "hasClosures") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) > 0));
+    if (closuresFilter === "multipleClosures") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) >= 2));
       result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) > 0);
+        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) >= 2);
+        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
+      });
+    } else if (closuresFilter === "singleClosure") {
+      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) === 1));
+      result = result.map(g => {
+        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) === 1);
         return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
       });
     } else if (closuresFilter === "noClosures") {
@@ -782,7 +881,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     }
 
     return { filteredEntries: result, counts };
-  }, [entries, teamFilter, roleFilter, slotFilter, statusFilter, callsFilter, toursFilter, closuresFilter, blockersFilter, mediaFilter, searchQuery]);
+  }, [entries, teamFilter, roleFilter, slotFilter, statusFilter, callsFilter, toursFilter, closuresFilter, blockersFilter, mediaFilter, searchQuery, nameFilter]);
 
   const { absentEmployees, missingPulseEmployees } = useMemo(() => {
     const roster = getRoster();
@@ -991,6 +1090,41 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                 />
               </div>
 
+              <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+                <Select value={dateRangeOption} onValueChange={(val) => setDateRangeOption(val)}>
+                  <SelectTrigger className="w-full md:w-[200px] h-10 bg-card">
+                    <Calendar className="h-4 w-4 text-muted-foreground mr-2" />
+                    <SelectValue placeholder="Date Range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="yesterday">Yesterday</SelectItem>
+                    <SelectItem value="7days">Last 7 Days</SelectItem>
+                    <SelectItem value="14days">Last 14 Days</SelectItem>
+                    <SelectItem value="30days">Last 30 Days</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {dateRangeOption === "custom" && (
+                  <div className="flex items-center gap-2 animate-in fade-in duration-200">
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      className="h-10 w-full md:w-[130px] rounded-lg border border-input bg-card px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <span className="text-muted-foreground text-xs font-medium">to</span>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      className="h-10 w-full md:w-[130px] rounded-lg border border-input bg-card px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-all ${
@@ -1001,7 +1135,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filters
-                {(teamFilter !== "all" || roleFilter !== "all" || slotFilter !== "all" || statusFilter !== "all" || callsFilter !== "all" || toursFilter !== "all" || closuresFilter !== "all" || blockersFilter !== "all" || mediaFilter !== "all") && (
+                {(nameFilter !== "all" || teamFilter !== "all" || roleFilter !== "all" || slotFilter !== "all" || statusFilter !== "all" || callsFilter !== "all" || toursFilter !== "all" || closuresFilter !== "all" || blockersFilter !== "all" || mediaFilter !== "all") && (
                   <span className="flex h-2 w-2 rounded-full bg-primary" />
                 )}
               </button>
@@ -1015,8 +1149,34 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
               </button>
             </div>
 
+            {!isSingleDay && (
+              <div className="p-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 via-card to-primary/5 animate-in slide-in-from-top-2 fade-in duration-200 flex items-center justify-between">
+                <div>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-primary">Date Range Report</div>
+                  <div className="text-sm font-semibold text-foreground">{dateRangeLabel}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-muted-foreground font-mono">{entries.length} total pulses</div>
+                </div>
+              </div>
+            )}
+
             {showFilters && (
               <div className="p-4 rounded-xl border border-border bg-card/50 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                <div>
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Name</label>
+                  <Select value={nameFilter} onValueChange={(val) => setNameFilter(val)}>
+                    <SelectTrigger className="h-9 text-xs bg-card">
+                      <SelectValue placeholder="All names" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All names</SelectItem>
+                      {names.map((n) => (
+                        <SelectItem key={n} value={n}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {teams.length > 0 && (
                   <div>
                     <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground mb-1 block">Team</label>
@@ -1072,7 +1232,8 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                     <SelectContent>
                       <SelectItem value="all">All statuses</SelectItem>
                       <SelectItem value="onTime">All On Time</SelectItem>
-                      <SelectItem value="late">Has Late/Pending</SelectItem>
+                      <SelectItem value="late">Late</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1084,8 +1245,10 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Calls: All</SelectItem>
-                      <SelectItem value="hasCalls">Has Calls ({counts.hasCalls})</SelectItem>
-                      <SelectItem value="noCalls">No Calls ({counts.noCalls})</SelectItem>
+                      <SelectItem value="highVolume">High (10+) ({counts.highCalls})</SelectItem>
+                      <SelectItem value="mediumVolume">Medium (5-9) ({counts.medCalls})</SelectItem>
+                      <SelectItem value="lowVolume">Low (1-4) ({counts.lowCalls})</SelectItem>
+                      <SelectItem value="noCalls">No Calls (0) ({counts.noCalls})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1097,8 +1260,9 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tours: All</SelectItem>
-                      <SelectItem value="hasTours">Has Tours ({counts.hasTours})</SelectItem>
-                      <SelectItem value="noTours">No Tours ({counts.noTours})</SelectItem>
+                      <SelectItem value="multipleTours">Multiple Tours (2+) ({counts.multipleTours})</SelectItem>
+                      <SelectItem value="singleTour">One Tour (1) ({counts.singleTour})</SelectItem>
+                      <SelectItem value="noTours">No Tours (0) ({counts.noTours})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1110,8 +1274,9 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Closures: All</SelectItem>
-                      <SelectItem value="hasClosures">Has Closures ({counts.hasClosures})</SelectItem>
-                      <SelectItem value="noClosures">No Closures ({counts.noClosures})</SelectItem>
+                      <SelectItem value="multipleClosures">Multiple Closures (2+) ({counts.multipleClosures})</SelectItem>
+                      <SelectItem value="singleClosure">One Closure (1) ({counts.singleClosure})</SelectItem>
+                      <SelectItem value="noClosures">No Closures (0) ({counts.noClosures})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1136,8 +1301,8 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Proof: All</SelectItem>
-                      <SelectItem value="hasMedia">Has Media ({counts.hasMedia})</SelectItem>
-                      <SelectItem value="noMedia">No Media ({counts.noMedia})</SelectItem>
+                      <SelectItem value="hasMedia">Has Proof ({counts.hasMedia})</SelectItem>
+                      <SelectItem value="noMedia">No Proof ({counts.noMedia})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1150,134 +1315,268 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto pb-4">
-          <table className="w-full text-sm text-left whitespace-nowrap min-w-[1500px]">
-            <thead className="bg-muted/50 text-muted-foreground text-xs font-semibold tracking-wider border-b border-border">
-              <tr>
-                <th className="px-3 py-3 border-r border-border/20">Name</th>
-                <th className="px-3 py-3 border-r border-border/20">Role</th>
-                <th className="px-3 py-3 border-r border-border/20">Team</th>
-                <th className="px-3 py-3 border-r border-border/20">Slot</th>
-                <th className="px-3 py-3 border-r border-border/20">Time</th>
-                <th className="px-3 py-3 border-r border-border/20">Status</th>
-                <th className="px-3 py-3 border-r border-border/20 text-right">Calls</th>
-                <th className="px-3 py-3 border-r border-border/20 text-right">Tours</th>
-                <th className="px-3 py-3 border-r border-border/20 text-right">Closures</th>
-                <th className="px-3 py-3 border-r border-border/20 min-w-[150px]">Blockers</th>
-                <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">Pulse Text</th>
-                <th className="px-3 py-3 border-r border-border/20">Proof of Work</th>
-                <th className="px-3 py-3 border-r border-border/20">EOD Time</th>
-                <th className="px-3 py-3 border-r border-border/20">EOD Status</th>
-                <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">EOD Brief</th>
-                <th className="px-3 py-3 min-w-[150px]">EOD Blockers</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {groupedEntries.length === 0 ? (
+          {!isSingleDay ? (
+            /* ── WEEK VIEW TABLE ── */
+            <table className="w-full text-sm text-left whitespace-nowrap min-w-[1600px]">
+              <thead className="bg-muted/50 text-muted-foreground text-xs font-semibold tracking-wider border-b border-border">
                 <tr>
-                  <td colSpan={16} className="px-6 py-8 text-center text-muted-foreground">
-                    No pulses submitted yet today.
-                  </td>
+                  <th className="px-3 py-3 border-r border-border/20">Name</th>
+                  <th className="px-3 py-3 border-r border-border/20">Role</th>
+                  <th className="px-3 py-3 border-r border-border/20">Team</th>
+                  <th className="px-3 py-3 border-r border-border/20">Date</th>
+                  <th className="px-3 py-3 border-r border-border/20">Slot</th>
+                  <th className="px-3 py-3 border-r border-border/20">Time</th>
+                  <th className="px-3 py-3 border-r border-border/20">Status</th>
+                  <th className="px-3 py-3 border-r border-border/20 text-right">Calls</th>
+                  <th className="px-3 py-3 border-r border-border/20 text-right">Tours</th>
+                  <th className="px-3 py-3 border-r border-border/20 text-right">Closures</th>
+                  <th className="px-3 py-3 border-r border-border/20 min-w-[150px]">Blockers</th>
+                  <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">Pulse Text</th>
+                  <th className="px-3 py-3">Proof of Work</th>
                 </tr>
-              ) : (
-                groupedEntries.map((group) => (
-                  <Fragment key={group.empId}>
-                    {group.regularEntries.map((e, idx) => (
-                      <tr key={e?.id || `empty-${group.empId}-${idx}`} className={`hover:bg-muted/30 transition-colors ${idx === group.regularEntries.length - 1 ? "border-b-2 border-border" : ""}`}>
-                        <td className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
-                          {group.empName}
-                        </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
-                          {group.role}
-                        </td>
-                        <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
-                          {group.team}
-                        </td>
-                        
-                        {e ? (
-                          <>
-                            <td className="px-3 py-2 align-top border-r border-border/20 text-foreground/90">
-                              {SLOTS.find((s) => s.key === e.slot)?.label.split(" · ")[0] || e.slot}
-                              <span className="text-muted-foreground ml-1 text-xs">
-                                ({SLOTS.find((s) => s.key === e.slot)?.window})
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 align-top text-foreground/90 border-r border-border/20 text-right">
-                              {new Date(e.submittedAt).toLocaleTimeString("en-US", {
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </td>
-                            <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.onTime ? "text-success" : "text-destructive"}`}>
-                              {e.onTime ? "On Time" : "Late"}
-                            </td>
-                            <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
-                              {e.calls ?? ""}
-                            </td>
-                            <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
-                              {e.tours ?? ""}
-                            </td>
-                            <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
-                              {e.closures ?? ""}
-                            </td>
-                            <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90">
-                              {e.blockers ?? ""}
-                            </td>
-                            <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
-                              {e.text}
-                            </td>
-                            <td className="px-3 py-2 align-top border-r border-border/20">
-                              {e.mediaUrls && e.mediaUrls.length > 0 ? (
-                                <button
-                                  onClick={() => setViewImages(e.mediaUrls!)}
-                                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-medium rounded transition-colors"
-                                >
-                                  <ImageIcon className="h-3 w-3" /> View {e.mediaUrls.length > 1 ? `(${e.mediaUrls.length})` : ""}
-                                </button>
-                              ) : (
-                                <span className="text-muted-foreground text-xs">—</span>
-                              )}
-                            </td>
-                          </>
-                        ) : (
-                          <td colSpan={9} className="px-3 py-2 text-muted-foreground italic border-r border-border/20">
-                            No intraday slots submitted yet.
-                          </td>
-                        )}
+              </thead>
+              <tbody className="divide-y divide-border">
+                {groupedEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="px-6 py-8 text-center text-muted-foreground">
+                      No pulses submitted for {dateRangeLabel}.
+                    </td>
+                  </tr>
+                ) : (
+                  groupedEntries.map((group) => {
+                    // Collect ALL entries (regular + EOD) and sort by date → slot
+                    const allEmpEntries = [
+                      ...group.regularEntries.filter((e): e is NonNullable<typeof e> => e !== null),
+                      ...(group.eodEntry ? [group.eodEntry] : []),
+                    ].sort((a, b) => {
+                      const dateCompare = a.date.localeCompare(b.date);
+                      if (dateCompare !== 0) return dateCompare;
+                      const slotOrder: Record<string, number> = { slot1: 1, slot2: 2, slot3: 3, eod: 4 };
+                      return (slotOrder[a.slot] || 99) - (slotOrder[b.slot] || 99);
+                    });
 
-                        {idx === 0 ? (
-                          <>
-                            {group.eodEntry ? (
-                              <>
-                                <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">
-                                  {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-US", {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </td>
-                                <td rowSpan={group.regularEntries.length} className={`px-3 py-2 align-top font-medium border-r border-border/20 ${group.eodEntry.onTime ? "text-success" : "text-destructive"}`}>
-                                  {group.eodEntry.onTime ? "On Time" : "Late"}
-                                </td>
-                                <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
-                                  {group.eodEntry.text}
-                                </td>
-                                <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words text-foreground/90">
-                                  {group.eodEntry.blockers ?? ""}
-                                </td>
-                              </>
-                            ) : (
-                              <td colSpan={4} rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground italic opacity-70">
-                                Pending EOD
+                    if (allEmpEntries.length === 0) return null;
+
+                    return (
+                      <Fragment key={group.empId}>
+                        {allEmpEntries.map((e, idx) => {
+                          const dateObj = new Date(e.date + "T12:00:00");
+                          const isLastRow = idx === allEmpEntries.length - 1;
+                          // Check if this is the first entry of a new date for visual separation
+                          const prevDate = idx > 0 ? allEmpEntries[idx - 1].date : null;
+                          const isNewDate = e.date !== prevDate;
+                          const isEod = e.slot === "eod";
+                          return (
+                            <tr
+                              key={e.id}
+                              className={`hover:bg-muted/30 transition-colors ${
+                                isLastRow ? "border-b-2 border-border" : ""
+                              } ${
+                                isEod ? "bg-muted/20" : ""
+                              }`}
+                            >
+                              <td className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
+                                {idx === 0 ? group.empName : ""}
                               </td>
-                            )}
-                          </>
-                        ) : null}
-                      </tr>
-                    ))}
-                  </Fragment>
-                ))
-              )}
-            </tbody>
-          </table>
+                              <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                                {idx === 0 ? group.role : ""}
+                              </td>
+                              <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                                {idx === 0 ? group.team : ""}
+                              </td>
+                              <td className={`px-3 py-2 align-top border-r border-border/20 font-mono text-xs ${
+                                isNewDate ? "text-foreground font-semibold" : "text-muted-foreground"
+                              }`}>
+                                {isNewDate ? format(dateObj, "EEE, d MMM") : ""}
+                              </td>
+                              <td className={`px-3 py-2 align-top border-r border-border/20 ${
+                                isEod ? "text-primary font-semibold" : "text-foreground/90"
+                              }`}>
+                                {isEod ? "EOD Brief" : (
+                                  <>
+                                    {SLOTS.find((s) => s.key === e.slot)?.label.split(" · ")[0] || e.slot}
+                                    <span className="text-muted-foreground ml-1 text-xs">
+                                      ({SLOTS.find((s) => s.key === e.slot)?.window})
+                                    </span>
+                                  </>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 align-top text-foreground/90 border-r border-border/20 text-right">
+                                {new Date(e.submittedAt).toLocaleTimeString("en-US", {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </td>
+                              <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.onTime ? "text-success" : "text-destructive"}`}>
+                                {e.onTime ? "On Time" : "Late"}
+                              </td>
+                              <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                                {e.calls ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                                {e.tours ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                                {e.closures ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90">
+                                {e.blockers ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
+                                {e.text}
+                              </td>
+                              <td className="px-3 py-2 align-top">
+                                {e.mediaUrls && e.mediaUrls.length > 0 ? (
+                                  <button
+                                    onClick={() => setViewImages(e.mediaUrls!)}
+                                    className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-medium rounded transition-colors"
+                                  >
+                                    <ImageIcon className="h-3 w-3" /> View {e.mediaUrls.length > 1 ? `(${e.mediaUrls.length})` : ""}
+                                  </button>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          ) : (
+            /* ── DAY VIEW TABLE (original) ── */
+            <table className="w-full text-sm text-left whitespace-nowrap min-w-[1500px]">
+              <thead className="bg-muted/50 text-muted-foreground text-xs font-semibold tracking-wider border-b border-border">
+                <tr>
+                  <th className="px-3 py-3 border-r border-border/20">Name</th>
+                  <th className="px-3 py-3 border-r border-border/20">Role</th>
+                  <th className="px-3 py-3 border-r border-border/20">Team</th>
+                  <th className="px-3 py-3 border-r border-border/20">Slot</th>
+                  <th className="px-3 py-3 border-r border-border/20">Time</th>
+                  <th className="px-3 py-3 border-r border-border/20">Status</th>
+                  <th className="px-3 py-3 border-r border-border/20 text-right">Calls</th>
+                  <th className="px-3 py-3 border-r border-border/20 text-right">Tours</th>
+                  <th className="px-3 py-3 border-r border-border/20 text-right">Closures</th>
+                  <th className="px-3 py-3 border-r border-border/20 min-w-[150px]">Blockers</th>
+                  <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">Pulse Text</th>
+                  <th className="px-3 py-3 border-r border-border/20">Proof of Work</th>
+                  <th className="px-3 py-3 border-r border-border/20">EOD Time</th>
+                  <th className="px-3 py-3 border-r border-border/20">EOD Status</th>
+                  <th className="px-3 py-3 border-r border-border/20 min-w-[200px]">EOD Brief</th>
+                  <th className="px-3 py-3 min-w-[150px]">EOD Blockers</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {groupedEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={16} className="px-6 py-8 text-center text-muted-foreground">
+                      No pulses submitted{startIso === todayISO() && isSingleDay ? " yet today" : ` for ${new Date(startIso + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}`}.
+                    </td>
+                  </tr>
+                ) : (
+                  groupedEntries.map((group) => (
+                    <Fragment key={group.empId}>
+                      {group.regularEntries.map((e, idx) => (
+                        <tr key={e?.id || `empty-${group.empId}-${idx}`} className={`hover:bg-muted/30 transition-colors ${idx === group.regularEntries.length - 1 ? "border-b-2 border-border" : ""}`}>
+                          <td className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
+                            {group.empName}
+                          </td>
+                          <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                            {group.role}
+                          </td>
+                          <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
+                            {group.team}
+                          </td>
+                          
+                          {e ? (
+                            <>
+                              <td className="px-3 py-2 align-top border-r border-border/20 text-foreground/90">
+                                {SLOTS.find((s) => s.key === e.slot)?.label.split(" · ")[0] || e.slot}
+                                <span className="text-muted-foreground ml-1 text-xs">
+                                  ({SLOTS.find((s) => s.key === e.slot)?.window})
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 align-top text-foreground/90 border-r border-border/20 text-right">
+                                {new Date(e.submittedAt).toLocaleTimeString("en-US", {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </td>
+                              <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.onTime ? "text-success" : "text-destructive"}`}>
+                                {e.onTime ? "On Time" : "Late"}
+                              </td>
+                              <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                                {e.calls ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                                {e.tours ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
+                                {e.closures ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90">
+                                {e.blockers ?? ""}
+                              </td>
+                              <td className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
+                                {e.text}
+                              </td>
+                              <td className="px-3 py-2 align-top border-r border-border/20">
+                                {e.mediaUrls && e.mediaUrls.length > 0 ? (
+                                  <button
+                                    onClick={() => setViewImages(e.mediaUrls!)}
+                                    className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary hover:bg-primary/20 text-[10px] font-medium rounded transition-colors"
+                                  >
+                                    <ImageIcon className="h-3 w-3" /> View {e.mediaUrls.length > 1 ? `(${e.mediaUrls.length})` : ""}
+                                  </button>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">—</span>
+                                )}
+                              </td>
+                            </>
+                          ) : (
+                            <td colSpan={9} className="px-3 py-2 text-muted-foreground italic border-r border-border/20">
+                              No intraday slots submitted yet.
+                            </td>
+                          )}
+
+                          {idx === 0 ? (
+                            <>
+                              {group.eodEntry ? (
+                                <>
+                                  <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">
+                                    {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-US", {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </td>
+                                  <td rowSpan={group.regularEntries.length} className={`px-3 py-2 align-top font-medium border-r border-border/20 ${group.eodEntry.onTime ? "text-success" : "text-destructive"}`}>
+                                    {group.eodEntry.onTime ? "On Time" : "Late"}
+                                  </td>
+                                  <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
+                                    {group.eodEntry.text}
+                                  </td>
+                                  <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words text-foreground/90">
+                                    {group.eodEntry.blockers ?? ""}
+                                  </td>
+                                </>
+                              ) : (
+                                <td colSpan={4} rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground italic opacity-70">
+                                  Pending EOD
+                                </td>
+                              )}
+                            </>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
       

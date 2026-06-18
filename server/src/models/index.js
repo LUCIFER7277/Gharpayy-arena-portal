@@ -43,6 +43,7 @@ const EmployeeSchema = new Schema(
     skills: [String],
     /** Full frontend Employee metrics (scores, zone, flags, etc.) */
     profile: { type: Schema.Types.Mixed },
+    hideTasks: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
@@ -481,6 +482,7 @@ const ZoneSchema = new Schema(
     city: { type: String, required: true },
     pods: { type: Number, default: 0 },
     leaderId: { type: String, index: true },
+    type: { type: String }, // "PG" or "Flat"
   },
   { timestamps: true }
 );

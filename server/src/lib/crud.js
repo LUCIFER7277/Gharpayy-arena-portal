@@ -389,13 +389,16 @@ export function crudRouter(
     asyncHandler(async (req, res) => {
       const existingDoc = await Model.findOne({ id: req.params.id }).lean();
       if (!existingDoc) return res.status(404).json({ error: "Not found" });
-
       if (!isAdmin(req.user) && !isHR(req.user)) {
         if (modelName === "Employee") {
-          logSecurityAudit(req, "EMPLOYEE_UPDATE_BLOCKED", { id: req.params.id });
-          return res.status(403).json({ error: "Only Admin or HR can update employee directory profiles" });
+          const isSelf = existingDoc.id === req.user.employeeId;
+          const isOnlyHideTasks = Object.keys(req.body).length === 1 && typeof req.body.hideTasks === "boolean";
+          
+          if (!(isSelf && isOnlyHideTasks)) {
+            logSecurityAudit(req, "EMPLOYEE_UPDATE_BLOCKED", { id: req.params.id });
+            return res.status(403).json({ error: "Only Admin or HR can update employee directory profiles" });
+          }
         }
-
         if (modelName === "Candidate") {
           logSecurityAudit(req, "RECRUITING_UPDATE_BLOCKED", { id: req.params.id });
           return res.status(403).json({ error: "Forbidden: Access restricted" });

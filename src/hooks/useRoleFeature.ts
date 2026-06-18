@@ -26,6 +26,9 @@ export function useRoleFeature(): (path: string) => boolean {
     if (path.startsWith("/employee-stats/")) {
       resolvedPath = "/employee-stats/$id";
     }
+    if (path.startsWith("/employee/")) {
+      resolvedPath = "/employee/$empId";
+    }
 
     // Resolve the feature key for this path
     const featureKey = FEATURE_MAP[resolvedPath] ?? resolvedPath;
@@ -38,7 +41,7 @@ export function useRoleFeature(): (path: string) => boolean {
       if (path === "/") return true;
 
       // If the path is mapped to a feature key, check the whitelist
-      if (FEATURE_MAP[path] !== undefined) {
+      if (FEATURE_MAP[resolvedPath] !== undefined) {
         if (!ENABLED_FEATURES.has(featureKey)) return false;
       } else {
         // Unmapped routes are hidden in launch mode

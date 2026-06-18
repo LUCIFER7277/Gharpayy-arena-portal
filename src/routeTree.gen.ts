@@ -38,6 +38,7 @@ import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as AchievementsRouteImport } from './routes/achievements'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EmployeeEmpIdRouteImport } from './routes/employee.$empId'
 import { Route as AdminZonesRouteImport } from './routes/admin/zones'
 import { Route as AdminWorkforceRouteImport } from './routes/admin/workforce'
 import { Route as AdminPermissionsRouteImport } from './routes/admin/permissions'
@@ -188,6 +189,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmployeeEmpIdRoute = EmployeeEmpIdRouteImport.update({
+  id: '/employee/$empId',
+  path: '/employee/$empId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminZonesRoute = AdminZonesRouteImport.update({
   id: '/admin/zones',
   path: '/admin/zones',
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/admin/permissions': typeof AdminPermissionsRoute
   '/admin/workforce': typeof AdminWorkforceRoute
   '/admin/zones': typeof AdminZonesRoute
+  '/employee/$empId': typeof EmployeeEmpIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/admin/permissions': typeof AdminPermissionsRoute
   '/admin/workforce': typeof AdminWorkforceRoute
   '/admin/zones': typeof AdminZonesRoute
+  '/employee/$empId': typeof EmployeeEmpIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -314,6 +322,7 @@ export interface FileRoutesById {
   '/admin/permissions': typeof AdminPermissionsRoute
   '/admin/workforce': typeof AdminWorkforceRoute
   '/admin/zones': typeof AdminZonesRoute
+  '/employee/$empId': typeof EmployeeEmpIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -351,6 +360,7 @@ export interface FileRouteTypes {
     | '/admin/permissions'
     | '/admin/workforce'
     | '/admin/zones'
+    | '/employee/$empId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -386,6 +396,7 @@ export interface FileRouteTypes {
     | '/admin/permissions'
     | '/admin/workforce'
     | '/admin/zones'
+    | '/employee/$empId'
   id:
     | '__root__'
     | '/'
@@ -421,6 +432,7 @@ export interface FileRouteTypes {
     | '/admin/permissions'
     | '/admin/workforce'
     | '/admin/zones'
+    | '/employee/$empId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -457,6 +469,7 @@ export interface RootRouteChildren {
   AdminPermissionsRoute: typeof AdminPermissionsRoute
   AdminWorkforceRoute: typeof AdminWorkforceRoute
   AdminZonesRoute: typeof AdminZonesRoute
+  EmployeeEmpIdRoute: typeof EmployeeEmpIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -664,6 +677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/employee/$empId': {
+      id: '/employee/$empId'
+      path: '/employee/$empId'
+      fullPath: '/employee/$empId'
+      preLoaderRoute: typeof EmployeeEmpIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/zones': {
       id: '/admin/zones'
       path: '/admin/zones'
@@ -729,6 +749,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPermissionsRoute: AdminPermissionsRoute,
   AdminWorkforceRoute: AdminWorkforceRoute,
   AdminZonesRoute: AdminZonesRoute,
+  EmployeeEmpIdRoute: EmployeeEmpIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -218,17 +218,32 @@ function WorkforcePage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Stat label="Workforce" value={rows.filter((r) => r.appRole !== "admin").length} />
-        <Stat label="Pending approval" value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "pending").length} tone="warning" />
+        <Stat 
+          label="Workforce" 
+          value={rows.filter((r) => r.appRole !== "admin").length} 
+          onClick={() => setFilterStatus("all")}
+          isActive={filterStatus === "all"}
+        />
+        <Stat 
+          label="Pending approval" 
+          value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "pending").length} 
+          tone="warning" 
+          onClick={() => setFilterStatus("pending")}
+          isActive={filterStatus === "pending"}
+        />
         <Stat
           label="Active accounts"
           value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "active").length}
           tone="success"
+          onClick={() => setFilterStatus("active")}
+          isActive={filterStatus === "active"}
         />
         <Stat
           label="Suspended"
           value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "suspended").length}
           tone="destructive"
+          onClick={() => setFilterStatus("suspended")}
+          isActive={filterStatus === "suspended"}
         />
       </section>
 
@@ -466,10 +481,14 @@ function Stat({
   label,
   value,
   tone,
+  onClick,
+  isActive,
 }: {
   label: string;
   value: number;
   tone?: "warning" | "success" | "destructive";
+  onClick?: () => void;
+  isActive?: boolean;
 }) {
   const toneClass =
     tone === "warning"
@@ -479,8 +498,15 @@ function Stat({
         : tone === "destructive"
           ? "border-destructive/30"
           : "";
+          
+  const activeClass = isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "";
+  const clickableClass = onClick ? "cursor-pointer hover:bg-muted/30 transition-colors" : "";
+
   return (
-    <div className={`rounded-2xl border bg-card p-4 ${toneClass}`}>
+    <div 
+      className={`rounded-2xl border bg-card p-4 ${toneClass} ${activeClass} ${clickableClass}`}
+      onClick={onClick}
+    >
       <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
         {label}
       </div>
@@ -605,7 +631,21 @@ function EditEmployeeDialog({
   const [operationalRole, setOperationalRole] = useState<Role>(row.operationalRole);
   const [appRole, setAppRole] = useState<AppRole>(row.appRole);
   const [team, setTeam] = useState(row.team);
-  const [zone, setZone] = useState(row.zone);
+  const [zoneCategory, setZoneCategory] = useState<string>(() => {
+    const z = zoneStore.read().zones.find((z) => z.name === row.zone);
+    return z?.type || "PG";
+  });
+  const [zone, setZone] = useState(() => {
+    if (row.zone && row.zone !== "All") return row.zone;
+    const firstZone = zoneStore.read().zones.find((z) => z.type === "PG");
+    return firstZone ? firstZone.name : "";
+  });
+
+  const handleCategoryChange = (val: string) => {
+    setZoneCategory(val);
+    const firstZone = zoneStore.read().zones.find((z) => z.type === val);
+    setZone(firstZone ? firstZone.name : "");
+  };
   const [managerId, setManagerId] = useState(row.managerId ?? "none");
   const [experience, setExperience] = useState(row.experience);
   const [shift, setShift] = useState(row.shift);
@@ -664,21 +704,35 @@ function EditEmployeeDialog({
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Zone Category">
+              <Select value={zoneCategory} onValueChange={handleCategoryChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PG">PG</SelectItem>
+                  <SelectItem value="Flat">Flats</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
             <Field label="Zone">
               <Select value={zone} onValueChange={setZone}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {zoneStore.read().zones.map((z) => (
-                    <SelectItem key={z.id} value={z.name}>
-                      {z.name}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="All">All</SelectItem>
+                  {zoneStore.read().zones
+                    .filter((z) => z.type === zoneCategory)
+                    .map((z) => (
+                      <SelectItem key={z.id} value={z.name}>
+                        {z.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Team / squad">
               <Select value={team} onValueChange={setTeam}>
                 <SelectTrigger>
@@ -693,24 +747,24 @@ function EditEmployeeDialog({
                 </SelectContent>
               </Select>
             </Field>
+            <Field label="Reporting manager">
+              <Select value={managerId} onValueChange={setManagerId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {managers
+                    .filter((m) => m.employeeId !== row.employeeId)
+                    .map((m) => (
+                      <SelectItem key={m.employeeId} value={m.employeeId}>
+                        {m.name} · {m.operationalRole}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
-          <Field label="Reporting manager">
-            <Select value={managerId} onValueChange={setManagerId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {managers
-                  .filter((m) => m.employeeId !== row.employeeId)
-                  .map((m) => (
-                    <SelectItem key={m.employeeId} value={m.employeeId}>
-                      {m.name} · {m.operationalRole}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Experience">
               <Select
@@ -796,8 +850,18 @@ function InviteDialog({
   const [operationalRole, setOperationalRole] = useState<Role>("Operator");
   const [appRole, setAppRole] = useState<AppRole>("employee");
   const [team, setTeam] = useState(teams[0] ?? "HQ");
-  const [zone, setZone] = useState("All");
+  const [zoneCategory, setZoneCategory] = useState<string>("PG");
+  const [zone, setZone] = useState(() => {
+    const firstZone = zoneStore.read().zones.find((z) => z.type === "PG");
+    return firstZone ? firstZone.name : "";
+  });
   const [managerId, setManagerId] = useState("none");
+
+  const handleCategoryChange = (val: string) => {
+    setZoneCategory(val);
+    const firstZone = zoneStore.read().zones.find((z) => z.type === val);
+    setZone(firstZone ? firstZone.name : "");
+  };
 
   const reset = () => {
     setName("");
@@ -805,7 +869,9 @@ function InviteDialog({
     setOperationalRole("Operator");
     setAppRole("employee");
     setTeam(teams[0] ?? "HQ");
-    setZone("All");
+    setZoneCategory("PG");
+    const firstZone = zoneStore.read().zones.find((z) => z.type === "PG");
+    setZone(firstZone ? firstZone.name : "");
     setManagerId("none");
   };
 
@@ -860,20 +926,35 @@ function InviteDialog({
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Zone Category">
+              <Select value={zoneCategory} onValueChange={handleCategoryChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PG">PG</SelectItem>
+                  <SelectItem value="Flat">Flats</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
             <Field label="Zone">
               <Select value={zone} onValueChange={setZone}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {zoneStore.read().zones.map((z) => (
-                    <SelectItem key={z.id} value={z.name}>
-                      {z.name}
-                    </SelectItem>
-                  ))}
+                  {zoneStore.read().zones
+                    .filter((z) => z.type === zoneCategory)
+                    .map((z) => (
+                      <SelectItem key={z.id} value={z.name}>
+                        {z.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Team / squad">
               <Select value={team} onValueChange={setTeam}>
                 <SelectTrigger>
@@ -888,22 +969,22 @@ function InviteDialog({
                 </SelectContent>
               </Select>
             </Field>
+            <Field label="Reporting manager">
+              <Select value={managerId} onValueChange={setManagerId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {managers.map((m) => (
+                    <SelectItem key={m.employeeId} value={m.employeeId}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
-          <Field label="Reporting manager">
-            <Select value={managerId} onValueChange={setManagerId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {managers.map((m) => (
-                  <SelectItem key={m.employeeId} value={m.employeeId}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>

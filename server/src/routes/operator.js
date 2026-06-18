@@ -496,8 +496,8 @@ function buildDailyBriefSummary(metrics) {
     ? metrics.overall.tasksDone / metrics.overall.tasksTotal
     : 0.6;
 
-  const bestZone = metrics.bestZone || "HQ";
-  const weakZone = metrics.weakZone || "HQ";
+  const bestZone = metrics.bestZone || "N/A";
+  const weakZone = metrics.weakZone || "N/A";
 
   const topPerformer = metrics.topPerformerName || "No active performer";
 
@@ -523,11 +523,14 @@ function buildDailyBriefSummary(metrics) {
     : "No stale leads currently — maintain active pipeline follow-up.";
 
   const priorities = [];
-  if (overallConversion < 0.55) priorities.push(`Improve site visit conversion in ${weakZone}.`);
+  if (overallConversion < 0.55) {
+    priorities.push(weakZone !== "N/A" ? `Improve site visit conversion in ${weakZone}.` : `Improve overall site visit conversion.`);
+  }
   if (metrics.overall.overdueTasks > 4)
     priorities.push("Resolve delayed follow-ups and overdue tasks.");
-  if (attendanceRate < 0.75)
-    priorities.push(`Increase attendance consistency in ${weakZone}.`);
+  if (attendanceRate < 0.75) {
+    priorities.push(weakZone !== "N/A" ? `Increase attendance consistency in ${weakZone}.` : `Increase overall attendance consistency.`);
+  }
   if (metrics.hotLeadRiskCount > 0)
     priorities.push("Push callbacks for stale leads and hot prospects.");
   if (metrics.overall.blockedTasks > 2)
@@ -537,12 +540,13 @@ function buildDailyBriefSummary(metrics) {
 
   const chosenPriorities = priorities.slice(0, 3);
   while (chosenPriorities.length < 3) {
-    if (!chosenPriorities.includes("Improve site visit conversion in " + weakZone + ".")) {
-      chosenPriorities.push(`Focus ${weakZone} on conversion and execution quality.`);
+    if (!chosenPriorities.some(p => p.includes("site visit conversion"))) {
+      chosenPriorities.push(weakZone !== "N/A" ? `Focus ${weakZone} on conversion and execution quality.` : `Focus on overall conversion and execution quality.`);
     } else if (!chosenPriorities.includes("Resolve delayed follow-ups and overdue tasks.")) {
       chosenPriorities.push("Resolve delayed follow-ups and overdue tasks.");
     } else {
       chosenPriorities.push("Maintain current momentum while addressing weak conversion signals.");
+      break;
     }
   }
 
@@ -575,7 +579,7 @@ async function enhanceSummaryWithAi(summary, metrics) {
   if (!apiKey) return summary;
   try {
     const payload = {
-      model: "llama3-70b-8192",
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
@@ -801,9 +805,14 @@ router.post(
         };
       });
 
-      const validZones = zoneSummaries.filter((zone) => zone.employeeCount > 0);
-      const bestZoneEntry = validZones.sort((a, b) => b.score - a.score)[0] || { zone: "HQ" };
-      const weakZoneEntry = validZones.sort((a, b) => a.score - b.score)[0] || { zone: "HQ" };
+      const validZones = zoneSummaries.filter((zone) => zone.employeeCount > 0 && !["All", "HQ", "Unzoned"].includes(zone.zone));
+      const sortedZones = [...validZones].sort((a, b) => b.score - a.score);
+      const bestZoneEntry = sortedZones[0] || { zone: "N/A" };
+      let weakZoneEntry = sortedZones[sortedZones.length - 1] || { zone: "N/A" };
+      
+      if (bestZoneEntry.zone === weakZoneEntry.zone) {
+        weakZoneEntry = { zone: "N/A" };
+      }
 
       const overall = {
         visitsScheduled: zoneSummaries.reduce((sum, zone) => sum + zone.visitsScheduled, 0),
@@ -889,7 +898,7 @@ console.log('[operatorRoutes] daily-brief route loaded');
 router.post(
   "/coach",
   requireAuth,
-  requireRole(["admin", "hr", "manager"]), // Just to be safe at API level, UI restricts it more tightly.
+  requireRole("admin", "hr", "manager"), // Just to be safe at API level, UI restricts it more tightly.
   asyncHandler(async (req, res) => {
     const { messages, snapshot } = req.body;
     const apiKey = process.env.GROQ_API_KEY;
@@ -898,10 +907,14 @@ router.post(
       return res.status(500).json({ error: "Groq API key not configured" });
     }
 
-    const systemPrompt = `You are Coach AI, an executive operational assistant for Gharpayy Arena. Restrict your responses strictly to Gharpayy-specific knowledge, workflows, and the data provided. You must be direct, actionable, and professional. Base your answers solely on the following live operational snapshot: ${JSON.stringify(snapshot)}`;
+    const systemPrompt = `You are Coach AI, an executive operational assistant for Gharpayy Arena. Restrict your responses strictly to Gharpayy-specific knowledge, workflows, and the data provided. You must be direct, actionable, and professional. 
+CRITICAL RULES:
+1. Answer ONLY what is explicitly asked in the prompt. Do not add conversational filler, unsolicited advice, or extra details not requested.
+2. NEVER output raw system IDs (such as managerId, employeeId, or hubId) in your responses; always refer to people by their names or roles. 
+Base your answers solely on the following live operational snapshot: ${JSON.stringify(snapshot)}`;
 
     const payload = {
-      model: "llama3-70b-8192",
+      model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: systemPrompt },
         ...(messages || []),
@@ -922,7 +935,9 @@ router.post(
       });
 
       if (!response.ok) {
-        throw new Error(`Groq API error: ${response.statusText}`);
+        const errText = await response.text();
+        console.error("Groq API error:", response.status, errText);
+        return res.status(response.status).json({ error: `Groq API error: ${response.statusText}` });
       }
 
       res.setHeader("Content-Type", "text/event-stream");
@@ -940,7 +955,7 @@ router.post(
       res.end();
     } catch (error) {
       console.error("[coach] Streaming error:", error);
-      res.status(500).json({ error: "Failed to communicate with the AI brain" });
+      res.status(500).json({ error: "Failed to communicate with the AI brain", details: String(error) });
     }
   }),
 );

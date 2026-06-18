@@ -46,7 +46,8 @@ export type FeedKind =
   | "booking"
   | "issue"
   | "win"
-  | "system";
+  | "system"
+  | "tour";
 
 export type FeedEvent = {
   id: string;
