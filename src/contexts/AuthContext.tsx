@@ -26,6 +26,8 @@ import {
 import { fallbackEmployeeForUser, fetchEmployeeRoster, resolveActor } from "@/lib/employees-api";
 import { setRoster } from "@/lib/roster";
 import { resetSyncArenaData, syncArenaData } from "@/lib/data-sync";
+import { useQueryClient } from "@tanstack/react-query";
+import { getPermissions } from "@/api/permissions";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -71,6 +73,7 @@ async function loadSession(): Promise<{
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<ApiUser | null>(null);
   const [actor, setActor] = useState<Employee | null>(null);
@@ -110,6 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = getToken();
       if (!token) throw new Error("No token");
       const session = await loadSession();
+
+      // Prefetch permissions so useRoleFeature has them immediately
+      await queryClient.prefetchQuery({
+        queryKey: ["permissions", session.user.role],
+        queryFn: () => getPermissions(session.user.role),
+      }).catch((err) => console.warn('[AuthContext] perm prefetch error:', err));
+
       setUser(session.user);
       setEmployees(session.employees);
       setActor(session.actor);
@@ -134,6 +144,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiLogin({ email, password });
       const session = await loadSession();
+
+      // Prefetch permissions so useRoleFeature has them immediately
+      await queryClient.prefetchQuery({
+        queryKey: ["permissions", session.user.role],
+        queryFn: () => getPermissions(session.user.role),
+      }).catch((err) => console.warn('[AuthContext] perm prefetch error:', err));
+
       setUser(session.user);
       setEmployees(session.employees);
       setActor(session.actor);

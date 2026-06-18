@@ -38,7 +38,7 @@ import { playbookFor } from "@/lib/playbooks-store";
 import { shieldNow } from "@/lib/console-store";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { liveStatusFor } from "@/lib/attendance-store";
-import { unreadCount } from "@/lib/notification-store";
+import { unreadCount, unreadInboxCount } from "@/lib/notification-store";
 import { bootArena } from "@/lib/seed-init";
 import { can, tierOf, TIER_LABEL, type Tier } from "@/lib/permissions";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -97,7 +97,7 @@ const NAV: NavItem[] = [
   { to: "/attendance", label: "Attendance", icon: Clock4, tiers: INTERNAL },
   {
     to: "/one-on-ones",
-    label: "1:1 Notes",
+    label: "Schedule 1:1",
     icon: MessageSquareText,
     tiers: ["leadership", "zone_leader", "hr", "leader", "recruiter"],
   },
@@ -123,7 +123,8 @@ const NAV: NavItem[] = [
     to: "/command",
     label: "Coaching",
     icon: MessageSquare,
-    tiers: ["leadership", "zone_leader", "hr", "leader"],
+    tiers: ["leadership"],
+    adminOnly: true,
   },
   {
     to: "/recruiting",
@@ -184,6 +185,7 @@ export function AppShell() {
   const [kudoOpen, setKudoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const unread = unreadCount(actor.id);
+  const unreadInbox = unreadInboxCount(actor.id);
   const tier = tierOf(actor);
 
   const isFeatureEnabled = useRoleFeature();
@@ -352,9 +354,9 @@ export function AppShell() {
             >
               <Icon className="h-4 w-4" />
               <span className="flex-1">{label}</span>
-              {to === "/inbox" && unread > 0 && (
+              {to === "/inbox" && unreadInbox > 0 && (
                 <span className="h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-mono font-bold flex items-center justify-center shadow-sm">
-                  {unread > 99 ? "99+" : unread}
+                  {unreadInbox > 99 ? "99+" : unreadInbox}
                 </span>
               )}
             </Link>
@@ -540,9 +542,9 @@ export function AppShell() {
             >
               <div className="relative">
                 <Icon className="h-5 w-5" />
-                {to === "/inbox" && unread > 0 && (
+                {to === "/inbox" && unreadInbox > 0 && (
                   <span className="absolute -top-1 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-mono font-bold flex items-center justify-center">
-                    {unread > 9 ? "9+" : unread}
+                    {unreadInbox > 9 ? "9+" : unreadInbox}
                   </span>
                 )}
               </div>

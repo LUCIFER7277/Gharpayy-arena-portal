@@ -229,6 +229,8 @@ export interface OneOnOne {
   notes: string;
   privateNotes?: string;
   actionItems: OneOnOneActionItem[];
+  meetingType?: "in-person" | "remote";
+  meetingLink?: string;
   createdAt: number;
   updatedAt: number;
 }

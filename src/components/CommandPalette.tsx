@@ -16,7 +16,7 @@ const ALL_PAGES = [
   { kind: "page" as const, id: "p-roster",      label: "Live Roster",     sub: "Live attendance map",       to: "/roster" },
   { kind: "page" as const, id: "p-kpis",        label: "KPI Governance",  sub: "Define & track metrics",    to: "/admin/kpis" },
   { kind: "page" as const, id: "p-kudos",       label: "Kudos",           sub: "Recognition wall",          to: "/kudos" },
-  { kind: "page" as const, id: "p-1on1",        label: "1:1 Notes",       sub: "Manager meeting notes",     to: "/one-on-ones" },
+  { kind: "page" as const, id: "p-1on1",        label: "Schedule 1:1",    sub: "Manager meeting notes",     to: "/one-on-ones" },
   { kind: "page" as const, id: "p-workforce",   label: "Workforce",       sub: "Roles, hierarchy, access",  to: "/admin/workforce" },
   // Permissions module – admin only, controlled by launch mode
   { kind: "page" as const, id: "p-permissions", label: "Permissions", sub: "Role‑based access control", to: "/admin/permissions" },

@@ -37,6 +37,7 @@ export const LAUNCH_ROUTES = new Set<string>([
   "/inbox",               // Inbox
   "/admin/zones",         // Manage Zones
   "/calendar",            // Calendar
+  "/command",             // Coach AI
 ]);
 
 // ─── Feature key whitelist ───────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export const ENABLED_FEATURES = new Set<string>([
   "inbox",
   "manageZones",
   "calendar",
+  "coach",
 ]);
 
 // ─── Route → feature key map ─────────────────────────────────────────────────
@@ -92,6 +94,7 @@ export const FEATURE_MAP: Record<string, string> = {
   "/inbox":               "inbox",
   "/admin/zones":         "manageZones",
   "/calendar":            "calendar",
+  "/command":             "coach",
 };
 
 // ─── Role permission matrix ───────────────────────────────────────────────────
@@ -120,6 +123,7 @@ export const ROLE_MATRIX: Record<string, string[]> = {
     "inbox",
     "manageZones",
     "calendar",
+    "coach",
   ],
   hr: [
     "home",

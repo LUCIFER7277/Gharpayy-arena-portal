@@ -7,6 +7,8 @@ import {
   Plus,
   Square,
   Sparkles,
+  MapPin,
+  Video,
 } from "lucide-react";
 import {
   useOneOnOnes,
@@ -32,7 +34,7 @@ import {
 export const Route = createFileRoute("/one-on-ones")({
   head: () => ({
     meta: [
-      { title: "1:1 Notes — Gharpayy Arena" },
+      { title: "Schedule 1:1 — Gharpayy Arena" },
       {
         name: "description",
         content:
@@ -94,7 +96,7 @@ function Body() {
             Coaching Loop
           </div>
           <h1 className="font-display text-2xl md:text-4xl font-semibold tracking-tight">
-            1:1 Notes
+            Schedule 1:1
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Agenda · Notes · Sentiment · Action items. The full loop, in writing.
@@ -191,6 +193,19 @@ function OneOnOneCard({
             })}
             <span className="text-muted-foreground/60">·</span>
             <span>{timeAgo(o.scheduledAt)}</span>
+            {o.meetingType === "remote" ? (
+              <>
+                <span className="text-muted-foreground/60">·</span>
+                <Video className="h-3 w-3" />
+                <span>Remote</span>
+              </>
+            ) : o.meetingType === "in-person" ? (
+              <>
+                <span className="text-muted-foreground/60">·</span>
+                <MapPin className="h-3 w-3" />
+                <span>In-person</span>
+              </>
+            ) : null}
           </div>
         </div>
         <span
@@ -233,6 +248,8 @@ function ComposerModal({ onClose, actorId }: { onClose: () => void; actorId: str
     d.setHours(d.getHours() + 24);
     return d.toISOString().slice(0, 16);
   });
+  const [meetingType, setMeetingType] = useState<"in-person" | "remote">("in-person");
+  const [meetingLink, setMeetingLink] = useState("");
   const [agenda, setAgenda] = useState("");
 
   const reports = getRoster().filter((e) => e.id !== actorId);
@@ -244,6 +261,8 @@ function ComposerModal({ onClose, actorId }: { onClose: () => void; actorId: str
       reportId,
       scheduledAt: new Date(when).getTime(),
       agenda,
+      meetingType,
+      meetingLink: meetingType === "remote" ? meetingLink : undefined,
     });
     onClose();
   }
@@ -283,6 +302,39 @@ function ComposerModal({ onClose, actorId }: { onClose: () => void; actorId: str
           onChange={(e) => setWhen(e.target.value)}
           className="mt-1 w-full h-10 px-3 rounded-md bg-background border border-input text-sm"
         />
+
+        <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground mt-3 block">
+          Meeting Type
+        </label>
+        <div className="flex gap-2 mt-1">
+          <button
+            onClick={() => setMeetingType("in-person")}
+            className={`flex-1 py-2 rounded-md text-sm font-medium border ${meetingType === "in-person" ? "bg-primary/10 border-primary text-primary" : "border-input hover:bg-secondary"}`}
+          >
+            In-Person
+          </button>
+          <button
+            onClick={() => setMeetingType("remote")}
+            className={`flex-1 py-2 rounded-md text-sm font-medium border ${meetingType === "remote" ? "bg-primary/10 border-primary text-primary" : "border-input hover:bg-secondary"}`}
+          >
+            Remote
+          </button>
+        </div>
+
+        {meetingType === "remote" && (
+          <>
+            <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground mt-3 block">
+              Meeting Link
+            </label>
+            <input
+              type="url"
+              value={meetingLink}
+              onChange={(e) => setMeetingLink(e.target.value)}
+              placeholder="e.g. Google Meet or Zoom link"
+              className="mt-1 w-full h-10 px-3 rounded-md bg-background border border-input text-sm"
+            />
+          </>
+        )}
 
         <label className="text-xs font-mono uppercase tracking-widest text-muted-foreground mt-3 block">
           Agenda (optional)
@@ -364,7 +416,26 @@ function DetailModal({
               })}
               {" · "}
               {o.durationMin} min
+              {o.meetingType === "remote" ? (
+                <>
+                  {" · "}Remote
+                </>
+              ) : o.meetingType === "in-person" ? (
+                <>
+                  {" · "}In-person
+                </>
+              ) : null}
             </div>
+            {o.meetingType === "remote" && o.meetingLink && (
+              <a
+                href={o.meetingLink}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex mt-1 items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+              >
+                <Video className="h-3 w-3" /> Join Meeting
+              </a>
+            )}
           </div>
           <span
             className={`text-[10px] uppercase tracking-widest font-mono px-1.5 py-0.5 rounded border ${sentimentColor(o.sentiment)}`}

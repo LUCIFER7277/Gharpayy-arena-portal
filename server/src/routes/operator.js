@@ -571,11 +571,11 @@ function buildDailyBriefSummary(metrics) {
 }
 
 async function enhanceSummaryWithAi(summary, metrics) {
-  const apiKey = process.env.LOVABLE_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return summary;
   try {
     const payload = {
-      model: "gpt-4o-mini",
+      model: "llama3-70b-8192",
       messages: [
         {
           role: "system",
@@ -591,7 +591,7 @@ async function enhanceSummaryWithAi(summary, metrics) {
       temperature: 0.3,
     };
 
-    const result = await safeFetchJson("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const result = await safeFetchJson("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -885,4 +885,64 @@ router.post(
   }),
 );
 console.log('[operatorRoutes] daily-brief route loaded');
+// ─── POST /api/operator/coach ──────────────────────────────────────────────
+router.post(
+  "/coach",
+  requireAuth,
+  requireRole(["admin", "hr", "manager"]), // Just to be safe at API level, UI restricts it more tightly.
+  asyncHandler(async (req, res) => {
+    const { messages, snapshot } = req.body;
+    const apiKey = process.env.GROQ_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: "Groq API key not configured" });
+    }
+
+    const systemPrompt = `You are Coach AI, an executive operational assistant for Gharpayy Arena. Restrict your responses strictly to Gharpayy-specific knowledge, workflows, and the data provided. You must be direct, actionable, and professional. Base your answers solely on the following live operational snapshot: ${JSON.stringify(snapshot)}`;
+
+    const payload = {
+      model: "llama3-70b-8192",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...(messages || []),
+      ],
+      stream: true,
+      temperature: 0.2,
+      max_tokens: 1500,
+    };
+
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.statusText}`);
+      }
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      if (response.body) {
+        const reader = response.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+    } catch (error) {
+      console.error("[coach] Streaming error:", error);
+      res.status(500).json({ error: "Failed to communicate with the AI brain" });
+    }
+  }),
+);
+
 export default router;

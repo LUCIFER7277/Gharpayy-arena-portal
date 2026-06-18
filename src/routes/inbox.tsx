@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { useThreads, useMessages, sendMessage, findOrCreateThread } from "@/lib/message-store";
+import { useNotifications, markRead } from "@/lib/notification-store";
 import { getRoster, employeeName } from "@/lib/roster";
 import { tierOf } from "@/lib/permissions";
 import { Avatar } from "@/components/Avatar";
@@ -154,8 +155,17 @@ function InboxPage() {
 function ChatView({ actorId, colleagueId, isHRorAdmin, onBack }: { actorId: string, colleagueId: string, isHRorAdmin: boolean, onBack: () => void }) {
   const thread = findOrCreateThread(actorId, colleagueId);
   const messages = useMessages(thread.id);
+  const notifications = useNotifications(actorId);
   const [text, setText] = useState("");
   
+  useEffect(() => {
+    notifications.forEach((n) => {
+      if (!n.read && n.actionTo === "/inbox" && n.fromId === colleagueId) {
+        markRead(n.id);
+      }
+    });
+  }, [notifications, colleagueId]);
+
   const handleSend = (decision?: string | any) => {
     // protect against event objects
     const actualDecision = (decision === "approved" || decision === "rejected") ? decision : undefined;

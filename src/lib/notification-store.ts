@@ -26,7 +26,11 @@ export function useNotifications(toId?: string): AppNotif[] {
 }
 
 export function unreadCount(toId: string): number {
-  return store.read().filter((n) => n.toId === toId && !n.read).length;
+  return store.read().filter((n) => n.toId === toId && !n.read && n.actionTo !== "/inbox").length;
+}
+
+export function unreadInboxCount(toId: string): number {
+  return store.read().filter((n) => n.toId === toId && !n.read && n.actionTo === "/inbox").length;
 }
 
 export function markRead(id: string) {
@@ -34,7 +38,7 @@ export function markRead(id: string) {
 }
 
 export function markAllRead(toId: string) {
-  store.write(store.read().map((n) => (n.toId === toId ? { ...n, read: true } : n)));
+  store.write(store.read().map((n) => (n.toId === toId && n.actionTo !== "/inbox" ? { ...n, read: true } : n)));
 }
 
 export function pushNotification(

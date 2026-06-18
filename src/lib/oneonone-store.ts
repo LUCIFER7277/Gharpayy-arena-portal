@@ -26,6 +26,8 @@ function mapOneOnOneFromApi(doc: Record<string, unknown>): OneOnOne {
     notes: String(doc.notes ?? ""),
     privateNotes: doc.privateNotes as string | undefined,
     actionItems,
+    meetingType: doc.meetingType as "in-person" | "remote" | undefined,
+    meetingLink: doc.meetingLink as string | undefined,
     createdAt: Number(doc.createdAt ?? doc.scheduledAt),
     updatedAt: Number(doc.updatedAt ?? doc.scheduledAt),
   };
@@ -77,6 +79,8 @@ export function createOneOnOne(input: {
   scheduledAt: number;
   durationMin?: number;
   agenda?: string;
+  meetingType?: "in-person" | "remote";
+  meetingLink?: string;
 }): OneOnOne {
   const now = Date.now();
   const next: OneOnOne = {
@@ -89,6 +93,8 @@ export function createOneOnOne(input: {
     agenda: input.agenda ?? "",
     notes: "",
     actionItems: [],
+    meetingType: input.meetingType,
+    meetingLink: input.meetingLink,
     createdAt: now,
     updatedAt: now,
   };

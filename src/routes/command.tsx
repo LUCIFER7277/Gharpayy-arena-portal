@@ -7,7 +7,7 @@ import { RoleGate } from "@/components/RoleGate";
 
 export const Route = createFileRoute("/command")({
   component: () => (
-    <RoleGate allow={["leadership", "zone_leader", "hr", "leader"]}>
+    <RoleGate allow={["leadership"]}>
       <CommandCenter />
     </RoleGate>
   ),
@@ -47,11 +47,10 @@ function CommandCenter() {
     };
 
     try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/core-ai`, {
+      const resp = await fetch("/api/operator/coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ messages: next, snapshot }),
       });
