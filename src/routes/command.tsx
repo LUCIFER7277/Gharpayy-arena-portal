@@ -156,7 +156,7 @@ function CommandCenter() {
                 className={`max-w-[95%] md:max-w-[88%] rounded-2xl px-5 py-4 text-sm leading-relaxed ${
                   m.role === "user"
                     ? "bg-primary text-primary-foreground shadow-sm shadow-primary/10"
-                    : "bg-card border border-border/50 shadow-sm"
+                    : "bg-card text-card-foreground border border-border/50 shadow-sm"
                 }`}
               >
                 <div className="whitespace-pre-wrap font-sans space-y-2 [&>p]:mb-2 [&>ul]:mb-2 [&>ul]:list-disc [&>ul]:pl-5 [&>li]:mb-1 [&>h3]:font-semibold [&>h3]:text-base [&>h3]:mt-4 [&>h3]:mb-2 [&>h4]:font-semibold [&>h4]:mt-3 [&>h4]:mb-1">

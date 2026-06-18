@@ -121,7 +121,7 @@ const NAV: NavItem[] = [
   },
   {
     to: "/command",
-    label: "Coaching",
+    label: "Coach AI",
     icon: MessageSquare,
     tiers: ["leadership"],
     adminOnly: true,
