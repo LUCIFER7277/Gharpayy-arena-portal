@@ -25,7 +25,13 @@ import { getRoster } from "@/lib/roster";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { Avatar } from "@/components/Avatar";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   useDailyUpdates,
   useRetroItems,
@@ -49,6 +55,7 @@ import { useTasks, createTask, setStatus as setTaskStatus } from "@/lib/task-sto
 import { fetchDailyBrief, type SummaryOut } from "@/lib/daily-brief-api";
 import { toast } from "sonner";
 import { useZoneStore } from "@/lib/zones-store";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/fly")({
   component: FlyPage,
@@ -89,6 +96,37 @@ function FlyPage() {
   const { actor } = useAttendanceState();
   const [tab, setTab] = useState<Tab>("daily");
 
+  let steps: any[] = [];
+  if (tab === "daily") {
+    steps = [
+      { element: "#tour-fly-tabs", popover: { title: "Fly Modules", description: "Switch between Daily Updates, the Retro board, Team Feed, Action Items, Summary, and Leadership views.", side: "bottom", align: "start" } },
+      { element: "#tour-fly-daily-form", popover: { title: "Your Update", description: "Submit your numbers and updates here to share your execution progress with the team.", side: "right", align: "start" } }
+    ];
+  } else if (tab === "retro") {
+    steps = [
+      { element: "#tour-fly-tabs", popover: { title: "Fly Modules", description: "Switch between Daily Updates, the Retro board, Team Feed, Action Items, Summary, and Leadership views.", side: "bottom", align: "start" } },
+      { element: "#tour-fly-retro-columns", popover: { title: "Feedback Loop", description: "Add cards to the Start, Stop, or Continue columns to share feedback with the team.", side: "top", align: "start" } }
+    ];
+  } else if (tab === "feed") {
+    steps = [
+      { element: "#tour-fly-feed-form", popover: { title: "Post Update", description: "Share a win, flag an issue, or post a hot lead to the entire team.", side: "bottom", align: "start" } },
+    ];
+  } else if (tab === "tasks") {
+    steps = [
+      { element: "#tour-fly-tasks-form", popover: { title: "Create Action Item", description: "Assign tasks or blockers to team members directly from the Fly board.", side: "bottom", align: "start" } },
+    ];
+  } else if (tab === "summary") {
+    steps = [
+      { element: "#tour-fly-summary-brief", popover: { title: "Daily Brief", description: "Get an AI-generated summary of today's execution across the entire organization.", side: "bottom", align: "start" } },
+    ];
+  } else if (tab === "leadership") {
+    steps = [
+      { element: "#tour-fly-leadership-content", popover: { title: "Leadership View", description: "Track zone-by-zone performance metrics, active blockers, and hot leads.", side: "top", align: "start" } },
+    ];
+  }
+
+  usePageTour(`fly_board_tour_${tab}`, steps);
+
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
       {/* Hero */}
@@ -107,12 +145,16 @@ function FlyPage() {
       </header>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-border overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+      <div
+        id="tour-fly-tabs"
+        className="flex gap-1 mb-6 border-b border-border overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"
+      >
         {TABS.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
           return (
             <button
               key={id}
+              id={`tour-fly-tab-${id}`}
               onClick={() => setTab(id)}
               className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 active
@@ -142,7 +184,7 @@ function DailyTab({ actor }: { actor: Employee }) {
   const existing = todayUpdateFor(actor.id);
   const [zoneFilter, setZoneFilter] = useState<string>("all");
   const { zones: storeZones } = useZoneStore();
-  const zones = storeZones.map(z => z.name).sort();
+  const zones = storeZones.map((z) => z.name).sort();
   const visibleUpdates = updates.filter((u) => zoneFilter === "all" || u.zone === zoneFilter);
   const [form, setForm] = useState(() => ({
     connectedCalls: existing?.connectedCalls ?? 0,
@@ -202,7 +244,7 @@ function DailyTab({ actor }: { actor: Employee }) {
 
   return (
     <div className="grid md:grid-cols-[1.2fr_1fr] gap-6">
-      <section>
+      <section id="tour-fly-daily-form">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-xl font-semibold">Your update for today</h2>
           {existing && (
@@ -270,7 +312,11 @@ function DailyTab({ actor }: { actor: Employee }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Zones</SelectItem>
-                {zones.map(z => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+                {zones.map((z) => (
+                  <SelectItem key={z} value={z}>
+                    {z}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -364,8 +410,8 @@ function Textarea({
 function RetroTab({ actor }: { actor: Employee }) {
   const items = useRetroItems();
   const [authorFilter, setAuthorFilter] = useState<string>("all");
-  const authors = Array.from(new Set(items.map(i => i.authorId)));
-  const visibleItems = items.filter(i => authorFilter === "all" || i.authorId === authorFilter);
+  const authors = Array.from(new Set(items.map((i) => i.authorId)));
+  const visibleItems = items.filter((i) => authorFilter === "all" || i.authorId === authorFilter);
   const cols: { kind: RetroKind; title: string; color: string; placeholder: string }[] = [
     {
       kind: "start",
@@ -396,12 +442,16 @@ function RetroTab({ actor }: { actor: Employee }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All People</SelectItem>
-              {authors.map(a => <SelectItem key={a} value={a}>{empName(a)}</SelectItem>)}
+              {authors.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {empName(a)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
-      <div className="grid md:grid-cols-3 gap-4">
+      <div id="tour-fly-retro-columns" className="grid md:grid-cols-3 gap-4">
         {cols.map((col) => (
           <RetroColumn
             key={col.kind}
@@ -547,7 +597,7 @@ function FeedTab({ actor }: { actor: Employee }) {
   const [body, setBody] = useState("");
   const [kind, setKind] = useState<FeedKind>("win");
   const [kindFilter, setKindFilter] = useState<FeedKind | "all">("all");
-  const visibleFeed = feed.filter(f => kindFilter === "all" || f.kind === kindFilter);
+  const visibleFeed = feed.filter((f) => kindFilter === "all" || f.kind === kindFilter);
 
   function onPost() {
     if (!body.trim()) return;
@@ -558,7 +608,7 @@ function FeedTab({ actor }: { actor: Employee }) {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="rounded-lg border border-border bg-card p-3 mb-4">
+      <div id="tour-fly-feed-form" className="rounded-lg border border-border bg-card p-3 mb-4">
         <div className="flex items-center gap-2 mb-2">
           <Avatar id={actor.id} size={28} />
           <div className="w-[120px]">
@@ -595,14 +645,16 @@ function FeedTab({ actor }: { actor: Employee }) {
 
       <div className="flex justify-end mb-3">
         <div className="w-[140px]">
-          <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as any)}>
+          <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as FeedKind | "all")}>
             <SelectTrigger className="h-8 text-xs bg-card">
               <SelectValue placeholder="All Events" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Events</SelectItem>
-              {(Object.keys(FEED_KIND_META) as FeedKind[]).map(k => (
-                <SelectItem key={k} value={k}>{k}</SelectItem>
+              {(Object.keys(FEED_KIND_META) as FeedKind[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {k}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -699,7 +751,7 @@ function ActionItemsTab({ actor }: { actor: Employee }) {
   const [assignee, setAssignee] = useState(actor.id);
   const [dueDays, setDueDays] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const visibleItems = items.filter(t => statusFilter === "all" || t.status === statusFilter);
+  const visibleItems = items.filter((t) => statusFilter === "all" || t.status === statusFilter);
 
   function create() {
     if (!title.trim()) return;
@@ -717,7 +769,7 @@ function ActionItemsTab({ actor }: { actor: Employee }) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="rounded-lg border border-border bg-card p-4 mb-5">
+      <div id="tour-fly-tasks-form" className="rounded-lg border border-border bg-card p-4 mb-5">
         <h3 className="font-display text-lg font-semibold mb-3">Create action item</h3>
         <div className="grid md:grid-cols-[1fr_180px_120px_auto] gap-2">
           <input
@@ -853,7 +905,7 @@ function SummaryTab() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div id="tour-fly-summary-brief" className="max-w-3xl mx-auto">
       <div className="rounded-lg border border-border bg-card p-5 mb-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="h-10 w-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
@@ -952,7 +1004,7 @@ function LeadershipTab() {
   const blockers = feed.filter((f) => f.kind === "blocker" || f.kind === "issue").slice(0, 5);
 
   return (
-    <div className="space-y-6">
+    <div id="tour-fly-leadership-content" className="max-w-5xl mx-auto space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KPI label="Calls today" value={roll.totals.calls} icon={Phone} tone="info" />
         <KPI label="Tours done" value={roll.totals.visitsCompleted} icon={MapPin} tone="primary" />

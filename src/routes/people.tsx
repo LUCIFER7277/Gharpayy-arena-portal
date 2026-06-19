@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Search, Loader2, Filter } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RoleGate } from "@/components/RoleGate";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/people")({
   component: () => (
@@ -45,6 +46,17 @@ function PeoplePage() {
     return hay.includes(q.toLowerCase());
   });
 
+  usePageTour("people_directory_tour", [
+    {
+      element: "#tour-people-search",
+      popover: { title: "Search & Filter", description: "Quickly find anyone in the organization by name, team, role, or access level.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-people-cards",
+      popover: { title: "Employee Profiles", description: "View live statuses, titles, and team details for everyone across the org.", side: "top", align: "start" }
+    }
+  ]);
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
@@ -64,7 +76,7 @@ function PeoplePage() {
           Everyone in the Arena. {roster.length} people · synced from database.
         </p>
       </header>
-      <div className="mb-4 flex flex-col gap-3">
+      <div id="tour-people-search" className="mb-4 flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="w-[140px] shrink-0">
             <Select value={filter} onValueChange={(val) => setFilter(val as any)}>
@@ -113,7 +125,7 @@ function PeoplePage() {
           No employees loaded yet. Check your API connection and refresh.
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div id="tour-people-cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {list.map((e) => {
           const status = liveStatusFor(e.id);
           const score = computeScore(e).total;

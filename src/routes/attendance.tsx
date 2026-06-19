@@ -5,6 +5,7 @@ import { EventTimeline } from "@/components/EventTimeline";
 import { Card } from "@/components/ui/card";
 import { getEventsFor, todayKey, todaySummary, fmtDuration } from "@/lib/attendance-store";
 import { MapPin, ShieldCheck, Camera, Clock } from "lucide-react";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/attendance")({
   head: () => ({
@@ -21,6 +22,29 @@ export const Route = createFileRoute("/attendance")({
 });
 
 function AttendancePage() {
+  usePageTour("attendance_tour", [
+    {
+      popover: {
+        title: "Attendance & Geo-Punch",
+        description: "Welcome to Attendance! This is where you punch in, punch out, and log field visits.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-attendance-panel",
+      popover: { title: "Clock Panel", description: "Use this panel to clock in. Every punch requires a selfie and GPS location.", side: "right", align: "start" }
+    },
+    {
+      element: "#tour-attendance-summary",
+      popover: { title: "Daily Summary", description: "Your total hours worked, break time, and field time for today.", side: "right", align: "start" }
+    },
+    {
+      element: "#tour-attendance-timeline",
+      popover: { title: "Audit Trail", description: "A detailed timeline of all your punches and locations for the day.", side: "left", align: "start" }
+    }
+  ]);
+
   const { actor } = useAttendanceState();
   const today = getEventsFor(actor.id, todayKey());
   const summary = todaySummary(actor.id);
@@ -48,9 +72,11 @@ function AttendancePage() {
 
       <div className="grid lg:grid-cols-[420px_1fr] gap-6 min-w-0 w-full">
         <div className="space-y-4">
-          <AttendancePanel />
+          <div id="tour-attendance-panel">
+            <AttendancePanel />
+          </div>
 
-          <Card className="p-5 max-w-full min-w-0">
+          <Card id="tour-attendance-summary" className="p-5 max-w-full min-w-0">
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest font-mono text-muted-foreground mb-3">
               <Clock className="h-3.5 w-3.5" /> Today at a glance
             </div>
@@ -71,7 +97,7 @@ function AttendancePage() {
           </Card>
         </div>
 
-        <Card className="p-5 max-w-full min-w-0">
+        <Card id="tour-attendance-timeline" className="p-5 max-w-full min-w-0">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono">

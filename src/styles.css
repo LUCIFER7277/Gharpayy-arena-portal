@@ -130,3 +130,67 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Custom Driver.js Tour Styling */
+.arena-tour-theme {
+  background-color: var(--color-card) !important;
+  color: var(--color-card-foreground) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2) !important;
+  font-family: var(--font-sans) !important;
+  padding: 1.5rem !important;
+}
+.arena-tour-theme .driver-popover-title {
+  font-family: var(--font-display) !important;
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+  color: var(--color-foreground) !important;
+}
+.arena-tour-theme .driver-popover-description {
+  color: var(--color-muted-foreground) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+.arena-tour-theme .driver-popover-footer {
+  margin-top: 1.5rem !important;
+}
+.arena-tour-theme .driver-popover-footer button {
+  border-radius: var(--radius-md) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  padding: 0.5rem 1rem !important;
+  text-shadow: none !important;
+}
+.arena-tour-theme .driver-popover-next-btn {
+  background-color: var(--color-primary) !important;
+  color: var(--color-primary-foreground) !important;
+  border: none !important;
+  transition: opacity 0.2s !important;
+}
+.arena-tour-theme .driver-popover-next-btn:hover {
+  opacity: 0.9 !important;
+}
+.arena-tour-theme .driver-popover-prev-btn {
+  background-color: transparent !important;
+  color: var(--color-muted-foreground) !important;
+  border: 1px solid var(--color-border) !important;
+}
+.arena-tour-theme .driver-popover-prev-btn:hover {
+  background-color: var(--color-muted) !important;
+  color: var(--color-foreground) !important;
+}
+.arena-tour-theme .driver-popover-close-btn {
+  color: var(--color-muted-foreground) !important;
+  top: 15px !important;
+  right: 15px !important;
+}
+.arena-tour-theme .driver-popover-close-btn:hover {
+  color: var(--color-foreground) !important;
+}
+.arena-tour-theme .driver-popover-progress-text {
+  font-family: var(--font-mono) !important;
+  color: var(--color-muted-foreground) !important;
+  font-size: 0.75rem !important;
+}

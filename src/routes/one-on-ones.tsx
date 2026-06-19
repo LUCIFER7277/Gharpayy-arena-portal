@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/one-on-ones")({
   head: () => ({
@@ -70,6 +71,29 @@ function OneOnOnesPage() {
 }
 
 function Body() {
+  usePageTour("one_on_ones_tour", [
+    {
+      popover: {
+        title: "Schedule 1:1",
+        description: "Welcome to the Coaching Loop. This is where you can schedule, track, and document your 1:1 meetings.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-1on1-schedule",
+      popover: { title: "Schedule a 1:1", description: "Click here to schedule a new 1:1 with a teammate.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-1on1-tabs",
+      popover: { title: "Meeting History", description: "Filter between your upcoming scheduled 1:1s and past completed meetings.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-1on1-list",
+      popover: { title: "Your 1:1s", description: "All your 1:1s appear here. Click on any card to view the agenda, take notes, or assign action items.", side: "top", align: "start" }
+    }
+  ]);
+
   const { actor } = useAttendanceState();
   const all = useOneOnOnes();
   const mine = useMemo(
@@ -103,6 +127,7 @@ function Body() {
           </p>
         </div>
         <button
+          id="tour-1on1-schedule"
           onClick={() => setComposerOpen(true)}
           className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90"
         >
@@ -110,7 +135,7 @@ function Body() {
         </button>
       </header>
 
-      <div className="flex gap-1 mb-4 border-b border-border">
+      <div id="tour-1on1-tabs" className="flex gap-1 mb-4 border-b border-border">
         {(["upcoming", "past", "all"] as const).map((t) => (
           <button
             key={t}
@@ -141,7 +166,7 @@ function Body() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div id="tour-1on1-list" className="grid gap-3 md:grid-cols-2">
           {filtered.map((o) => (
             <OneOnOneCard key={o.id} o={o} onOpen={() => setOpenId(o.id)} actorId={actor.id} />
           ))}

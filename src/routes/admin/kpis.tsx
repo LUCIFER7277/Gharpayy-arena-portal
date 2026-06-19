@@ -56,12 +56,32 @@ import {
   type KpiTarget,
   type KpiScopeType,
 } from "@/lib/kpi-governance-api";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/admin/kpis")({
   component: KpiGovernancePage,
 });
 
 function KpiGovernancePage() {
+  usePageTour("kpi_governance_tour", [
+    {
+      popover: {
+        title: "KPI Governance",
+        description: "Welcome to KPI Governance. Here you can define organizational metrics and set targets at the company, zone, or individual level.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-kpi-tabs",
+      popover: { title: "Manage Definitions & Targets", description: "Switch between managing KPI definitions and assigning their target values.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-kpi-create",
+      popover: { title: "Create Metric", description: "Create a new KPI definition or set a new target.", side: "bottom", align: "start" }
+    }
+  ]);
+
   const { actor } = useAttendanceState();
   const [activeTab, setActiveTab] = useState<"definitions" | "targets">("definitions");
 
@@ -109,7 +129,7 @@ function KpiGovernancePage() {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center gap-1 bg-secondary/30 p-1 rounded-lg border border-border self-start sm:self-auto">
+        <div id="tour-kpi-tabs" className="flex items-center gap-1 bg-secondary/30 p-1 rounded-lg border border-border self-start sm:self-auto">
           <button
             onClick={() => setActiveTab("definitions")}
             className={`px-3 py-1.5 rounded-md text-xs font-medium font-mono uppercase tracking-wider transition ${
@@ -310,6 +330,7 @@ function KpiDefinitionsTab({ actor }: { actor: Employee }) {
 
         {canManageDefs && (
           <Button
+            id="tour-kpi-create"
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 shrink-0"
           >

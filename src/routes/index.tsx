@@ -19,6 +19,7 @@ import { DailyQuote } from "@/components/DailyQuote";
 import { EmployeeStatsModal } from "@/components/EmployeeStatsModal";
 import { Progress } from "@/components/ui/progress";
 import { useRoleFeature } from "@/hooks/useRoleFeature";
+import { usePageTour } from "@/hooks/usePageTour";
 import {
   ArrowDown,
   ArrowUp,
@@ -66,8 +67,9 @@ function HomeHeader({ actor, sub }: { actor: Employee; sub: string }) {
         <div className="font-mono text-[10px] md:text-xs uppercase tracking-widest text-primary">
           {TIER_LABEL[tier]} · Core Arena
         </div>
-        <Link 
-          to="/pulse" 
+        <Link
+          id="tour-home-pulse"
+          to="/pulse"
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-mono text-[10px] md:text-xs uppercase tracking-widest"
         >
           <Clock className="h-3 w-3" />
@@ -106,7 +108,11 @@ function PillarHeader({
         </div>
       </div>
       {hasFeature(href) && (
-        <Link to={href} preload="intent" className="text-[11px] text-primary font-mono uppercase tracking-widest">
+        <Link
+          to={href}
+          preload="intent"
+          className="text-[11px] text-primary font-mono uppercase tracking-widest"
+        >
           Open →
         </Link>
       )}
@@ -137,7 +143,7 @@ function TimePillar({ actor }: { actor: Employee }) {
           : "text-muted-foreground";
 
   return (
-    <section className="rounded-xl bg-card border border-border p-4 md:p-5">
+    <section id="tour-pillar-time" className="rounded-xl bg-card border border-border p-4 md:p-5">
       <PillarHeader kicker="Pillar 01" title="Time" href="/attendance" icon={Clock} />
       <div className="flex items-baseline justify-between mb-3">
         <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums">
@@ -193,7 +199,7 @@ function TasksPillar({ actor }: { actor: Employee }) {
   const nextSub = nextWithSub?.subtasks?.find((s) => !s.done);
 
   return (
-    <section className="rounded-xl bg-card border border-border p-4 md:p-5">
+    <section id="tour-pillar-tasks" className="rounded-xl bg-card border border-border p-4 md:p-5">
       <PillarHeader kicker="Pillar 02" title="Tasks" href="/tasks" icon={CheckSquare} />
       <div className="flex items-baseline justify-between mb-2">
         <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums">
@@ -282,13 +288,11 @@ function GoalsPillar({ actor }: { actor: Employee }) {
     if (!isOrgLevel) return lastNDays(actor, 7);
     const roster = getRoster().filter((e) => e.role !== "Admin");
     if (!roster.length) return lastNDays(actor, 7);
-    
+
     // Average the daily trends
     const allDays = roster.map((e) => lastNDays(e, 7));
     const merged = allDays[0].map((_, i) => {
-      const avgTotal = Math.round(
-        allDays.reduce((sum, d) => sum + d[i].total, 0) / roster.length,
-      );
+      const avgTotal = Math.round(allDays.reduce((sum, d) => sum + d[i].total, 0) / roster.length);
       return {
         ...allDays[0][i],
         total: avgTotal,
@@ -304,7 +308,7 @@ function GoalsPillar({ actor }: { actor: Employee }) {
   const href = isOrgLevel ? "/war-room" : "/score";
 
   return (
-    <section className="rounded-xl bg-card border border-border p-4 md:p-5">
+    <section id="tour-pillar-goals" className="rounded-xl bg-card border border-border p-4 md:p-5">
       <PillarHeader kicker="Pillar 03" title={title} href={href} icon={Trophy} />
       <div className="flex items-baseline justify-between mb-3">
         <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums">
@@ -385,6 +389,8 @@ function GoalsPillar({ actor }: { actor: Employee }) {
 }
 
 function HeroPillars({ actor }: { actor: Employee }) {
+  const actorTier = tierOf(actor);
+
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
       <TimePillar actor={actor} />
@@ -431,7 +437,7 @@ function PodPillars({ pod, label }: { pod: Employee[]; label: string }) {
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
-      <div className="rounded-xl bg-card border border-border p-4 md:p-5">
+      <div id="tour-pillar-time" className="rounded-xl bg-card border border-border p-4 md:p-5">
         <PillarHeader
           kicker={`${label} · Pillar 01`}
           title="Time on the floor"
@@ -454,7 +460,7 @@ function PodPillars({ pod, label }: { pod: Employee[]; label: string }) {
         </div>
       </div>
 
-      <div className="rounded-xl bg-card border border-border p-4 md:p-5">
+      <div id="tour-pillar-tasks" className="rounded-xl bg-card border border-border p-4 md:p-5">
         <PillarHeader
           kicker={`${label} · Pillar 02`}
           title="Task throughput"
@@ -477,7 +483,7 @@ function PodPillars({ pod, label }: { pod: Employee[]; label: string }) {
         />
       </div>
 
-      <div className="rounded-xl bg-card border border-border p-4 md:p-5">
+      <div id="tour-pillar-goals" className="rounded-xl bg-card border border-border p-4 md:p-5">
         <PillarHeader
           kicker={`${label} · Pillar 03`}
           title={isOrgLevel ? "Org Goals" : "Goal attainment"}
@@ -531,7 +537,7 @@ function TeammateHome({ actor }: { actor: Employee }) {
       <HeroPillars actor={actor} />
 
       <div className="grid md:grid-cols-2 gap-4">
-        <section className="rounded-xl bg-card border border-border p-5">
+        <section id="tour-home-tasks-detail" className="rounded-xl bg-card border border-border p-5">
           <PillarHeader
             kicker="Detail"
             title="Today's task list"
@@ -554,7 +560,7 @@ function TeammateHome({ actor }: { actor: Employee }) {
           )}
         </section>
 
-        <section className="rounded-xl bg-card border border-border p-5">
+        <section id="tour-home-inbox-detail" className="rounded-xl bg-card border border-border p-5">
           <PillarHeader kicker="Detail" title="Heads up" href="/inbox" icon={CalIcon} />
           {notifs.length === 0 && (
             <div className="text-sm text-muted-foreground">Quiet inbox. Nice.</div>
@@ -599,7 +605,7 @@ function LeaderHome({ actor }: { actor: Employee }) {
   const pod = useMemo(() => {
     // Basic "pod" = same team, excluding Admins
     if (!actor) return [];
-    let members = getRoster().filter((e) => e.role !== "Admin");
+    const members = getRoster().filter((e) => e.role !== "Admin");
     if (isOrgLevel) return members.filter((e) => e.id !== actor.id);
     return members.filter((e) => e.team === actor.team && e.id !== actor.id);
   }, [actor, isOrgLevel]);
@@ -615,9 +621,9 @@ function LeaderHome({ actor }: { actor: Employee }) {
         actor={actor}
         sub={`Your pod's Time, Tasks, Goals at a glance. ${TIER_TAGLINE.leader}`}
       />
-      
+
       <DailyQuote />
-      
+
       <MissionBrief actor={actor} />
 
       {/* Personal pillars first — leaders punch in too */}
@@ -626,11 +632,14 @@ function LeaderHome({ actor }: { actor: Employee }) {
       {/* Then the pod rollup of the same three pillars */}
       <PodPillars pod={pod} label="Pod" />
 
-      <section className="rounded-xl bg-card border border-border overflow-hidden">
+      <section id="tour-home-leaderboard" className="rounded-xl bg-card border border-border overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-border flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Pod leaderboard</h2>
           {hasFeature("/war-room") && (
-            <Link to="/war-room" className="text-xs text-primary font-mono uppercase tracking-widest">
+            <Link
+              to="/war-room"
+              className="text-xs text-primary font-mono uppercase tracking-widest"
+            >
               War Room →
             </Link>
           )}
@@ -681,11 +690,14 @@ function LeaderHome({ actor }: { actor: Employee }) {
       </section>
 
       {leaves.length > 0 && (
-        <section className="mt-6 rounded-xl bg-card border border-border p-5">
+        <section id="tour-home-approvals" className="mt-6 rounded-xl bg-card border border-border p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-display text-lg font-semibold">Approvals waiting on you</h2>
             {hasFeature("/leaves") && (
-              <Link to="/leaves" className="text-xs text-primary font-mono uppercase tracking-widest">
+              <Link
+                to="/leaves"
+                className="text-xs text-primary font-mono uppercase tracking-widest"
+              >
                 Open queue →
               </Link>
             )}
@@ -721,15 +733,15 @@ function HRHome({ actor }: { actor: Employee }) {
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1300px] mx-auto">
       <HomeHeader actor={actor} sub={`Time, Tasks, Goals across the org. ${TIER_TAGLINE.hr}`} />
-      
+
       <DailyQuote />
-      
+
       <MissionBrief actor={actor} />
 
       {/* Org-wide rollup of the three pillars */}
       <PodPillars pod={orgRoster} label="Org" />
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+      <section id="tour-home-hr-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="rounded-xl bg-card border border-border p-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
@@ -777,7 +789,7 @@ function HRHome({ actor }: { actor: Employee }) {
       </section>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <section className="rounded-xl bg-card border border-border p-5">
+        <section id="tour-home-hr-queue" className="rounded-xl bg-card border border-border p-5">
           <PillarHeader kicker="Time" title="Leave queue" href="/leaves" icon={PlaneTakeoff} />
           {leaves.length === 0 && (
             <div className="text-sm text-muted-foreground">Inbox zero. Beautiful.</div>
@@ -835,7 +847,7 @@ function LeadershipHome({ actor }: { actor: Employee }) {
       {/* The three pillars, org-wide, are the headline */}
       <PodPillars pod={orgRoster} label="Org" />
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+      <section id="tour-home-leadership-metrics" className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <div className="rounded-xl bg-card border border-border p-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
@@ -880,9 +892,11 @@ function LeadershipHome({ actor }: { actor: Employee }) {
         </div>
       </section>
 
-      <AdminFunnelCharts roster={orgRoster} />
+      <div id="tour-home-leadership-charts">
+        <AdminFunnelCharts roster={orgRoster} />
+      </div>
 
-      <section className="grid md:grid-cols-3 gap-4 mb-6">
+      <section id="tour-home-leadership-signals" className="grid md:grid-cols-3 gap-4 mb-6">
         {s.top ? (
           <button
             onClick={() => setSelectedEmpId(s.top?.id ?? null)}
@@ -938,9 +952,8 @@ function LeadershipHome({ actor }: { actor: Employee }) {
             <span className="text-xs font-mono uppercase tracking-widest">Today's Call</span>
           </div>
           <p className="text-sm text-white leading-relaxed">
-            Floor has made{" "}
-            <span className="text-primary font-semibold">{s.totalCalls}</span>{" "}
-            calls today. Review pipeline and prioritize high-intent leads.
+            Floor has made <span className="text-primary font-semibold">{s.totalCalls}</span> calls
+            today. Review pipeline and prioritize high-intent leads.
           </p>
           {hasFeature("/war-room") && (
             <Link
@@ -953,7 +966,7 @@ function LeadershipHome({ actor }: { actor: Employee }) {
         </div>
       </section>
 
-      <section className="rounded-xl bg-card border border-border overflow-hidden">
+      <section id="tour-home-leaderboard" className="rounded-xl bg-card border border-border overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Live leaderboard</h2>
           {hasFeature("/people") && (
@@ -999,9 +1012,7 @@ function ZoneLeaderHome({ actor }: { actor: Employee }) {
   const zoneRoster = useMemo(
     () =>
       getRoster().filter(
-        (e) =>
-          e.id !== actor.id &&
-          (zone === "All" || e.zone === zone || e.team === zone),
+        (e) => e.id !== actor.id && (zone === "All" || e.zone === zone || e.team === zone),
       ),
     [zone, actor.id],
   );
@@ -1009,13 +1020,10 @@ function ZoneLeaderHome({ actor }: { actor: Employee }) {
 
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1300px] mx-auto">
-      <HomeHeader
-        actor={actor}
-        sub={`Zone-wide Time, Tasks, Goals. ${TIER_TAGLINE.zone_leader}`}
-      />
-      
+      <HomeHeader actor={actor} sub={`Zone-wide Time, Tasks, Goals. ${TIER_TAGLINE.zone_leader}`} />
+
       <DailyQuote />
-      
+
       <MissionBrief actor={actor} />
 
       {/* Personal pillars — zone leaders punch in too */}
@@ -1024,14 +1032,11 @@ function ZoneLeaderHome({ actor }: { actor: Employee }) {
       {/* Zone-wide rollup */}
       <PodPillars pod={zoneRoster} label="Zone" />
 
-      <section className="rounded-xl bg-card border border-border overflow-hidden">
+      <section id="tour-home-leaderboard" className="rounded-xl bg-card border border-border overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-border flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Zone leaderboard</h2>
           {hasFeature("/roster") && (
-            <Link
-              to="/roster"
-              className="text-xs text-primary font-mono uppercase tracking-widest"
-            >
+            <Link to="/roster" className="text-xs text-primary font-mono uppercase tracking-widest">
               Live Roster →
             </Link>
           )}
@@ -1069,10 +1074,7 @@ function ZoneLeaderHome({ actor }: { actor: Employee }) {
 
       {hasFeature("/fly") && (
         <div className="mt-4 text-right">
-          <Link
-            to="/fly"
-            className="text-xs text-primary font-mono uppercase tracking-widest"
-          >
+          <Link to="/fly" className="text-xs text-primary font-mono uppercase tracking-widest">
             Open Fly Board →
           </Link>
         </div>
@@ -1084,7 +1086,113 @@ function ZoneLeaderHome({ actor }: { actor: Employee }) {
 function ArenaHome() {
   const { actor } = useAttendanceState();
   const tier = tierOf(actor);
-  
+
+  const steps = [
+    {
+      popover: {
+        title: "Your Dashboard",
+        description: "This is your control center. Everything revolves around three core pillars.",
+        side: "over",
+        align: "center",
+      },
+    },
+    {
+      element: "#tour-home-pulse",
+      popover: {
+        title: "Daily Pulse",
+        description: "Fill out your daily pulse to let your manager know how you're feeling and flag any issues.",
+        side: "bottom",
+        align: "end",
+      },
+    },
+    {
+      element: "#tour-home-quote",
+      popover: {
+        title: "Daily Motivation",
+        description: "Start your day with some curated inspiration. You can shuffle it if you want another!",
+        side: "bottom",
+        align: "start",
+      },
+    },
+    {
+      element: "#tour-home-mission",
+      popover: {
+        title: "Mission Brief",
+        description: "Read the latest update from leadership so you're always aligned with the company's direction.",
+        side: "bottom",
+        align: "start",
+      },
+    },
+    {
+      element: "#tour-pillar-time",
+      popover: {
+        title: "Pillar 1: Time",
+        description:
+          "Punch in and out, track your breaks, and see how long you've been on the floor today.",
+        side: "bottom",
+        align: "start",
+      },
+    },
+    {
+      element: "#tour-pillar-tasks",
+      popover: {
+        title: "Pillar 2: Tasks",
+        description:
+          "Your to-do list. See how many tasks are open and quickly mark your next priority as done.",
+        side: "bottom",
+        align: "center",
+      },
+    },
+    {
+      element: "#tour-pillar-goals",
+      popover: {
+        title: "Pillar 3: Goals",
+        description:
+          "Your daily performance score based on attendance, task completion, and kudos. Keep it in the green!",
+        side: "bottom",
+        align: "end",
+      },
+    },
+    {
+      element: "#tour-home-tasks-detail",
+      popover: { title: "Your Daily Tasks", description: "A quick view of the tasks you need to complete today.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-home-inbox-detail",
+      popover: { title: "Heads Up", description: "Your inbox highlights and upcoming calendar events are shown here.", side: "top", align: "end" }
+    },
+    {
+      element: "#tour-home-leadership-metrics",
+      popover: { title: "Org Metrics", description: "Revenue, Calls, Leads and A-Players. High level health of the business.", side: "top" }
+    },
+    {
+      element: "#tour-home-leadership-charts",
+      popover: { title: "Funnel Charts", description: "Visualize the progression of your team's metrics over time.", side: "top" }
+    },
+    {
+      element: "#tour-home-leadership-signals",
+      popover: { title: "Performance Signals", description: "Quickly identify your top performers and those who need coaching.", side: "top" }
+    },
+    {
+      element: "#tour-home-hr-stats",
+      popover: { title: "Org Overview", description: "High-level metrics like headcount, pending leaves, and attendance risks across the entire organization.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-home-hr-queue",
+      popover: { title: "Leave Queue", description: "Quickly access pending leave requests and people at risk.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-home-leaderboard",
+      popover: { title: "Leaderboard", description: "Real-time ranking of your team members based on their performance.", side: "top" }
+    },
+    {
+      element: "#tour-home-approvals",
+      popover: { title: "Approvals", description: "Pending leaves and other requests waiting on your sign-off.", side: "top" }
+    }
+  ];
+
+  usePageTour("dashboard_pillars", steps as any);
+
   if (!actor.role) return <MissionBrief actor={actor} />;
   if (tier === "partner") {
     if (typeof window !== "undefined") window.location.replace("/partner");

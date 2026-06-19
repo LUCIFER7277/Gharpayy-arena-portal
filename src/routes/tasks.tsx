@@ -15,7 +15,13 @@ import { type AppTask, type TaskPriority, type TaskStatus } from "@/types/hr";
 import { getRoster } from "@/lib/roster";
 import { Avatar } from "@/components/Avatar";
 import { TaskDetailSheet } from "@/components/TaskDetailSheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -32,6 +38,7 @@ import {
   Paperclip,
   ListChecks,
 } from "lucide-react";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/tasks")({
   component: TasksPage,
@@ -76,8 +83,41 @@ function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
   const [isUpdatingShare, setIsUpdatingShare] = useState(false);
 
-  const me = getRoster().find((e) => e.id === actor.id) ?? actor as any;
+  const me = getRoster().find((e) => e.id === actor.id) ?? (actor as unknown as Employee);
   const [hideTasks, setHideTasks] = useState(me?.hideTasks ?? false);
+
+  usePageTour("tasks_tab_tour", [
+    {
+      popover: {
+        title: "Tasks Board",
+        description: "Welcome to your task board. Here you can track everything you need to do.",
+        side: "over",
+        align: "center",
+      },
+    },
+    {
+      element: "#tour-tasks-columns",
+      popover: { title: "Task Columns", description: "Your tasks are organized by status: To do, Doing, Blocked, and Done.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-tasks-filters",
+      popover: { title: "Filters & Scope", description: "Filter tasks by priority, or view your team's tasks if you are a manager.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-tasks-hide-switch",
+      popover: { title: "Privacy", description: "As an employee, you can choose to hide your personal tasks from your peers.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-tasks-new",
+      popover: {
+        title: "Add a Task",
+        description:
+          "Click here to quickly create a new task. You can assign it to yourself or nudge a teammate.",
+        side: "bottom",
+        align: "end",
+      },
+    },
+  ]);
 
   useEffect(() => {
     if (me !== undefined) {
@@ -91,17 +131,17 @@ function TasksPage() {
     setHideTasks(next);
     setIsUpdatingShare(true);
     try {
-       await api.patch(`/employees/${me.id}`, { hideTasks: next });
-       const idx = getRoster().findIndex(x => x.id === me.id);
-       if (idx >= 0) {
-          getRoster()[idx].hideTasks = next;
-       }
-       toast.success(next ? "Tasks are now hidden from peers" : "Tasks are visible to peers");
+      await api.patch(`/employees/${me.id}`, { hideTasks: next });
+      const idx = getRoster().findIndex((x) => x.id === me.id);
+      if (idx >= 0) {
+        getRoster()[idx].hideTasks = next;
+      }
+      toast.success(next ? "Tasks are now hidden from peers" : "Tasks are visible to peers");
     } catch (e) {
-       setHideTasks(!next);
-       toast.error("Failed to update task visibility");
+      setHideTasks(!next);
+      toast.error("Failed to update task visibility");
     } finally {
-       setIsUpdatingShare(false);
+      setIsUpdatingShare(false);
     }
   };
 
@@ -110,11 +150,11 @@ function TasksPage() {
       if (t.relatedTo === "Admin Check-In") return false;
       if (t.assigneeId === actor.id || t.assignedById === actor.id) return true;
       if (["admin", "hr", "manager"].includes(actor.appRole)) return true;
-      
+
       const e = getRoster().find((x) => x.id === t.assigneeId);
       if (!e) return false;
       if (e.hideTasks === true) return false;
-      
+
       return true;
     });
 
@@ -142,7 +182,7 @@ function TasksPage() {
     return [...list].sort(
       (a, b) => priorityRank(b.priority) - priorityRank(a.priority) || a.dueAt - b.dueAt,
     );
-  }, [tasks, scope, actor.id, actor.team, actor.appRole, priorityFilter, employees]);
+  }, [tasks, scope, actor.id, actor.team, actor.appRole, priorityFilter]);
 
   const counts = useMemo(
     () => ({
@@ -172,6 +212,7 @@ function TasksPage() {
           <p className="text-muted-foreground text-sm mt-1">Move cards. Ship work. Score points.</p>
         </div>
         <button
+          id="tour-tasks-new"
           onClick={() => {
             setActiveCol("todo");
             setDraftOpen(true);
@@ -182,9 +223,9 @@ function TasksPage() {
         </button>
       </header>
 
-      <div className="mb-4 flex items-center gap-2 text-xs flex-wrap">
+      <div id="tour-tasks-filters" className="mb-4 flex items-center gap-2 text-xs flex-wrap">
         <div className="w-[140px]">
-          <Select value={priorityFilter} onValueChange={(val) => setPriorityFilter(val as any)}>
+          <Select value={priorityFilter} onValueChange={(val) => setPriorityFilter(val as TaskPriority | "all")}>
             <SelectTrigger className="h-8 text-xs bg-card">
               <SelectValue placeholder="All priorities" />
             </SelectTrigger>
@@ -212,16 +253,19 @@ function TasksPage() {
           </button>
         ))}
         {actor.appRole === "employee" && (
-          <div className="flex items-center gap-2 ml-4">
-             <Switch checked={hideTasks} onCheckedChange={toggleHideTasks} disabled={isUpdatingShare} />
-             <span className="text-muted-foreground">Hide tasks from peers</span>
+          <div id="tour-tasks-hide-switch" className="flex items-center gap-2 ml-4">
+            <Switch
+              checked={hideTasks}
+              onCheckedChange={toggleHideTasks}
+              disabled={isUpdatingShare}
+            />
+            <span className="text-muted-foreground">Hide tasks from peers</span>
           </div>
         )}
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           {counts.todo} todo · {counts.doing} doing · {counts.blocked} blocked · {counts.done} done
         </span>
       </div>
-
 
       {/* Mobile: column tabs */}
       <div className="md:hidden mb-3 grid grid-cols-4 gap-1 bg-secondary p-1 rounded-md">
@@ -239,7 +283,7 @@ function TasksPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div id="tour-tasks-columns" className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {COLUMNS.map((col) => {
           const colTasks = visible.filter((t) => t.status === col.id);
           const visibleOnMobile = activeCol === col.id;

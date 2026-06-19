@@ -36,7 +36,7 @@ export function DailyQuote() {
   };
 
   return (
-    <section className="rounded-xl border border-orange-100 dark:border-orange-900/30 bg-orange-50/60 dark:bg-orange-950/20 p-4 md:p-5 mb-6 relative overflow-hidden flex flex-col gap-3">
+    <section id="tour-home-quote" className="rounded-xl border border-orange-100 dark:border-orange-900/30 bg-orange-50/60 dark:bg-orange-950/20 p-4 md:p-5 mb-6 relative overflow-hidden flex flex-col gap-3">
       {/* Background Quote Mark */}
       <div className="absolute -top-6 -left-2 text-[120px] leading-none font-serif font-black text-orange-500/10 select-none z-0">
         99

@@ -5,6 +5,7 @@ import { Avatar } from "@/components/Avatar";
 import { useRoster } from "@/hooks/useRoster";
 import { GiveKudoModal } from "@/components/GiveKudoModal";
 import { Heart, Plus } from "lucide-react";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/kudos")({
   component: KudosPage,
@@ -24,6 +25,25 @@ function timeAgo(ts: number) {
 }
 
 function KudosPage() {
+  usePageTour("kudos_tour", [
+    {
+      popover: {
+        title: "Kudos Wall",
+        description: "Welcome to the Recognition Wall. This is where we celebrate our team's wins and core values.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-kudos-new",
+      popover: { title: "Give a Kudo", description: "Catch someone doing something right! Click here to give a teammate public recognition.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-kudos-feed",
+      popover: { title: "The Feed", description: "All recent kudos from across the organization appear here.", side: "top", align: "start" }
+    }
+  ]);
+
   const kudos = useKudos();
   const roster = useRoster();
   const [open, setOpen] = useState(false);
@@ -39,13 +59,14 @@ function KudosPage() {
           <p className="text-muted-foreground text-sm mt-1">Public, specific, generous.</p>
         </div>
         <button
+          id="tour-kudos-new"
           onClick={() => setOpen(true)}
           className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" /> Give kudo
         </button>
       </header>
-      <div className="space-y-3">
+      <div id="tour-kudos-feed" className="space-y-3">
         {kudos.map((k) => {
           const from = roster.find((e) => e.id === k.fromId);
           const to = roster.find((e) => e.id === k.toId);

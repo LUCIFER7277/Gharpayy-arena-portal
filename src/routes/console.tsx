@@ -24,6 +24,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRoleFeature } from "@/hooks/useRoleFeature";
+import { usePageTour } from "@/hooks/usePageTour";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { tierOf, hasConsoleCapability } from "@/lib/permissions";
 import { useAuth } from "@/contexts/AuthContext";
@@ -207,6 +208,41 @@ function ConsolePage() {
   // tick referenced to avoid unused warnings; force re-render every 30s
   void tick;
 
+  usePageTour("console_tour", [
+    {
+      popover: {
+        title: "Operations Command Center",
+        description: "Welcome to the Operator Console. Here you can execute your daily sprints and manage your operations.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-console-header",
+      popover: { title: "Operations Health", description: "Your daily execution metrics, overall health score, and current shield status.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-console-now-strip",
+      popover: { title: "Current Sprint", description: "Track your current sprint progress and next upcoming block to stay on top of your schedule.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-console-comm-windows",
+      popover: { title: "Communication Windows", description: "Send required updates and messages to your team or leaders during the allowed windows.", side: "right", align: "start" }
+    },
+    {
+      element: "#tour-console-decisions",
+      popover: { title: "Decisions Log", description: "Log escalations and decisions quickly without leaving the console.", side: "left", align: "start" }
+    },
+    {
+      element: "#tour-console-team-intel",
+      popover: { title: "Team Intelligence", description: "View AI-driven insights and health metrics about your team's performance.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-console-leadership-actions",
+      popover: { title: "Leadership Actions", description: "Intervene and manage workforce operations directly.", side: "top", align: "start" }
+    }
+  ]);
+
   const hasMyOps = hasConsoleCapability(actor, "access_playbooks");
   const hasTeamIntel = hasConsoleCapability(actor, "view_team_intelligence");
   const hasLeadActions = hasConsoleCapability(actor, "manage_workforce_interventions");
@@ -275,7 +311,7 @@ function ConsolePage() {
       
 
       {hasTeamIntel && (
-        <div className="space-y-4">
+        <div id="tour-console-team-intel" className="space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-2">
             <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
               {hasMyOps && pb ? "02" : "01"} / Team Intelligence
@@ -285,7 +321,7 @@ function ConsolePage() {
         </div>
       )}
       {hasLeadActions && (
-        <div className="space-y-4">
+        <div id="tour-console-leadership-actions" className="space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-2">
             <span className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
               {hasMyOps && pb ? (hasTeamIntel ? "03" : "02") : (hasTeamIntel ? "02" : "01")} / Leadership Actions
@@ -327,16 +363,16 @@ function MyOperationsSection({
 
   return (
     <div className="space-y-6">
-      <Header pb={pb} actorName={actorName} health={health} shield={shield} />
-      <NowStrip actorId={actorId} sprint={sprint} next={next} />
+      <div id="tour-console-header"><Header pb={pb} actorName={actorName} health={health} shield={shield} /></div>
+      <div id="tour-console-now-strip"><NowStrip actorId={actorId} sprint={sprint} next={next} /></div>
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6" id="tour-console-comm-windows">
 
           <CommWindows pb={pb} actorId={actorId} day={day} />
         </div>
         <div className="space-y-6">
           <CollapseRule pb={pb} />
-          <DecisionsLog actorId={actorId} day={day} />
+          <div id="tour-console-decisions"><DecisionsLog actorId={actorId} day={day} /></div>
           {hasConsoleCapability(actor, "submit_eod") && (
             <EodGenerator pb={pb} actorId={actorId} day={day} />
           )}

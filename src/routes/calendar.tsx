@@ -8,6 +8,7 @@ import { CalendarDays, Filter, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useZoneStore } from "@/lib/zones-store";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/calendar")({
   component: CalendarPage,
@@ -31,6 +32,28 @@ function dayBucket(ts: number): string {
 }
 
 function CalendarPage() {
+  usePageTour("calendar_tour", [
+    {
+      popover: {
+        title: "Calendar",
+        description: "Welcome to your unified schedule! All your shifts, leaves, tasks, and company events live here.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-calendar-date-filter",
+      popover: { title: "Date Navigation", description: "Jump to a specific date quickly.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-calendar-filters",
+      popover: { title: "Filter Events", description: "Filter your calendar by event type (shifts, tasks, leaves) or by specific Zones.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-calendar-events",
+      popover: { title: "Your Schedule", description: "Events are neatly categorized by day. Everything you need to know is here.", side: "top", align: "start" }
+    }
+  ]);
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("");
@@ -77,7 +100,7 @@ function CalendarPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div id="tour-calendar-date-filter" className="flex items-center gap-2 shrink-0">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
           <input
             type="date"
@@ -98,7 +121,7 @@ function CalendarPage() {
         </div>
       </header>
 
-      <div className="mb-5 flex flex-col sm:flex-row gap-3">
+      <div id="tour-calendar-filters" className="mb-5 flex flex-col sm:flex-row gap-3">
         <div className="w-[140px]">
           <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as any)}>
             <SelectTrigger className="h-10 text-xs bg-card">
@@ -136,7 +159,7 @@ function CalendarPage() {
         </div>
       </div>
 
-      <div className="space-y-5">
+      <div id="tour-calendar-events" className="space-y-5">
         {groups.size === 0 && (
           <div className="p-8 text-center text-sm text-muted-foreground border border-border rounded-xl bg-card">
             No events found.

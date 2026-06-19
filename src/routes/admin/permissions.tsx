@@ -9,12 +9,32 @@ import { getPermissions, updatePermission, type RolePermission } from "@/api/per
 import { ENABLED_FEATURES, FEATURE_MAP, ROLE_MATRIX } from "@/config/launch-config";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/admin/permissions")({
   component: PermissionsPage,
 });
 
 function PermissionsPage() {
+  usePageTour("permissions_admin_tour", [
+    {
+      popover: {
+        title: "Role Permissions",
+        description: "Welcome to Permissions Management. Define which roles can access which features across the platform.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-permissions-filters",
+      popover: { title: "Filter Categories", description: "Filter the feature list by category (e.g. Daily Operations, Intelligence & Planning).", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-permissions-matrix",
+      popover: { title: "Permission Matrix", description: "Toggle features on or off for specific roles. Changes take effect immediately.", side: "top", align: "start" }
+    }
+  ]);
+
   const { user } = useAuth();
   const [permissions, setPermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +143,7 @@ function PermissionsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="w-[200px]">
+          <div id="tour-permissions-filters" className="w-[200px]">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="h-10 text-xs bg-card">
                 <SelectValue placeholder="All categories" />
@@ -135,7 +155,7 @@ function PermissionsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="overflow-x-auto border border-border rounded-xl bg-card">
+          <div id="tour-permissions-matrix" className="overflow-x-auto border border-border rounded-xl bg-card">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground font-mono uppercase text-[10px] tracking-wider border-b border-border">
               <tr>

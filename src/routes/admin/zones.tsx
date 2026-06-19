@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { store as zoneStore, hydrateZones, createZone, updateZone } from "@/lib/zones-store";
 import type { Zone } from "@/data/zones";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/admin/zones")({
   component: () => (
@@ -27,6 +28,29 @@ export const Route = createFileRoute("/admin/zones")({
 });
 
 function ZonesAdminPage() {
+  usePageTour("zones_admin_tour", [
+    {
+      popover: {
+        title: "Manage Zones",
+        description: "Welcome to Zone Management. From here, Platform Admins can create and edit the geographic operating zones of the company.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-zones-create",
+      popover: { title: "Create a Zone", description: "Click here to define a new operational zone.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-zones-filters",
+      popover: { title: "Find Zones", description: "Filter zones by city or search for a specific zone by name or ID.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-zones-list",
+      popover: { title: "Zones Directory", description: "View all active zones, their assigned Zone Leaders, and edit their details here.", side: "top", align: "start" }
+    }
+  ]);
+
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [zones, setZones] = useState<Zone[]>([]);
@@ -99,6 +123,7 @@ function ZonesAdminPage() {
             Refresh
           </Button>
           <Button
+            id="tour-zones-create"
             size="sm"
             onClick={() => {
               setEditZone(null);
@@ -112,7 +137,7 @@ function ZonesAdminPage() {
       </header>
 
       {/* Filters */}
-      <div className="mb-5 flex flex-col gap-3">
+      <div id="tour-zones-filters" className="mb-5 flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="w-[140px]">
             <Select value={cityFilter} onValueChange={(val) => setCityFilter(val)}>
@@ -142,7 +167,7 @@ function ZonesAdminPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card overflow-x-auto">
+      <div id="tour-zones-list" className="rounded-2xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="border-b border-border text-left text-[11px] font-mono uppercase tracking-wider text-muted-foreground">

@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, startOfWeek, endOfWeek, addDays, subWeeks, addWeeks, isSameDay, isToday, subDays } from "date-fns";
 import { Avatar } from "@/components/Avatar";
 import { Clock, Send, CheckCircle2, AlertCircle, ChevronRight, ChevronLeft, Sparkles, Upload, X, Image as ImageIcon, Filter, Search, SlidersHorizontal, Calendar } from "lucide-react";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/pulse")({
   component: PulsePage,
@@ -61,6 +62,25 @@ function PulsePage() {
   }, [current?.key]);
 
   const [viewImages, setViewImages] = useState<string[] | null>(null);
+
+  usePageTour("pulse_tour", [
+    {
+      element: "#tour-pulse-slots",
+      popover: { title: "Pulse Windows", description: "Your daily pulses are broken into windows. You can only submit a pulse when its window is open.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-pulse-submit",
+      popover: { title: "Submit Pulse", description: "Type your update, fill in your metrics, and add any screenshots to prove your work.", side: "right", align: "start" }
+    },
+    {
+      element: "#tour-pulse-history",
+      popover: { title: "My Day", description: "Review what you've submitted today and see if you were on time or late.", side: "right", align: "start" }
+    },
+    {
+      element: "#tour-pulse-compliance",
+      popover: { title: "Compliance Score", description: "Keep your daily compliance at 100% to maintain a perfect score.", side: "left", align: "start" }
+    }
+  ]);
 
   if (canSeeAll) {
     return <AdminPulseView />;
@@ -104,7 +124,7 @@ function PulsePage() {
         </div>
 
         {/* Today strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-6">
+        <div id="tour-pulse-slots" className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-6">
           {SLOTS.map((s) => {
             const done = mine.done.includes(s.key);
             const isActive = current?.key === s.key;
@@ -147,10 +167,12 @@ function PulsePage() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Submission */}
         <section className="lg:col-span-2">
-          <SubmitCard slot={SLOTS.find((s) => s.key === selected)!} employeeId={actor.id} />
+          <div id="tour-pulse-submit">
+            <SubmitCard slot={SLOTS.find((s) => s.key === selected)!} employeeId={actor.id} />
+          </div>
 
           {/* My day */}
-          <div className="mt-6 rounded-2xl border border-border bg-card">
+          <div id="tour-pulse-history" className="mt-6 rounded-2xl border border-border bg-card">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <div className="font-display font-semibold">
@@ -260,7 +282,9 @@ function PulsePage() {
 
         {/* Right rail */}
         <aside className="space-y-6">
-          <MyComplianceCard mine={mine} />
+          <div id="tour-pulse-compliance">
+            <MyComplianceCard mine={mine} />
+          </div>
           {canSeeAll && <OrgComplianceCard />}
         </aside>
       </div>

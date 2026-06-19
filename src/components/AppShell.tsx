@@ -33,6 +33,7 @@ import {
   Radio,
   LogOut,
   Target,
+  HelpCircle,
 } from "lucide-react";
 import { playbookFor } from "@/lib/playbooks-store";
 import { shieldNow } from "@/lib/console-store";
@@ -45,6 +46,7 @@ import { NotificationDropdown } from "./NotificationDropdown";
 import { CalendarPeek } from "./CalendarPeek";
 import { CommandPalette } from "./CommandPalette";
 import { GiveKudoModal } from "./GiveKudoModal";
+import { OnboardingTour } from "./OnboardingTour";
 import { Avatar } from "./Avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -203,44 +205,44 @@ export function AppShell() {
   const mobileNav = (
     tier === "partner"
       ? [
-        MOBILE_NAV_BASE[0],
-        { to: "/partner", label: "Properties", icon: Building2 },
-        { to: "/partner", label: "Payouts", icon: Wallet },
-        MOBILE_NAV_BASE[3],
-        MOBILE_NAV_BASE[4],
-      ]
-      : tier === "zone_leader"
-        ? [
           MOBILE_NAV_BASE[0],
-          { to: "/fly", label: "Fly", icon: PlaneTakeoff },
-          { to: "/roster", label: "Roster", icon: ClipboardList },
+          { to: "/partner", label: "Properties", icon: Building2 },
+          { to: "/partner", label: "Payouts", icon: Wallet },
           MOBILE_NAV_BASE[3],
           MOBILE_NAV_BASE[4],
         ]
-        : tier === "leadership" || tier === "leader"
-          ? [
+      : tier === "zone_leader"
+        ? [
             MOBILE_NAV_BASE[0],
-            MOBILE_NAV_BASE[1],
-            { to: "/war-room", label: "War", icon: Activity },
+            { to: "/fly", label: "Fly", icon: PlaneTakeoff },
+            { to: "/roster", label: "Roster", icon: ClipboardList },
             MOBILE_NAV_BASE[3],
             MOBILE_NAV_BASE[4],
           ]
-          : tier === "hr"
-            ? [
+        : tier === "leadership" || tier === "leader"
+          ? [
               MOBILE_NAV_BASE[0],
-              { to: "/people", label: "People", icon: Users },
-              { to: "/recruiting", label: "Hiring", icon: UserPlus },
+              MOBILE_NAV_BASE[1],
+              { to: "/war-room", label: "War", icon: Activity },
               MOBILE_NAV_BASE[3],
               MOBILE_NAV_BASE[4],
             ]
-            : tier === "recruiter"
-              ? [
+          : tier === "hr"
+            ? [
                 MOBILE_NAV_BASE[0],
-                { to: "/recruiting", label: "Pipeline", icon: UserPlus },
-                { to: "/one-on-ones", label: "1:1s", icon: MessageSquareText },
+                { to: "/people", label: "People", icon: Users },
+                { to: "/recruiting", label: "Hiring", icon: UserPlus },
                 MOBILE_NAV_BASE[3],
                 MOBILE_NAV_BASE[4],
               ]
+            : tier === "recruiter"
+              ? [
+                  MOBILE_NAV_BASE[0],
+                  { to: "/recruiting", label: "Pipeline", icon: UserPlus },
+                  { to: "/one-on-ones", label: "1:1s", icon: MessageSquareText },
+                  MOBILE_NAV_BASE[3],
+                  MOBILE_NAV_BASE[4],
+                ]
               : MOBILE_NAV_BASE
   ).filter((item) => isFeatureEnabled(item.to));
 
@@ -282,7 +284,10 @@ export function AppShell() {
   // Render main content – if current route is hidden, show ComingSoon
   const showContent = isFeatureEnabled(location.pathname);
   const Sidebar = (
-    <aside className="w-60 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col h-full">
+    <aside
+      id="tour-sidebar"
+      className="w-60 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col h-full"
+    >
       <div className="px-5 py-4 border-b border-sidebar-border flex items-center gap-2">
         <button
           onClick={() => navigate({ to: "/" })}
@@ -315,10 +320,12 @@ export function AppShell() {
             <Link
               key={to}
               to={to}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${active
-                ? "bg-sidebar-hover text-white"
-                : "text-sidebar-foreground hover:bg-sidebar-hover hover:text-white"
-                }`}
+              id={`tour-nav-${to.replace(/\//g, "").replace(/-/g, "") || "home"}`}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                active
+                  ? "bg-sidebar-hover text-white"
+                  : "text-sidebar-foreground hover:bg-sidebar-hover hover:text-white"
+              }`}
             >
               <Icon className="h-4 w-4" />
               <span className="flex-1">{label}</span>
@@ -351,10 +358,15 @@ export function AppShell() {
           <div className="flex items-center gap-3">
             <div className="relative shrink-0">
               <Avatar id={actor.id} size={36} className="ring-2 ring-background/10 shadow-sm" />
-              <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-sidebar ${statusDot}`} title={status} />
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-sidebar ${statusDot}`}
+                title={status}
+              />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-white truncate tracking-tight">{actor.name}</div>
+              <div className="text-sm font-bold text-white truncate tracking-tight">
+                {actor.name}
+              </div>
               <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/90 font-mono truncate mt-0.5">
                 {actor.role}
               </div>
@@ -371,12 +383,12 @@ export function AppShell() {
               <LogOut className="h-3.5 w-3.5" />
             </button>
           </div>
-          
+
           <div className="flex items-center justify-between pt-2.5 border-t border-sidebar-border/30">
             <div className="flex items-center gap-1.5 truncate">
-               <span className="text-[10px] text-sidebar-foreground/70 truncate">
-                  {user?.email || actor.team}
-               </span>
+              <span className="text-[10px] text-sidebar-foreground/70 truncate">
+                {user?.email || actor.team}
+              </span>
             </div>
             <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary font-mono uppercase tracking-widest text-[9px] shrink-0">
               {TIER_LABEL[tier]}
@@ -409,7 +421,9 @@ export function AppShell() {
         {isImpersonating() && (
           <div className="bg-destructive/15 text-destructive border-b border-destructive/20 text-xs px-4 py-2 flex items-center justify-center gap-2">
             <span className="font-semibold">Impersonation Mode Active</span>
-            <span className="text-destructive/80">— you are currently viewing the app as {actor.name}.</span>
+            <span className="text-destructive/80">
+              — you are currently viewing the app as {actor.name}.
+            </span>
             <button
               onClick={() => {
                 revertImpersonation();
@@ -429,6 +443,7 @@ export function AppShell() {
             <Menu className="h-5 w-5" />
           </button>
           <button
+            id="tour-search"
             onClick={() => setPaletteOpen(true)}
             className="flex-1 max-w-md inline-flex items-center gap-2 h-9 px-3 rounded-md bg-secondary/80 border border-border text-sm text-muted-foreground hover:border-primary/40 transition-colors"
           >
@@ -450,6 +465,7 @@ export function AppShell() {
           <div className="ml-auto flex items-center gap-1 relative">
             <div className="relative hidden sm:block">
               <button
+                id="tour-calendar"
                 onClick={() => {
                   setCalOpen((v) => !v);
                   setBellOpen(false);
@@ -463,6 +479,7 @@ export function AppShell() {
             </div>
             <div className="relative">
               <button
+                id="tour-notifications"
                 onClick={() => {
                   setBellOpen((v) => !v);
                   setCalOpen(false);
@@ -488,9 +505,22 @@ export function AppShell() {
                 <Settings className="h-4 w-4" />
               </Link>
             )}
+            <button
+              onClick={() => {
+                if (window.activeTourFn) window.activeTourFn();
+                else window.dispatchEvent(new Event("start-tour"));
+              }}
+              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+              title="Page Guide / Help"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="ml-1 inline-flex items-center gap-2 px-1 sm:px-2 py-1 rounded-md hover:bg-secondary transition-colors text-left focus:outline-none">
+                <button
+                  id="tour-profile"
+                  className="ml-1 inline-flex items-center gap-2 px-1 sm:px-2 py-1 rounded-md hover:bg-secondary transition-colors text-left focus:outline-none"
+                >
                   <Avatar id={actor.id} size={28} />
                   <div className="hidden lg:block">
                     <div className="text-xs font-semibold leading-tight">
@@ -511,6 +541,17 @@ export function AppShell() {
                     </p>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (window.activeTourFn) window.activeTourFn();
+                    else window.dispatchEvent(new Event("start-tour"));
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                  <span>Replay Tour</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {isFeatureEnabled("/score") && (
                   <DropdownMenuItem asChild>
@@ -580,6 +621,7 @@ export function AppShell() {
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <GiveKudoModal open={kudoOpen} onClose={() => setKudoOpen(false)} />
+      <OnboardingTour />
     </div>
   );
 }

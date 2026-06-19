@@ -34,6 +34,7 @@ import { useRosterState } from "@/hooks/useRoster";
 import type { Employee } from "@/types/hr";
 import { Input } from "@/components/ui/input";
 import { Search, Filter, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/roster")({
   head: () => ({
@@ -124,6 +125,25 @@ function RosterPage() {
   }, [selectedDate, isToday]);
 
   const loading = rosterLoading || histLoading;
+
+  usePageTour("roster_tour", [
+    {
+      element: "#tour-roster-metrics",
+      popover: { title: "Roster Metrics", description: "See how many employees are currently clocked in, on break, or in the field at a glance.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-roster-filters",
+      popover: { title: "Filters", description: "Filter the roster by team or current status, and even search for a specific employee.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-roster-datepicker",
+      popover: { title: "Historical Data", description: "Use this date picker to view attendance records from past dates.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-roster-cards",
+      popover: { title: "Employee Cards", description: "View the live status of each employee. Click on a card to view their full profile.", side: "top", align: "start" }
+    }
+  ]);
 
   // ---------------------------------------------------------------------------
   // Build rows
@@ -240,7 +260,7 @@ function RosterPage() {
           </div>
 
           {/* Date picker */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div id="tour-roster-datepicker" className="flex items-center gap-2 shrink-0">
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
             <input
               type="date"
@@ -262,7 +282,7 @@ function RosterPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-3 items-center border-t border-border pt-5">
+        <div id="tour-roster-filters" className="flex flex-col md:flex-row gap-3 items-center border-t border-border pt-5">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -327,7 +347,7 @@ function RosterPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div id="tour-roster-metrics" className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Tile 
               label="Clocked In" 
               value={counts["Clocked In"]} 
@@ -364,7 +384,7 @@ function RosterPage() {
             </div>
           )}
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div id="tour-roster-cards" className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
             {rows.map((row) => (
               <RosterCard 
                 key={row.empId} 

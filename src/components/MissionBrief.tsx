@@ -48,7 +48,7 @@ export function MissionBrief({ actor }: { actor: Employee }) {
   }, [actor]);
 
   return (
-    <section className="rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 p-4 md:p-5 mb-6">
+    <section id="tour-home-mission" className="rounded-xl border border-border bg-gradient-to-br from-card to-muted/30 p-4 md:p-5 mb-6">
       <header className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />

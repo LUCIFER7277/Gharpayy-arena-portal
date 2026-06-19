@@ -62,6 +62,7 @@ import {
 import { store as zoneStore } from "@/lib/zones-store";
 import type { AppRole, Role } from "@/types/hr";
 import { ApiError } from "@/lib/api-client";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/admin/workforce")({
   component: () => (
@@ -165,6 +166,21 @@ function WorkforcePage() {
     });
   }, [rows, q, filterStatus]);
 
+  usePageTour("workforce_tour", [
+    {
+      element: "#tour-workforce-filters",
+      popover: { title: "Filters & Search", description: "Quickly find any employee or filter by their account status.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-workforce-invite",
+      popover: { title: "Invite Employee", description: "Bring new members onto the platform.", side: "left", align: "start" }
+    },
+    {
+      element: "#tour-workforce-table",
+      popover: { title: "Workforce Table", description: "View and manage roles, teams, and access levels for everyone. Click the three dots on the right to edit an employee.", side: "top" }
+    }
+  ]);
+
   const afterMutation = async () => {
     await load();
     await refreshOrgData();
@@ -212,7 +228,7 @@ function WorkforcePage() {
             <RefreshCw className="h-4 w-4 mr-1.5" />
             Refresh
           </Button>
-          <Button size="sm" onClick={() => setInviteOpen(true)}>
+          <Button id="tour-workforce-invite" size="sm" onClick={() => setInviteOpen(true)}>
             <UserPlus className="h-4 w-4 mr-1.5" />
             Invite employee
           </Button>
@@ -251,7 +267,7 @@ function WorkforcePage() {
         />
       </section>
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden mb-4">
+      <div id="tour-workforce-filters" className="rounded-2xl border border-border bg-card overflow-hidden mb-4">
         <div className="p-3 md:p-4 flex flex-col md:flex-row gap-3 border-b border-border">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -277,7 +293,7 @@ function WorkforcePage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card overflow-x-auto">
+      <div id="tour-workforce-table" className="rounded-2xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm min-w-[960px]">
           <thead>
             <tr className="border-b border-border text-left text-[11px] font-mono uppercase tracking-wider text-muted-foreground">

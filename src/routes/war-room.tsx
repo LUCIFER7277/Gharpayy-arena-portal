@@ -6,6 +6,7 @@ import { useRosterState } from "@/hooks/useRoster";
 import { Loader2 } from "lucide-react";
 import { ArrowDown, ArrowUp, Flame, Target, IndianRupee, Phone, AlertTriangle } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/war-room")({
   component: () => (
@@ -76,6 +77,25 @@ function WarRoom() {
     );
   }
 
+  usePageTour("war_room_tour", [
+    {
+      element: "#tour-warroom-stats",
+      popover: { title: "Executive Snapshot", description: "High-level metrics for today, including revenue, active leads, and team composition.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-warroom-performers",
+      popover: { title: "Top & Bottom Performers", description: "Quickly identify who is crushing it and who might need a performance review.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-warroom-leaderboard",
+      popover: { title: "Live Leaderboard", description: "Detailed ranking of the entire workforce based on attendance, task completion, and role-specific KPIs.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-warroom-myscore",
+      popover: { title: "Personal Score", description: "Click here to view your own personal scorecard and performance breakdown.", side: "left", align: "start" }
+    }
+  ]);
+
   return (
     <div className="px-4 md:px-8 py-6 md:py-8 max-w-[1400px] mx-auto">
       <header className="mb-6">
@@ -88,7 +108,7 @@ function WarRoom() {
         <p className="text-muted-foreground text-sm mt-1">No hiding. No confusion.</p>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+      <section id="tour-warroom-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         <StatCard
           label="Revenue"
           value={inr(s.totalRevenue)}
@@ -112,7 +132,7 @@ function WarRoom() {
         />
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
+      <section id="tour-warroom-performers" className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
         <div className="rounded-xl bg-card border border-border p-4 md:p-5">
           <div className="flex items-center gap-2 text-success mb-2">
             <ArrowUp className="h-4 w-4" />
@@ -135,10 +155,10 @@ function WarRoom() {
         </div>
       </section>
 
-      <section className="rounded-xl bg-card border border-border overflow-hidden">
+      <section id="tour-warroom-leaderboard" className="rounded-xl bg-card border border-border overflow-hidden">
         <div className="px-4 md:px-5 py-3 md:py-4 border-b border-border flex items-center justify-between">
           <h2 className="font-display text-base md:text-lg font-semibold">Live Leaderboard</h2>
-          <Link to="/score" className="text-xs text-primary hover:underline">
+          <Link id="tour-warroom-myscore" to="/score" className="text-xs text-primary hover:underline">
             My score →
           </Link>
         </div>
