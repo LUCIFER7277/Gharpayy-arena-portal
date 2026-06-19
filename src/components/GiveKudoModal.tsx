@@ -23,7 +23,7 @@ export function GiveKudoModal({ open, onClose, toId }: Props) {
 
   if (!open) return null;
 
-  const others = roster.filter((e) => e.id !== actor.id);
+  const others = roster.filter((e) => e.id !== actor.id && e.name !== "Admin");
   const canSend = recipient && msg.trim().length >= 5;
 
   function send() {

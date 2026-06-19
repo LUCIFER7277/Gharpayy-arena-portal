@@ -87,6 +87,9 @@ export function crudRouter(
             case "Notification":
               isOwner = item.toId === empId || item.fromId === empId;
               break;
+            case "Kudo":
+              isOwner = item.fromId === empId;
+              break;
             case "OneOnOne":
               isOwner = item.managerId === empId;
               break;
@@ -196,19 +199,9 @@ export function crudRouter(
               filter.reportId = empId;
             }
           } else if (modelName === "Employee") {
-            // Standard employee sees themselves, members of hierarchy, AND all HR/Admin staff
-            if (isManager(req.user)) {
-              filter.$or = [
-                { id: empId },
-                { id: { $in: Array.from(reportIds) } },
-                { role: { $in: ["Admin", "HR"] } }
-              ];
-            } else {
-              filter.$or = [
-                { id: empId },
-                { role: { $in: ["Admin", "HR"] } }
-              ];
-            }
+            // Everyone can see the full employee directory for Kudos, Chat, and Tasks
+            // No filter applied
+
           } else if (["Leave", "Attendance", "AttendanceEvent", "PulseEntry"].includes(modelName)) {
             // Restrict views to self or reporting tree for managers
             if (isManager(req.user)) {

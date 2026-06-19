@@ -9,8 +9,28 @@ const store = createApiListStore<AppNotif>({
   seed: [],
 });
 
-export function hydrateNotifications() {
-  return store.hydrateFromApi();
+import { toast } from "sonner";
+
+export async function hydrateNotifications() {
+  const oldIds = new Set(store.getServerSnapshot().map(n => n.id)); // Before hydrate
+  if (typeof window !== "undefined") {
+    store.read().forEach(n => oldIds.add(n.id));
+  }
+  
+  const didUpdate = await store.hydrateFromApi();
+  if (didUpdate && typeof window !== "undefined") {
+    const newItems = store.read().filter(n => !oldIds.has(n.id) && !n.read);
+    for (const notif of newItems) {
+      toast(notif.title, {
+        description: notif.body,
+        action: notif.actionTo ? {
+          label: notif.actionLabel || "View",
+          onClick: () => window.location.href = notif.actionTo!
+        } : undefined
+      });
+    }
+  }
+  return didUpdate;
 }
 
 export function useNotifications(toId?: string): AppNotif[] {

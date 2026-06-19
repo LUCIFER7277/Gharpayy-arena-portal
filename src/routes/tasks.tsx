@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   useTasks,
@@ -44,6 +44,7 @@ export const Route = createFileRoute("/tasks")({
 const COLUMNS: { id: TaskStatus; title: string; tone: string }[] = [
   { id: "todo", title: "To do", tone: "border-muted-foreground/30" },
   { id: "doing", title: "Doing", tone: "border-info/40" },
+  { id: "blocked", title: "Blocked", tone: "border-destructive/40" },
   { id: "done", title: "Done", tone: "border-success/40" },
 ];
 
@@ -66,7 +67,7 @@ function timeUntil(ts: number) {
 }
 
 function TasksPage() {
-  const { actor } = useAttendanceState();
+  const { actor, employees } = useAttendanceState();
   const tasks = useTasks();
   const [scope, setScope] = useState<"mine" | "team" | "all">("mine");
   const [draftOpen, setDraftOpen] = useState(false);
@@ -75,8 +76,14 @@ function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
   const [isUpdatingShare, setIsUpdatingShare] = useState(false);
 
-  const me = useMemo(() => getRoster().find((e) => e.id === actor.id), [actor.id]);
+  const me = getRoster().find((e) => e.id === actor.id) ?? actor as any;
   const [hideTasks, setHideTasks] = useState(me?.hideTasks ?? false);
+
+  useEffect(() => {
+    if (me !== undefined) {
+      setHideTasks(me?.hideTasks ?? false);
+    }
+  }, [me?.hideTasks]);
 
   const toggleHideTasks = async () => {
     if (!me || isUpdatingShare) return;
@@ -105,7 +112,7 @@ function TasksPage() {
       if (["admin", "hr", "manager"].includes(actor.appRole)) return true;
       
       const e = getRoster().find((x) => x.id === t.assigneeId);
-      if (!e) return true;
+      if (!e) return false;
       if (e.hideTasks === true) return false;
       
       return true;
@@ -120,6 +127,13 @@ function TasksPage() {
         const e = getRoster().find((x) => x.id === t.assigneeId);
         return e && (e.team === actor.team || e.managerId === actor.id);
       });
+    } else if (scope === "all") {
+      if (!["admin", "hr", "manager"].includes(actor.appRole)) {
+        list = list.filter((t) => {
+          const e = getRoster().find((x) => x.id === t.assigneeId);
+          return !(e && e.hideTasks);
+        });
+      }
     }
 
     if (priorityFilter !== "all") {
@@ -128,12 +142,13 @@ function TasksPage() {
     return [...list].sort(
       (a, b) => priorityRank(b.priority) - priorityRank(a.priority) || a.dueAt - b.dueAt,
     );
-  }, [tasks, scope, actor.id, actor.team, actor.appRole, priorityFilter]);
+  }, [tasks, scope, actor.id, actor.team, actor.appRole, priorityFilter, employees]);
 
   const counts = useMemo(
     () => ({
       todo: visible.filter((t) => t.status === "todo").length,
       doing: visible.filter((t) => t.status === "doing").length,
+      blocked: visible.filter((t) => t.status === "blocked").length,
       done: visible.filter((t) => t.status === "done").length,
     }),
     [visible],
@@ -203,13 +218,13 @@ function TasksPage() {
           </div>
         )}
         <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          {counts.todo} todo · {counts.doing} doing · {counts.done} done
+          {counts.todo} todo · {counts.doing} doing · {counts.blocked} blocked · {counts.done} done
         </span>
       </div>
 
 
       {/* Mobile: column tabs */}
-      <div className="md:hidden mb-3 grid grid-cols-3 gap-1 bg-secondary p-1 rounded-md">
+      <div className="md:hidden mb-3 grid grid-cols-4 gap-1 bg-secondary p-1 rounded-md">
         {COLUMNS.map((c) => (
           <button
             key={c.id}
@@ -218,13 +233,13 @@ function TasksPage() {
           >
             {c.title}{" "}
             <span className="font-mono text-[10px] text-muted-foreground">
-              ({counts[c.id as "todo" | "doing" | "done"]})
+              ({counts[c.id as "todo" | "doing" | "blocked" | "done"]})
             </span>
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {COLUMNS.map((col) => {
           const colTasks = visible.filter((t) => t.status === col.id);
           const visibleOnMobile = activeCol === col.id;
@@ -237,6 +252,7 @@ function TasksPage() {
                 <div className="flex items-center gap-2">
                   {col.id === "todo" && <Circle className="h-4 w-4 text-muted-foreground" />}
                   {col.id === "doing" && <Loader2 className="h-4 w-4 text-info" />}
+                  {col.id === "blocked" && <AlertTriangle className="h-4 w-4 text-destructive" />}
                   {col.id === "done" && <CheckCircle2 className="h-4 w-4 text-success" />}
                   <h2 className="font-display font-semibold text-sm">{col.title}</h2>
                   <span className="font-mono text-[10px] text-muted-foreground">

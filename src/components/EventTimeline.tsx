@@ -74,7 +74,7 @@ export function EventTimeline({ events }: { events: AttEvent[] }) {
                   </span>
                 </div>
               )}
-              {e.lat !== null && e.lng !== null && (
+              {typeof e.lat === 'number' && typeof e.lng === 'number' && (
                 <div className="mt-1 text-[10px] text-muted-foreground/80 font-mono">
                   {e.lat.toFixed(5)}, {e.lng.toFixed(5)}
                   {e.accuracy ? ` · ±${Math.round(e.accuracy)}m` : ""}

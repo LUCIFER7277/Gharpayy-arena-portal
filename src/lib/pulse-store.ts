@@ -66,6 +66,7 @@ export interface PulseEntry {
   mediaUrls?: string[]; // Array of Proof of work base64 images
   submittedAt: number;
   onTime: boolean;
+  isPending?: boolean;
 }
 
 const store = createApiListStore<PulseEntry>({

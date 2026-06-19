@@ -90,9 +90,14 @@ export async function syncArenaData(user?: ApiUser | null): Promise<SyncArenaRes
   if (!pollInterval && typeof window !== "undefined") {
     pollInterval = setInterval(() => {
       if (apiEnabled && getToken()) {
+        const currentUser = getCachedUser();
+        if (currentUser) {
+          fetchEmployeeRoster(currentUser).catch(console.warn);
+        }
         hydrateTasks();
         hydrateNotifications();
         hydrateMessages();
+        hydrateKudos();
       }
     }, 5000); // 5 seconds polling for real-time updates
   }

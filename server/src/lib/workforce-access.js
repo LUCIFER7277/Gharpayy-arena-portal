@@ -142,6 +142,13 @@ export function mergeEmployeeProfile(emp, patch) {
     emp.name = patch.name;
     next.name = patch.name;
   }
+  if (patch.birthday !== undefined) {
+    emp.birthday = patch.birthday;
+    next.birthday = patch.birthday;
+  }
+  if (patch.avatarSeed !== undefined) {
+    next.avatarSeed = patch.avatarSeed;
+  }
 
   emp.profile = next;
   emp.markModified("profile");

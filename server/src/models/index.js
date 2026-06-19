@@ -7,7 +7,8 @@ const UserSchema = new Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
-    employeeId: { type: String, index: true }, // links to Employee.id
+    employeeId: { type: String, index: true }, // links to Employee.id for employees
+    manageId: { type: String, index: true }, // links to Employee.id for managers
     role: {
       type: String,
       enum: ["admin", "hr", "manager", "employee"],

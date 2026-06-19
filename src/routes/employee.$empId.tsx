@@ -1,11 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ArrowLeft, DownloadIcon } from "lucide-react";
-import { employeeById, employeeName } from "@/lib/roster";
-import { type RosterEvent, summaryFromEvents, fmtDuration } from "@/lib/attendance-store";
-import { tasksFor } from "@/lib/task-store";
-import { AppTask } from "@/types/hr";
+import { employeeById, employeeName, getRoster } from "@/lib/roster";
+import { type RosterEvent, summaryFromEvents } from "@/lib/attendance-store";
+import { useTasks, hydrateTasks, totalSpentMs, formatDuration } from "@/lib/task-store";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/employee/$empId")({
@@ -13,33 +12,30 @@ export const Route = createFileRoute("/employee/$empId")({
 });
 
 function CircularProgress({ percentage, color, label }: { percentage: number; color: string; label: string }) {
-  const radius = 32;
+  const radius = 24;
   const circumference = 2 * Math.PI * radius;
-  // Make sure percentage is between 0 and 100
   const validPct = Math.max(0, Math.min(100, percentage || 0));
   const strokeDashoffset = circumference - (validPct / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="relative w-20 h-20 mb-3">
-        {/* Background Circle */}
+      <div className="relative w-14 h-14 mb-2">
         <svg className="w-full h-full transform -rotate-90">
           <circle
-            cx="40"
-            cy="40"
+            cx="28"
+            cy="28"
             r={radius}
             stroke="currentColor"
-            strokeWidth="6"
+            strokeWidth="4"
             fill="transparent"
             className="text-gray-100"
           />
-          {/* Progress Circle */}
           <circle
-            cx="40"
-            cy="40"
+            cx="28"
+            cy="28"
             r={radius}
             stroke={color}
-            strokeWidth="6"
+            strokeWidth="4"
             fill="transparent"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -47,10 +43,10 @@ function CircularProgress({ percentage, color, label }: { percentage: number; co
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[16px] font-bold text-gray-900">{validPct}%</span>
+          <span className="text-[12px] font-bold text-gray-900">{validPct}%</span>
         </div>
       </div>
-      <span className="text-[13px] text-gray-500 font-medium whitespace-nowrap">{label}</span>
+      <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{label}</span>
     </div>
   );
 }
@@ -60,8 +56,19 @@ function EmployeeProfilePage() {
   const navigate = useNavigate();
 
   const [attEvents, setAttEvents] = useState<RosterEvent[]>([]);
-  const [tasks, setTasks] = useState<AppTask[]>([]);
   const [attFilter, setAttFilter] = useState<"All Status" | "On Time" | "Late" | "Early" | "Absent">("All Status");
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    role: "",
+    team: "",
+    zone: "",
+    managerId: "",
+    birthday: "",
+    avatarSeed: "",
+  });
 
   // Basic date range states (defaults to last 30 days)
   const [attStartDate, setAttStartDate] = useState(() => {
@@ -76,32 +83,43 @@ function EmployeeProfilePage() {
   const [appliedEndDate, setAppliedEndDate] = useState(attEndDate);
   const [appliedFilter, setAppliedFilter] = useState(attFilter);
 
+  // Task filters
+  const [taskFilter, setTaskFilter] = useState<"All Status" | "Completed" | "Pending" | "In Progress" | "Late" | "Early/On Time">("All Status");
+  const [taskStartDate, setTaskStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
+  const [taskEndDate, setTaskEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+
+  const [appliedTaskStartDate, setAppliedTaskStartDate] = useState(taskStartDate);
+  const [appliedTaskEndDate, setAppliedTaskEndDate] = useState(taskEndDate);
+  const [appliedTaskFilter, setAppliedTaskFilter] = useState(taskFilter);
+
   useEffect(() => {
     if (!empId) return;
 
-    // Load tasks from store (reactive to live updates)
-    const allTasks = tasksFor(empId);
-    setTasks(allTasks);
-
-    // Fetch all historical attendance for this employee
-    async function loadAttendance() {
+    async function loadData() {
       try {
         const { api } = await import("@/lib/api-client");
         const res = await api.get<{ items: RosterEvent[] }>(`/attendance-events?employeeId=${empId}`);
         setAttEvents(res.items || []);
+        await hydrateTasks();
       } catch (err) {
-        console.warn("Failed to load attendance", err);
+        console.warn("Failed to load data", err);
       }
     }
-    loadAttendance();
+    loadData();
   }, [empId]);
+
+  const allTasks = useTasks();
 
   if (!empId) return null;
 
   const emp = employeeById(empId);
   if (!emp) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-6 text-center text-gray-500">
         Employee not found.
         <Button variant="link" onClick={() => navigate({ to: "/roster" })}>Go back to roster</Button>
       </div>
@@ -131,6 +149,34 @@ function EmployeeProfilePage() {
     setAppliedFilter(attFilter);
   };
 
+  const handleTaskApply = () => {
+    setAppliedTaskStartDate(taskStartDate);
+    setAppliedTaskEndDate(taskEndDate);
+    setAppliedTaskFilter(taskFilter);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setIsSaving(true);
+      const { api } = await import("@/lib/api-client");
+      await api.patch(`/admin/workforce/employees/${empId}`, {
+        name: editForm.name,
+        operationalRole: editForm.role,
+        team: editForm.team,
+        zone: editForm.zone,
+        managerId: editForm.managerId || null,
+        birthday: editForm.birthday,
+        avatarSeed: editForm.avatarSeed,
+      });
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save profile. Are you an admin?");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Process Attendance Data into daily rows
   const groupedByDate = new Map<string, RosterEvent[]>();
   for (const ev of attEvents) {
@@ -146,7 +192,7 @@ function EmployeeProfilePage() {
   let lateDays = 0;
   let onTimeDays = 0;
   let earlyDays = 0;
-  let totalBreakViolations = 0;
+  let absentDays = 0;
 
   for (const [dateStr, dayEvents] of Array.from(groupedByDate.entries())) {
     if (dateStr < appliedStartDate || dateStr > appliedEndDate) continue;
@@ -177,9 +223,7 @@ function EmployeeProfilePage() {
     if (statusLabel === "Late") lateDays++;
     else if (statusLabel === "On Time") onTimeDays++;
     else if (statusLabel === "Early") earlyDays++;
-
-    // Mock break violation logic (e.g., if break > 60 mins)
-    if (summary.breakMs > 60 * 60000) totalBreakViolations++;
+    else if (statusLabel === "Absent") absentDays++;
 
     if (appliedFilter !== "All Status" && statusLabel !== appliedFilter) continue;
 
@@ -193,26 +237,53 @@ function EmployeeProfilePage() {
     });
   }
 
-  // Calculate Percentages for the circular rings
-  const latePct = totalValidDays > 0 ? Math.round((lateDays / totalValidDays) * 100) : 0;
-  const onTimePct = totalValidDays > 0 ? Math.round((onTimeDays / totalValidDays) * 100) : 0;
-  
-  // Overall attendance could be (totalValidDays / daysInPeriod) but here we use (onTime + late + early) / totalValidDays just as a mock
-  // Or we just use a mock value matching screenshot if we don't have accurate expected work days
-  const attendancePct = Math.round(emp.attendance || 85); 
-
-  // Task completion %
-  const tasksInPeriod = tasks.filter(t => {
-    const d = new Date(t.createdAt).toISOString().split("T")[0];
-    return d >= appliedStartDate && d <= appliedEndDate;
-  });
-  const completedTasks = tasksInPeriod.filter(t => t.status === "done").length;
-  const taskCompletionPct = tasksInPeriod.length > 0 ? Math.round((completedTasks / tasksInPeriod.length) * 100) : 0;
-
-  // Break discipline (mock based on violations)
-  const breakDisciplinePct = totalValidDays > 0 ? Math.max(0, 100 - Math.round((totalBreakViolations / totalValidDays) * 100)) : 100;
-
   dailySummaries.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+
+  // Calculate Tasks Stats
+  const rawEmpTasks = allTasks.filter(t => t.assigneeId === empId && t.relatedTo !== "Admin Check-In");
+  
+  const empTasks = rawEmpTasks.filter(task => {
+    const taskDate = new Date(task.createdAt).toISOString().split("T")[0];
+    if (taskDate < appliedTaskStartDate || taskDate > appliedTaskEndDate) return false;
+
+    const isLate = task.status === "done" && !!task.completedAt && !!task.dueAt && task.completedAt > task.dueAt;
+    const isDone = task.status === "done";
+    
+    let statusBadge = "Pending";
+    if (isDone) {
+      if (isLate) {
+        statusBadge = "Late";
+      } else {
+        statusBadge = "Early/On Time";
+      }
+    } else if (task.status === "doing") {
+      statusBadge = "In Progress";
+    }
+
+    if (appliedTaskFilter !== "All Status" && appliedTaskFilter !== "Completed" && statusBadge !== appliedTaskFilter) return false;
+    if (appliedTaskFilter === "Completed" && !isDone) return false;
+    
+    return true;
+  });
+
+  const totalTasksCount = empTasks.length;
+  let tasksCompletedCount = 0;
+  let tasksPendingCount = 0;
+  let tasksEarlyCount = 0;
+  let tasksLateCount = 0;
+
+  for (const t of empTasks) {
+    if (t.status === "done") {
+      tasksCompletedCount++;
+      if (t.completedAt && t.dueAt && t.completedAt > t.dueAt) {
+        tasksLateCount++;
+      } else {
+        tasksEarlyCount++;
+      }
+    } else {
+      tasksPendingCount++;
+    }
+  }
 
   const formatHm = (ms: number, isMinutesOnly = false) => {
     if (!ms || ms < 0) return "0m";
@@ -228,74 +299,204 @@ function EmployeeProfilePage() {
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col w-full">
       
       {/* Top Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Link to="/roster" className="text-gray-500 hover:text-gray-900 transition-colors p-2 -ml-2 rounded-full hover:bg-gray-100">
-            <ArrowLeft className="w-5 h-5" />
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <Link to="/roster" className="text-gray-500 hover:text-gray-900 transition-colors p-1.5 -ml-1.5 rounded-full hover:bg-gray-100">
+            <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="text-[20px] font-bold text-gray-900">Employee Profile</h1>
+          <h1 className="text-[16px] font-bold text-gray-900">Employee Profile</h1>
         </div>
       </div>
 
-      <div className="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+      <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full">
         {/* Profile Card */}
-        <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 mb-6">
-          <div className="flex items-center gap-6">
-            <div className="h-[96px] w-[96px] bg-[#FFCD29] rounded-[24px] flex items-center justify-center shrink-0">
-              <span className="font-bold text-[12px] tracking-widest bg-white px-2.5 py-0.5 rounded text-black border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                GHARPAYY
-              </span>
-            </div>
-            <div>
-              <h2 className="text-[32px] font-bold text-gray-900 leading-tight">{emp.name}</h2>
-              <div className="text-[16px] text-gray-500 mt-1">{emailStr}</div>
-              <div className="text-[15px] text-gray-400 mt-1">{emp.role}</div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 relative">
+          {!isEditingProfile && (
+            <button
+              onClick={() => {
+                setEditForm({
+                  name: emp.name,
+                  role: emp.role,
+                  team: emp.team || "",
+                  zone: emp.zone || "",
+                  managerId: emp.managerId || "",
+                  birthday: emp.birthday || emp.birthdayMMDD || "",
+                  avatarSeed: emp.profile?.avatarSeed || emp.name,
+                });
+                setIsEditingProfile(true);
+              }}
+              className="absolute top-5 right-5 text-[12px] font-medium text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Edit Profile
+            </button>
+          )}
+
+          <div className="flex items-center gap-4">
+            {isEditingProfile ? (
+              <div className="h-14 w-14 rounded-xl overflow-hidden shrink-0 border border-gray-200">
+                <img src={`https://api.dicebear.com/9.x/notionists/svg?seed=${editForm.avatarSeed || 'placeholder'}`} alt="Avatar" className="w-full h-full object-cover bg-gray-50" />
+              </div>
+            ) : (
+              <div className="h-14 w-14 rounded-xl overflow-hidden shrink-0 border border-gray-200">
+                {emp.profile?.avatarSeed || emp.name ? (
+                  <img src={`https://api.dicebear.com/9.x/notionists/svg?seed=${emp.profile?.avatarSeed || emp.name}`} alt="Avatar" className="w-full h-full object-cover bg-gray-50" />
+                ) : (
+                  <div className="w-full h-full bg-[#FFCD29] flex items-center justify-center">
+                    <span className="font-bold text-[8px] tracking-widest bg-white px-1.5 py-0.5 rounded text-black border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+                      GHARPAYY
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="flex-1">
+              {isEditingProfile ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="text" 
+                      value={editForm.name} 
+                      onChange={e => setEditForm(prev => ({...prev, name: e.target.value}))}
+                      className="border border-gray-300 rounded px-2 py-1 text-[16px] font-bold text-gray-900 w-1/3 focus:outline-none focus:border-blue-500"
+                      placeholder="Name"
+                    />
+                    <input 
+                      type="text" 
+                      value={editForm.avatarSeed} 
+                      onChange={e => setEditForm(prev => ({...prev, avatarSeed: e.target.value}))}
+                      className="border border-gray-300 rounded px-2 py-1 text-[13px] text-gray-700 w-1/3 focus:outline-none focus:border-blue-500"
+                      placeholder="Avatar Seed (e.g. John)"
+                    />
+                  </div>
+                  <div className="text-[13px] text-gray-500">{emailStr} <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded ml-1">Non-editable</span></div>
+                  <input 
+                    type="text" 
+                    value={editForm.role} 
+                    onChange={e => setEditForm(prev => ({...prev, role: e.target.value}))}
+                    className="border border-gray-300 rounded px-2 py-1 text-[12px] text-gray-700 w-1/3 focus:outline-none focus:border-blue-500"
+                    placeholder="Role (e.g. Operator)"
+                  />
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-[20px] font-bold text-gray-900 leading-tight">{emp.name}</h2>
+                  <div className="text-[13px] text-gray-500 mt-0.5">{emailStr}</div>
+                  <div className="text-[12px] text-gray-400 mt-0.5">{emp.role}</div>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-5 gap-8 mt-10 border-t border-gray-100 pt-8">
+          <div className="grid grid-cols-5 gap-6 mt-5 border-t border-gray-100 pt-5">
             <div>
-              <div className="text-[13px] text-gray-400 mb-1.5 uppercase tracking-wide">Team</div>
-              <div className="text-[16px] font-medium text-gray-800">{emp.team || "Not provided"}</div>
+              <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Team</div>
+              {isEditingProfile ? (
+                <input 
+                  type="text" 
+                  value={editForm.team} 
+                  onChange={e => setEditForm(prev => ({...prev, team: e.target.value}))}
+                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                  placeholder="Team"
+                />
+              ) : (
+                <div className="text-[13px] font-medium text-gray-800">{emp.team || "Not provided"}</div>
+              )}
             </div>
             <div>
-              <div className="text-[13px] text-gray-400 mb-1.5 uppercase tracking-wide">Office Zone</div>
-              <div className="text-[16px] font-medium text-gray-800">{emp.zone || "Not provided"}</div>
+              <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Office Zone</div>
+              {isEditingProfile ? (
+                <input 
+                  type="text" 
+                  value={editForm.zone} 
+                  onChange={e => setEditForm(prev => ({...prev, zone: e.target.value}))}
+                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                  placeholder="Zone"
+                />
+              ) : (
+                <div className="text-[13px] font-medium text-gray-800">{emp.zone || "Not provided"}</div>
+              )}
             </div>
             <div>
-              <div className="text-[13px] text-gray-400 mb-1.5 uppercase tracking-wide">Reporting Manager</div>
-              <div className="text-[16px] font-medium text-gray-800">{managerStr}</div>
+              <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Reporting Manager</div>
+              {isEditingProfile ? (
+                <select 
+                  value={editForm.managerId} 
+                  onChange={e => setEditForm(prev => ({...prev, managerId: e.target.value}))}
+                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">None</option>
+                  {getRoster().filter(r => r.id !== emp.id).map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-[13px] font-medium text-gray-800">{managerStr}</div>
+              )}
             </div>
             <div>
-              <div className="text-[13px] text-gray-400 mb-1.5 uppercase tracking-wide">Date of Birth</div>
-              <div className="text-[16px] font-medium text-gray-800">{dobStr}</div>
+              <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Date of Birth</div>
+              {isEditingProfile ? (
+                <input 
+                  type="text" 
+                  value={editForm.birthday} 
+                  onChange={e => setEditForm(prev => ({...prev, birthday: e.target.value}))}
+                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                  placeholder="DD MMM (e.g. 15 Aug)"
+                />
+              ) : (
+                <div className="text-[13px] font-medium text-gray-800">{dobStr}</div>
+              )}
             </div>
             <div>
-              <div className="text-[13px] text-gray-400 mb-1.5 uppercase tracking-wide">Joining Date</div>
-              <div className="text-[16px] font-medium text-gray-800">{joinStr}</div>
+              <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Joining Date</div>
+              <div className="text-[13px] font-medium text-gray-800">{joinStr}</div>
             </div>
           </div>
+          
+          {isEditingProfile && (
+            <div className="mt-5 flex justify-end gap-2 border-t border-gray-100 pt-4">
+              <button
+                onClick={() => setIsEditingProfile(false)}
+                className="px-4 py-1.5 text-[13px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                className="px-4 py-1.5 text-[13px] font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Circular Progress Accuracy Card */}
-        <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 mb-6">
+        <div className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[15px] font-bold text-gray-900">Attendance Overview</h3>
+            <span className="text-[12px] text-gray-400 font-medium">{totalValidDays} day{totalValidDays !== 1 ? "s" : ""}</span>
+          </div>
           <div className="flex items-center justify-around">
-            <CircularProgress percentage={attendancePct} color="#10B981" label="Attendance" />
-            <CircularProgress percentage={taskCompletionPct} color="#8B5CF6" label="Task Completion" />
-            <CircularProgress percentage={onTimePct} color="#F59E0B" label="On Time Rate" />
-            <CircularProgress percentage={breakDisciplinePct} color="#EF4444" label="Break Discipline" />
+            <CircularProgress percentage={totalValidDays > 0 ? Math.round((onTimeDays / totalValidDays) * 100) : 0} color="#10B981" label="On Time" />
+            <CircularProgress percentage={totalValidDays > 0 ? Math.round((lateDays / totalValidDays) * 100) : 0} color="#F59E0B" label="Late" />
+            <CircularProgress percentage={totalValidDays > 0 ? Math.round((earlyDays / totalValidDays) * 100) : 0} color="#3B82F6" label="Early" />
+            <CircularProgress percentage={totalValidDays > 0 ? Math.round((absentDays / totalValidDays) * 100) : 0} color="#EF4444" label="Absent" />
           </div>
         </div>
 
         {/* Attendance History Card */}
-        <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-            <h3 className="text-[20px] font-bold text-gray-900">Attendance History</h3>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <h3 className="text-[15px] font-bold text-gray-900">Attendance History</h3>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div className="relative">
                 <select 
-                  className="appearance-none border border-gray-200 rounded-[12px] pl-4 pr-10 py-2.5 text-[14px] bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                  className="appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                   value={attFilter}
                   onChange={(e) => setAttFilter(e.target.value as any)}
                 >
@@ -305,33 +506,33 @@ function EmployeeProfilePage() {
                   <option value="Early">Early</option>
                   <option value="Absent">Absent</option>
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="border border-gray-200 rounded-[12px] px-3 py-2.5 bg-white flex items-center">
+              <div className="flex items-center gap-1.5">
+                <div className="border border-gray-200 rounded-lg px-2 py-1.5 bg-white flex items-center">
                   <input 
                     type="date" 
                     value={attStartDate} 
                     onChange={e => setAttStartDate(e.target.value)} 
-                    className="bg-transparent outline-none text-[14px] text-gray-600 w-[115px]" 
+                    className="bg-transparent outline-none text-[12px] text-gray-600 w-[100px]" 
                   />
                 </div>
-                <div className="border border-gray-200 rounded-[12px] px-3 py-2.5 bg-white flex items-center">
+                <div className="border border-gray-200 rounded-lg px-2 py-1.5 bg-white flex items-center">
                   <input 
                     type="date" 
                     value={attEndDate} 
                     onChange={e => setAttEndDate(e.target.value)} 
-                    className="bg-transparent outline-none text-[14px] text-gray-600 w-[115px]" 
+                    className="bg-transparent outline-none text-[12px] text-gray-600 w-[100px]" 
                   />
                 </div>
               </div>
 
               <button 
                 onClick={handleApply}
-                className="bg-[#F97316] hover:bg-[#EA580C] text-white px-6 py-2.5 rounded-[12px] text-[14px] font-medium transition-colors"
+                className="bg-[#F97316] hover:bg-[#EA580C] text-white px-4 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
               >
                 Apply
               </button>
@@ -348,30 +549,30 @@ function EmployeeProfilePage() {
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
-                className="flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-[12px] text-[14px] font-medium transition-colors"
+                className="flex items-center gap-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
                 title="Download CSV"
               >
-                <DownloadIcon className="w-4 h-4" />
+                <DownloadIcon className="w-3.5 h-3.5" />
                 Download
               </button>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-1.5">
             {dailySummaries.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-[15px]">No attendance records found for this period.</div>
+              <div className="text-center py-8 text-gray-400 text-[13px]">No attendance records found for this period.</div>
             ) : (
               dailySummaries.map((day, idx) => (
                 <div 
                   key={day.dateStr} 
-                  className={`flex items-center rounded-full px-6 py-4 ${idx % 2 === 0 ? 'bg-[#F9FAFB]' : 'bg-white border border-gray-100'}`}
+                  className={`flex items-center rounded-lg px-4 py-2.5 ${idx % 2 === 0 ? 'bg-[#F9FAFB]' : 'bg-white border border-gray-100'}`}
                 >
-                  <div className="w-[140px] font-bold text-gray-900 text-[15px]">{day.dateStr}</div>
-                  <div className={`w-[100px] text-[15px] font-medium ${day.statusLabel === 'Late' ? 'text-gray-500' : 'text-gray-500'}`}>
+                  <div className="w-[110px] font-semibold text-gray-900 text-[12px]">{day.dateStr}</div>
+                  <div className="w-[80px] text-[12px] font-medium text-gray-500">
                     {day.statusLabel}
                   </div>
                   
-                  <div className="flex flex-1 justify-between text-[14px] text-gray-500 ml-6">
+                  <div className="flex flex-1 justify-between text-[12px] text-gray-500 ml-4">
                     <div className="w-1/4">Work: {formatHm(day.workMs)}</div>
                     <div className="w-1/4">Break: {formatHm(day.breakMs)}</div>
                     <div className="w-1/4">Late: {formatHm(day.lateMs, true)}</div>
@@ -379,6 +580,165 @@ function EmployeeProfilePage() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        </div>
+
+        {/* Task Circular Progress Card */}
+        <div className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 mt-4 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[15px] font-bold text-gray-900">Task Overview</h3>
+            <span className="text-[12px] text-gray-400 font-medium">{totalTasksCount} task{totalTasksCount !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="flex items-center justify-around">
+            <CircularProgress percentage={totalTasksCount > 0 ? Math.round((tasksCompletedCount / totalTasksCount) * 100) : 0} color="#10B981" label="Completed" />
+            <CircularProgress percentage={totalTasksCount > 0 ? Math.round((tasksPendingCount / totalTasksCount) * 100) : 0} color="#6B7280" label="Pending" />
+            <CircularProgress percentage={totalTasksCount > 0 ? Math.round((tasksEarlyCount / totalTasksCount) * 100) : 0} color="#3B82F6" label="Early" />
+            <CircularProgress percentage={totalTasksCount > 0 ? Math.round((tasksLateCount / totalTasksCount) * 100) : 0} color="#EF4444" label="Late" />
+          </div>
+        </div>
+
+        {/* Task History Card */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <h3 className="text-[15px] font-bold text-gray-900">Task History</h3>
+
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select 
+                  className="appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                  value={taskFilter}
+                  onChange={(e) => setTaskFilter(e.target.value as any)}
+                >
+                  <option value="All Status">All Status</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Pending">Pending</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Late">Late</option>
+                  <option value="Early/On Time">Early/On Time</option>
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <div className="border border-gray-200 rounded-lg px-2 py-1.5 bg-white flex items-center">
+                  <input 
+                    type="date" 
+                    value={taskStartDate} 
+                    onChange={e => setTaskStartDate(e.target.value)} 
+                    className="bg-transparent outline-none text-[12px] text-gray-600 w-[100px]" 
+                  />
+                </div>
+                <div className="border border-gray-200 rounded-lg px-2 py-1.5 bg-white flex items-center">
+                  <input 
+                    type="date" 
+                    value={taskEndDate} 
+                    onChange={e => setTaskEndDate(e.target.value)} 
+                    className="bg-transparent outline-none text-[12px] text-gray-600 w-[100px]" 
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleTaskApply}
+                className="bg-[#F97316] hover:bg-[#EA580C] text-white px-4 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+              >
+                Apply
+              </button>
+
+              <button 
+                onClick={() => {
+                  const header = "Task Name,Assigned By,Date,Duration,Proof,Status\n";
+                  const csv = empTasks.map(t => {
+                    const assignedByName = employeeName(t.assignedById) || "Unknown";
+                    const isLate = t.status === "done" && !!t.completedAt && !!t.dueAt && t.completedAt > t.dueAt;
+                    let stat = "Pending";
+                    if (t.status === "done") stat = isLate ? "Late" : "Early/On Time";
+                    else if (t.status === "doing") stat = "In Progress";
+                    const dur = formatDuration(totalSpentMs(t));
+                    const proof = t.links && t.links.length > 0 ? t.links.map(l => l.label).join("; ") : "None";
+                    const cDate = format(new Date(t.createdAt), "dd MMM yyyy");
+                    return `"${t.title.replace(/"/g, '""')}","${assignedByName}",${cDate},${dur},"${proof}",${stat}`;
+                  }).join("\n");
+                  
+                  const blob = new Blob([header + csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `tasks_${emp.name.replace(/\s+/g, '_')}_${appliedTaskStartDate}_to_${appliedTaskEndDate}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex items-center gap-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+                title="Download CSV"
+              >
+                <DownloadIcon className="w-3.5 h-3.5" />
+                Download
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {empTasks.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-[13px]">No tasks found for this employee.</div>
+            ) : (
+              empTasks.map((task, idx) => {
+                const assignedByName = employeeName(task.assignedById) || "Unknown";
+                const isLate = task.status === "done" && !!task.completedAt && !!task.dueAt && task.completedAt > task.dueAt;
+                const isDone = task.status === "done";
+                
+                let statusBadge = "Pending";
+                let statusColor = "bg-gray-100 text-gray-600";
+                
+                if (isDone) {
+                  if (isLate) {
+                    statusBadge = "Late";
+                    statusColor = "bg-red-50 text-red-600";
+                  } else {
+                    statusBadge = "Early/On Time";
+                    statusColor = "bg-green-50 text-green-600";
+                  }
+                } else if (task.status === "doing") {
+                  statusBadge = "In Progress";
+                  statusColor = "bg-blue-50 text-blue-600";
+                }
+
+                const durationStr = formatDuration(totalSpentMs(task));
+                const proofOfWork = task.links && task.links.length > 0 
+                  ? task.links.map(l => l.label).join(", ") 
+                  : "None";
+
+                return (
+                  <div 
+                    key={task.id} 
+                    className={`flex items-center rounded-lg px-4 py-3 ${idx % 2 === 0 ? 'bg-[#F9FAFB]' : 'bg-white border border-gray-100'}`}
+                  >
+                    <div className="flex-1 min-w-[180px]">
+                      <div className="font-semibold text-gray-900 text-[13px] truncate">{task.title}</div>
+                      <div className="text-[11px] text-gray-500 mt-0.5">Assigned by: {assignedByName}</div>
+                    </div>
+                    
+                    <div className="w-[90px] text-[12px] text-gray-500">
+                      {format(new Date(task.createdAt), "dd MMM yy")}
+                    </div>
+                    
+                    <div className="w-[80px] text-[12px] text-gray-500">
+                      Dur: {durationStr}
+                    </div>
+                    
+                    <div className="w-[120px] text-[12px] text-gray-500 truncate" title={proofOfWork}>
+                      Proof: {proofOfWork}
+                    </div>
+
+                    <div className="w-[110px] flex justify-end">
+                      <span className={`px-2 py-1 rounded text-[11px] font-medium ${statusColor}`}>
+                        {statusBadge}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

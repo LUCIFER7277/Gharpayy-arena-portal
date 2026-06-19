@@ -7,6 +7,7 @@ import {
   SLOTS,
   type SlotKey,
   type SlotDef,
+  type PulseEntry,
   activeSlot,
   complianceFor,
   getEntries,
@@ -601,7 +602,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const [callsFilter, setCallsFilter] = useState<string>("all");
   const [toursFilter, setToursFilter] = useState<string>("all");
   const [closuresFilter, setClosuresFilter] = useState<string>("all");
-  const [blockersFilter, setBlockersFilter] = useState<"all" | "hasBlockers">("all");
+  const [blockersFilter, setBlockersFilter] = useState<"all" | "hasBlockers" | "noBlockers">("all");
   const [mediaFilter, setMediaFilter] = useState<string>("all");
   const [nameFilter, setNameFilter] = useState<string>("all");
 
@@ -670,39 +671,54 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
   const { filteredEntries: groupedEntries, counts } = useMemo(() => {
     const groups: Record<string, typeof entries> = {};
     const roster = getRoster();
-    for (const e of entries) {
-      const linked = roster.find(r => r.id === e.employeeId);
-      const eTier = linked ? tierOf(linked) : "teammate";
+    
+    for (const emp of roster) {
+      const eTier = tierOf(emp);
       if (eTier === "leadership" || eTier === "hr" || eTier === "zone_leader" || eTier === "leader") continue;
+      groups[emp.id] = [];
+    }
+
+    for (const e of entries) {
       if (!groups[e.employeeId]) groups[e.employeeId] = [];
       groups[e.employeeId].push(e);
     }
+    
     const slotOrder: Record<string, number> = { slot1: 1, slot2: 2, slot3: 3, eod: 4 };
     Object.values(groups).forEach(g => g.sort((a,b) => (slotOrder[a.slot] || 99) - (slotOrder[b.slot] || 99)));
     
-    let result = Object.values(groups).map(empEntries => {
+    let result = Object.keys(groups).map(empId => {
+      const empEntries = groups[empId];
+      const linked = roster.find(r => r.id === empId);
+      const empName = empEntries.length > 0 ? empEntries[0].employeeName : (linked ? linked.name : empId);
+      const role = empEntries.length > 0 ? empEntries[0].role : (linked ? linked.role : "Unknown");
+      const team = empEntries.length > 0 ? empEntries[0].team : (linked ? linked.hubId || "HQ" : "Unknown");
+
       if (isSingleDay) {
         const eodEntry = empEntries.find(e => e.slot === "eod");
         const regularEntries = empEntries.filter(e => e.slot !== "eod");
         return {
-          empId: empEntries[0].employeeId,
-          empName: empEntries[0].employeeName,
-          role: empEntries[0].role,
-          team: empEntries[0].team,
+          empId,
+          empName,
+          role,
+          team,
           eodEntry,
-          regularEntries: regularEntries.length > 0 ? regularEntries : [null]
+          regularEntries: (regularEntries.length > 0 ? regularEntries : [null]) as (PulseEntry | null)[]
         };
       } else {
         return {
-          empId: empEntries[0].employeeId,
-          empName: empEntries[0].employeeName,
-          role: empEntries[0].role,
-          team: empEntries[0].team,
+          empId,
+          empName,
+          role,
+          team,
           eodEntry: undefined,
-          regularEntries: empEntries
+          regularEntries: empEntries as (PulseEntry | null)[]
         };
       }
     });
+
+    if (statusFilter === "all") {
+      result = result.filter(g => g.regularEntries.some(e => e !== null) || g.eodEntry);
+    }
 
     if (searchQuery.trim() !== "") {
       const q = searchQuery.toLowerCase();
@@ -726,39 +742,84 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     }
 
     if (slotFilter !== "all") {
-      result = result.filter((g) => {
-        if (slotFilter === "eod") return !!g.eodEntry;
-        return g.regularEntries.some(e => e && e.slot === slotFilter);
-      });
-      if (slotFilter !== "eod") {
-        result = result.map(g => {
-          const filtered = g.regularEntries.filter(e => e && e.slot === slotFilter);
-          return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-        });
-      }
+      result = result.map(g => {
+        if (slotFilter === "eod") {
+          return { 
+            ...g, 
+            regularEntries: g.regularEntries.filter(e => e && e.slot === "eod"),
+            eodEntry: g.eodEntry
+          };
+        } else {
+          return { 
+            ...g, 
+            regularEntries: g.regularEntries.filter(e => e && e.slot === slotFilter), 
+            eodEntry: undefined 
+          };
+        }
+      }).filter(g => g.regularEntries.length > 0 || g.eodEntry);
     }
 
     if (statusFilter !== "all") {
-      result = result.filter((g) => {
-        const eod = g.eodEntry;
-        const hasLate = g.regularEntries.some((e) => e && !e.onTime) || (eod && !eod.onTime);
-        
-        if (statusFilter === "late") return hasLate;
-        
-        if (statusFilter === "pending") {
+      result = result.map(g => {
+        if (statusFilter === "late") {
+          return {
+            ...g,
+            regularEntries: g.regularEntries.filter(e => e && !e.onTime),
+            eodEntry: (g.eodEntry && !g.eodEntry.onTime) ? g.eodEntry : undefined
+          };
+        } else if (statusFilter === "pending") {
           const isTodayDate = startIso === todayISO() && isSingleDay;
           const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
-          return SLOTS.some(slot => {
+          
+          const pendingSlots = SLOTS.filter(slot => {
             const isExpected = !isTodayDate || currentMins >= slot.startMin;
             if (!isExpected) return false;
-            if (slot.key === "eod") return !eod;
+            if (slot.key === "eod") return !g.eodEntry;
             return !g.regularEntries.some(e => e && e.slot === slot.key);
           });
+
+          if (pendingSlots.length > 0) {
+            const fakeEntries = pendingSlots.filter(s => s.key !== "eod").map(s => ({
+              id: `pending-${g.empId}-${s.key}`,
+              employeeId: g.empId,
+              employeeName: g.empName,
+              role: g.role,
+              team: g.team,
+              slot: s.key,
+              date: startIso,
+              submittedAt: "",
+              onTime: false,
+              isPending: true,
+              text: "—",
+            } as any));
+
+            const pendingEod = pendingSlots.some(s => s.key === "eod") ? {
+                 id: `pending-eod-${g.empId}`,
+                 slot: "eod",
+                 submittedAt: "",
+                 onTime: false,
+                 isPending: true,
+                 text: "—"
+            } as any : undefined;
+
+            return {
+              ...g,
+              regularEntries: fakeEntries.length > 0 ? fakeEntries : [null],
+              eodEntry: pendingEod
+            };
+          }
+          return null;
+        } else {
+          return {
+            ...g,
+            regularEntries: g.regularEntries.filter(e => e && e.onTime),
+            eodEntry: (g.eodEntry && g.eodEntry.onTime) ? g.eodEntry : undefined
+          };
         }
-        
-        // onTime
-        return !hasLate;
-      });
+      }).filter(Boolean) as typeof result;
+      if (statusFilter !== "pending") {
+        result = result.filter(g => g.regularEntries.some(e => e !== null) || g.eodEntry);
+      }
     }
 
     const counts = {
@@ -779,105 +840,57 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     };
 
     if (callsFilter === "highVolume") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) >= 10));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) >= 10);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.calls || 0) >= 10) })).filter(g => g.regularEntries.length > 0);
     } else if (callsFilter === "mediumVolume") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9) })).filter(g => g.regularEntries.length > 0);
     } else if (callsFilter === "lowVolume") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4) })).filter(g => g.regularEntries.length > 0);
     } else if (callsFilter === "noCalls") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.calls || 0) === 0));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.calls || 0) === 0);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.calls || 0) === 0) })).filter(g => g.regularEntries.length > 0);
     }
 
     if (toursFilter === "multipleTours") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) >= 2));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) >= 2);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.tours || 0) >= 2) })).filter(g => g.regularEntries.length > 0);
     } else if (toursFilter === "singleTour") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) === 1));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) === 1);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.tours || 0) === 1) })).filter(g => g.regularEntries.length > 0);
     } else if (toursFilter === "noTours") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.tours || 0) === 0));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.tours || 0) === 0);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.tours || 0) === 0) })).filter(g => g.regularEntries.length > 0);
     }
 
     if (closuresFilter === "multipleClosures") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) >= 2));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) >= 2);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.closures || 0) >= 2) })).filter(g => g.regularEntries.length > 0);
     } else if (closuresFilter === "singleClosure") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) === 1));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) === 1);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.closures || 0) === 1) })).filter(g => g.regularEntries.length > 0);
     } else if (closuresFilter === "noClosures") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (e.closures || 0) === 0));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (e.closures || 0) === 0);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.closures || 0) === 0) })).filter(g => g.regularEntries.length > 0);
     }
 
     if (mediaFilter === "hasMedia") {
-      result = result.filter((g) => g.regularEntries.some(e => e && e.mediaUrls && e.mediaUrls.length > 0) || (g.eodEntry && g.eodEntry.mediaUrls && g.eodEntry.mediaUrls.length > 0));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && e.mediaUrls && e.mediaUrls.length > 0);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({
+        ...g,
+        regularEntries: g.regularEntries.filter(e => e && e.mediaUrls && e.mediaUrls.length > 0),
+        eodEntry: (g.eodEntry && g.eodEntry.mediaUrls && g.eodEntry.mediaUrls.length > 0) ? g.eodEntry : undefined
+      })).filter(g => g.regularEntries.length > 0 || g.eodEntry);
     } else if (mediaFilter === "noMedia") {
-      result = result.filter((g) => g.regularEntries.some(e => e && (!e.mediaUrls || e.mediaUrls.length === 0)) || (g.eodEntry && (!g.eodEntry.mediaUrls || g.eodEntry.mediaUrls.length === 0)));
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && (!e.mediaUrls || e.mediaUrls.length === 0));
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({
+        ...g,
+        regularEntries: g.regularEntries.filter(e => e && (!e.mediaUrls || e.mediaUrls.length === 0)),
+        eodEntry: (g.eodEntry && (!g.eodEntry.mediaUrls || g.eodEntry.mediaUrls.length === 0)) ? g.eodEntry : undefined
+      })).filter(g => g.regularEntries.length > 0 || g.eodEntry);
     }
 
     if (blockersFilter === "hasBlockers") {
-      result = result.filter((g) => {
-        const hasEodBlocker = !!g.eodEntry?.blockers;
-        const hasRegularBlocker = g.regularEntries.some(e => e && !!e.blockers);
-        return hasEodBlocker || hasRegularBlocker;
-      });
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && !!e.blockers);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({
+        ...g,
+        regularEntries: g.regularEntries.filter(e => e && !!e.blockers),
+        eodEntry: (g.eodEntry && !!g.eodEntry.blockers) ? g.eodEntry : undefined
+      })).filter(g => g.regularEntries.length > 0 || g.eodEntry);
     } else if (blockersFilter === "noBlockers") {
-      result = result.filter((g) => {
-        const noEodBlocker = !g.eodEntry?.blockers;
-        const noRegularBlocker = g.regularEntries.some(e => e && !e.blockers);
-        return noEodBlocker || noRegularBlocker;
-      });
-      result = result.map(g => {
-        const filtered = g.regularEntries.filter(e => e && !e.blockers);
-        return { ...g, regularEntries: filtered.length > 0 ? filtered : [null] };
-      });
+      result = result.map(g => ({
+        ...g,
+        regularEntries: g.regularEntries.filter(e => e && !e.blockers),
+        eodEntry: (g.eodEntry && !g.eodEntry.blockers) ? g.eodEntry : undefined
+      })).filter(g => g.regularEntries.length > 0 || g.eodEntry);
     }
 
     return { filteredEntries: result, counts };
@@ -934,8 +947,8 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     let bodyHtml = "";
 
     groupedEntries.forEach((group) => {
-      const eodTime = group.eodEntry ? new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
-      const eodStatus = group.eodEntry ? (group.eodEntry.onTime ? "On Time" : "Late") : "Pending";
+      const eodTime = group.eodEntry ? (group.eodEntry.isPending ? "—" : new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })) : "";
+      const eodStatus = group.eodEntry ? (group.eodEntry.isPending ? "Pending" : (group.eodEntry.onTime ? "On Time" : "Late")) : "Pending";
       const eodText = group.eodEntry ? group.eodEntry.text.replace(/\n/g, " ") : "";
       const eodBlockers = group.eodEntry?.blockers ? group.eodEntry.blockers.replace(/\n/g, " ") : "";
       
@@ -964,8 +977,8 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
           rows.push([
             name, role, team,
             slotLabel,
-            new Date(e.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-            e.onTime ? "On Time" : "Late",
+            e.isPending ? "—" : new Date(e.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+            e.isPending ? "Pending" : (e.onTime ? "On Time" : "Late"),
             e.calls?.toString() || "", e.tours?.toString() || "", e.closures?.toString() || "",
             e.blockers?.replace(/\n/g, " ") || "", e.text.replace(/\n/g, " "),
             e.mediaUrls?.length ? `[${e.mediaUrls.length} Image(s) Uploaded]` : "",
@@ -993,11 +1006,11 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
             const parts = slotObj.label.split(" · ");
             slotLabel = parts.length > 1 ? `${parts[0]} (${parts[1]})` : slotObj.label;
           }
-          const time = new Date(e.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-          const statusColor = e.onTime ? '#16a34a' : '#ea580c';
+          const time = e.isPending ? "—" : new Date(e.submittedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+          const statusColor = e.isPending ? '#f59e0b' : (e.onTime ? '#16a34a' : '#ea580c');
           htmlRow += `<td style="${cellStyle} white-space: nowrap; width: 250px; min-width: 250px;">${slotLabel}</td>`;
           htmlRow += `<td style="${cellStyle}">${time}</td>`;
-          htmlRow += `<td style="${cellStyle} color: ${statusColor}; font-weight: bold;">${e.onTime ? "On Time" : "Late"}</td>`;
+          htmlRow += `<td style="${cellStyle} color: ${statusColor}; font-weight: bold;">${e.isPending ? "Pending" : (e.onTime ? "On Time" : "Late")}</td>`;
           htmlRow += `<td style="${cellStyle}">${e.calls?.toString() || ""}</td>`;
           htmlRow += `<td style="${cellStyle}">${e.tours?.toString() || ""}</td>`;
           htmlRow += `<td style="${cellStyle}">${e.closures?.toString() || ""}</td>`;
@@ -1012,7 +1025,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
         }
 
         if (idx === 0) {
-          const eodStatusColor = group.eodEntry?.onTime ? '#16a34a' : group.eodEntry ? '#ea580c' : '#6b7280';
+          const eodStatusColor = group.eodEntry?.isPending ? '#f59e0b' : (group.eodEntry?.onTime ? '#16a34a' : (group.eodEntry ? '#ea580c' : '#6b7280'));
           htmlRow += `<td rowspan="${rowCount}" style="${eodStyle}">${eodTime}</td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodStyle} color: ${eodStatusColor}; font-weight: bold;">${eodStatus}</td>`;
           htmlRow += `<td rowspan="${rowCount}" style="${eodTextStyle}">${group.eodEntry?.text || ""}</td>`;
@@ -1376,18 +1389,16 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                               }`}
                             >
                               <td className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
-                                {idx === 0 ? group.empName : ""}
+                                {group.empName}
                               </td>
                               <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
-                                {idx === 0 ? group.role : ""}
+                                {group.role}
                               </td>
                               <td className="px-3 py-2 align-top text-muted-foreground border-r border-border/20">
-                                {idx === 0 ? group.team : ""}
+                                {group.team}
                               </td>
-                              <td className={`px-3 py-2 align-top border-r border-border/20 font-mono text-xs ${
-                                isNewDate ? "text-foreground font-semibold" : "text-muted-foreground"
-                              }`}>
-                                {isNewDate ? format(dateObj, "EEE, d MMM") : ""}
+                              <td className={`px-3 py-2 align-top border-r border-border/20 font-mono text-xs text-foreground font-semibold`}>
+                                {format(dateObj, "EEE, d MMM")}
                               </td>
                               <td className={`px-3 py-2 align-top border-r border-border/20 ${
                                 isEod ? "text-primary font-semibold" : "text-foreground/90"
@@ -1402,13 +1413,13 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                                 )}
                               </td>
                               <td className="px-3 py-2 align-top text-foreground/90 border-r border-border/20 text-right">
-                                {new Date(e.submittedAt).toLocaleTimeString("en-US", {
+                                {e.isPending ? "—" : new Date(e.submittedAt).toLocaleTimeString("en-US", {
                                   hour: "numeric",
                                   minute: "2-digit",
                                 })}
                               </td>
-                              <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.onTime ? "text-success" : "text-destructive"}`}>
-                                {e.onTime ? "On Time" : "Late"}
+                              <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.isPending ? "text-amber-500" : (e.onTime ? "text-success" : "text-destructive")}`}>
+                                {e.isPending ? "Pending" : (e.onTime ? "On Time" : "Late")}
                               </td>
                               <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
                                 {e.calls ?? ""}
@@ -1479,8 +1490,8 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                 ) : (
                   groupedEntries.map((group) => (
                     <Fragment key={group.empId}>
-                      {group.regularEntries.map((e, idx) => (
-                        <tr key={e?.id || `empty-${group.empId}-${idx}`} className={`hover:bg-muted/30 transition-colors ${idx === group.regularEntries.length - 1 ? "border-b-2 border-border" : ""}`}>
+                      {(group.regularEntries.length > 0 ? group.regularEntries : [null]).map((e, idx, arr) => (
+                        <tr key={e?.id || `empty-${group.empId}-${idx}`} className={`hover:bg-muted/30 transition-colors ${idx === arr.length - 1 ? "border-b-2 border-border" : ""}`}>
                           <td className="px-3 py-2 align-top font-medium text-foreground border-r border-border/20">
                             {group.empName}
                           </td>
@@ -1500,13 +1511,13 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                                 </span>
                               </td>
                               <td className="px-3 py-2 align-top text-foreground/90 border-r border-border/20 text-right">
-                                {new Date(e.submittedAt).toLocaleTimeString("en-US", {
+                                {e.isPending ? "—" : new Date(e.submittedAt).toLocaleTimeString("en-US", {
                                   hour: "numeric",
                                   minute: "2-digit",
                                 })}
                               </td>
-                              <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.onTime ? "text-success" : "text-destructive"}`}>
-                                {e.onTime ? "On Time" : "Late"}
+                              <td className={`px-3 py-2 align-top font-medium border-r border-border/20 ${e.isPending ? "text-amber-500" : (e.onTime ? "text-success" : "text-destructive")}`}>
+                                {e.isPending ? "Pending" : (e.onTime ? "On Time" : "Late")}
                               </td>
                               <td className="px-3 py-2 align-top text-right tabular-nums border-r border-border/20">
                                 {e.calls ?? ""}
@@ -1538,7 +1549,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                             </>
                           ) : (
                             <td colSpan={9} className="px-3 py-2 text-muted-foreground italic border-r border-border/20">
-                              No intraday slots submitted yet.
+                              {statusFilter === "pending" ? "No pending intraday slots." : "No intraday slots submitted yet."}
                             </td>
                           )}
 
@@ -1546,24 +1557,24 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                             <>
                               {group.eodEntry ? (
                                 <>
-                                  <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">
-                                    {new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-US", {
+                                  <td rowSpan={Math.max(1, group.regularEntries.length)} className="px-3 py-2 align-top border-r border-border/20 text-foreground/90 text-right">
+                                    {group.eodEntry.isPending ? "—" : new Date(group.eodEntry.submittedAt).toLocaleTimeString("en-US", {
                                       hour: "numeric",
                                       minute: "2-digit",
                                     })}
                                   </td>
-                                  <td rowSpan={group.regularEntries.length} className={`px-3 py-2 align-top font-medium border-r border-border/20 ${group.eodEntry.onTime ? "text-success" : "text-destructive"}`}>
-                                    {group.eodEntry.onTime ? "On Time" : "Late"}
+                                  <td rowSpan={Math.max(1, group.regularEntries.length)} className={`px-3 py-2 align-top font-medium border-r border-border/20 ${group.eodEntry.isPending ? "text-amber-500" : (group.eodEntry.onTime ? "text-success" : "text-destructive")}`}>
+                                    {group.eodEntry.isPending ? "Pending" : (group.eodEntry.onTime ? "On Time" : "Late")}
                                   </td>
-                                  <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
+                                  <td rowSpan={Math.max(1, group.regularEntries.length)} className="px-3 py-2 align-top whitespace-pre-wrap break-words border-r border-border/20 text-foreground/90 text-xs">
                                     {group.eodEntry.text}
                                   </td>
-                                  <td rowSpan={group.regularEntries.length} className="px-3 py-2 align-top whitespace-pre-wrap break-words text-foreground/90">
+                                  <td rowSpan={Math.max(1, group.regularEntries.length)} className="px-3 py-2 align-top whitespace-pre-wrap break-words text-foreground/90">
                                     {group.eodEntry.blockers ?? ""}
                                   </td>
                                 </>
                               ) : (
-                                <td colSpan={4} rowSpan={group.regularEntries.length} className="px-3 py-2 align-top text-muted-foreground italic opacity-70">
+                                <td colSpan={4} rowSpan={Math.max(1, group.regularEntries.length)} className="px-3 py-2 align-top text-muted-foreground italic opacity-70">
                                   Pending EOD
                                 </td>
                               )}

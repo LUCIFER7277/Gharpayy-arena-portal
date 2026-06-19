@@ -576,7 +576,7 @@ export function todayRollup() {
       visitsCompleted: acc.visitsCompleted + u.visitsCompleted,
       hotLeads: acc.hotLeads + u.hotLeads,
       bookings: acc.bookings + u.bookings,
-      blockers: acc.blockers + (u.blocker.trim() ? 1 : 0),
+      blockers: acc.blockers + ((typeof u.blocker === 'string' ? u.blocker : "").trim() ? 1 : 0),
     }),
     { calls: 0, visitsScheduled: 0, visitsCompleted: 0, hotLeads: 0, bookings: 0, blockers: 0 },
   );
@@ -599,7 +599,7 @@ export function todayRollup() {
     cur.visitsCompleted += u.visitsCompleted;
     cur.hotLeads += u.hotLeads;
     cur.bookings += u.bookings;
-    cur.blockers += u.blocker.trim() ? 1 : 0;
+    cur.blockers += (typeof u.blocker === 'string' ? u.blocker : "").trim() ? 1 : 0;
     cur.contributors += 1;
     byZone.set(z, cur);
   }

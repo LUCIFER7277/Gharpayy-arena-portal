@@ -252,7 +252,9 @@ function ComposerModal({ onClose, actorId }: { onClose: () => void; actorId: str
   const [meetingLink, setMeetingLink] = useState("");
   const [agenda, setAgenda] = useState("");
 
-  const reports = getRoster().filter((e) => e.id !== actorId);
+  const reports = getRoster().filter(
+    (e) => e.id !== actorId && e.role !== "Admin" && e.appRole !== "admin"
+  );
 
   function submit() {
     if (!reportId) return;

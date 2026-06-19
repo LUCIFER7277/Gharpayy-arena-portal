@@ -230,6 +230,8 @@ const PatchEmployeeSchema = z.object({
   managerId: z.string().max(50).nullable().optional(),
   experience: z.enum(["New", "Mid", "Core"]).optional(),
   shift: z.string().max(80).optional(),
+  birthday: z.string().max(20).optional(),
+  avatarSeed: z.string().max(100).optional(),
 });
 
 router.patch(
