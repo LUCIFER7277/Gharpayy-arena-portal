@@ -132,7 +132,9 @@ function WorkforcePage() {
     () =>
       rows.filter(
         (r) =>
-          ["Admin", "Zone Leader", "Floor Lead", "Coach", "HR", "leadership"].includes(r.operationalRole) ||
+          ["Admin", "Zone Leader", "Floor Lead", "Coach", "HR", "leadership"].includes(
+            r.operationalRole,
+          ) ||
           r.appRole === "admin" ||
           r.appRole === "manager" ||
           r.user?.role === "admin",
@@ -218,16 +220,16 @@ function WorkforcePage() {
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Stat 
-          label="Workforce" 
-          value={rows.filter((r) => r.appRole !== "admin").length} 
+        <Stat
+          label="Workforce"
+          value={rows.filter((r) => r.appRole !== "admin").length}
           onClick={() => setFilterStatus("all")}
           isActive={filterStatus === "all"}
         />
-        <Stat 
-          label="Pending approval" 
-          value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "pending").length} 
-          tone="warning" 
+        <Stat
+          label="Pending approval"
+          value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "pending").length}
+          tone="warning"
           onClick={() => setFilterStatus("pending")}
           isActive={filterStatus === "pending"}
         />
@@ -240,7 +242,9 @@ function WorkforcePage() {
         />
         <Stat
           label="Suspended"
-          value={rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "suspended").length}
+          value={
+            rows.filter((r) => r.appRole !== "admin" && r.accountStatus === "suspended").length
+          }
           tone="destructive"
           onClick={() => setFilterStatus("suspended")}
           isActive={filterStatus === "suspended"}
@@ -498,12 +502,12 @@ function Stat({
         : tone === "destructive"
           ? "border-destructive/30"
           : "";
-          
+
   const activeClass = isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "";
   const clickableClass = onClick ? "cursor-pointer hover:bg-muted/30 transition-colors" : "";
 
   return (
-    <div 
+    <div
       className={`rounded-2xl border bg-card p-4 ${toneClass} ${activeClass} ${clickableClass}`}
       onClick={onClick}
     >
@@ -565,7 +569,7 @@ function RowActions({
                   onConfirm({
                     title: "Reject access?",
                     description: `Revoke approval for ${row.name}. They cannot sign in until re-approved.`,
-                    action: () => rejectUser(uid).then(() => {}),
+                    action: () => rejectUser(uid!).then(() => {}),
                   })
                 }
               >
@@ -575,7 +579,7 @@ function RowActions({
             {row.accountStatus === "suspended" ? (
               <DropdownMenuItem
                 onClick={() =>
-                  void runAction(() => reactivateUser(uid).then(() => {}), "Account reactivated")
+                  void runAction(() => reactivateUser(uid!).then(() => {}), "Account reactivated")
                 }
               >
                 <CheckCircle2 className="h-4 w-4 mr-2" /> Reactivate
@@ -586,7 +590,7 @@ function RowActions({
                   onConfirm({
                     title: "Suspend account?",
                     description: `Block ${row.name} from signing in. Operational data is preserved.`,
-                    action: () => suspendUser(uid).then(() => {}),
+                    action: () => suspendUser(uid!).then(() => {}),
                   })
                 }
               >
@@ -723,8 +727,9 @@ function EditEmployeeDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {zoneStore.read().zones
-                    .filter((z) => z.type === zoneCategory)
+                  {zoneStore
+                    .read()
+                    .zones.filter((z) => z.type === zoneCategory)
                     .map((z) => (
                       <SelectItem key={z.id} value={z.name}>
                         {z.name}
@@ -945,8 +950,9 @@ function InviteDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {zoneStore.read().zones
-                    .filter((z) => z.type === zoneCategory)
+                  {zoneStore
+                    .read()
+                    .zones.filter((z) => z.type === zoneCategory)
                     .map((z) => (
                       <SelectItem key={z.id} value={z.name}>
                         {z.name}
