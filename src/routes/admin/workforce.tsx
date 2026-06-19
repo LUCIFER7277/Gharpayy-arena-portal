@@ -548,7 +548,9 @@ function RowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onEdit}>Edit org & access</DropdownMenuItem>
+        {row.accountStatus !== "pending" && (
+          <DropdownMenuItem onClick={onEdit}>Edit org & access</DropdownMenuItem>
+        )}
         {uid && (
           <>
             <DropdownMenuSeparator />

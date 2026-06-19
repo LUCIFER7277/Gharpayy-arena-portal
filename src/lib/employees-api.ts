@@ -12,6 +12,7 @@ export type ApiEmployeeRecord = {
   hubId?: string;
   email?: string;
   profile?: Employee;
+  hideTasks?: boolean;
 };
 
 const ROLE_ALIASES: Record<string, Role> = {
@@ -86,6 +87,7 @@ export function mapApiEmployee(record: ApiEmployeeRecord, user?: ApiUser | null)
       appRole,
       managerId: record.managerId ?? record.profile.managerId ?? null,
       team: record.hubId ?? record.profile.team ?? "HQ",
+      hideTasks: record.hideTasks ?? record.profile.hideTasks ?? false,
     };
   }
 
@@ -94,6 +96,7 @@ export function mapApiEmployee(record: ApiEmployeeRecord, user?: ApiUser | null)
     name: record.name,
     role,
     appRole,
+    hideTasks: record.hideTasks ?? false,
     ...defaults,
   };
 }
