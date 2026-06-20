@@ -244,8 +244,8 @@ function RosterPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-      <header className="flex flex-col gap-6 bg-card p-4 md:p-6 rounded-2xl border border-border shadow-sm">
+    <div className="p-4 md:p-8 space-y-6 overflow-x-hidden max-w-full">
+      <header className="flex flex-col gap-6 bg-card p-4 md:p-6 rounded-2xl border border-border shadow-sm w-full">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="flex-1">
             <div className="text-[10px] uppercase tracking-widest text-primary font-mono mb-1">
@@ -671,7 +671,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant="outline"
-      className={`${tone} border font-mono text-[9px] uppercase tracking-widest shrink-0`}
+      className={`${tone} border font-mono text-[9px] uppercase tracking-widest shrink-0 truncate max-w-[80px] md:max-w-none`}
     >
       {status}
     </Badge>
