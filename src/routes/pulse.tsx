@@ -745,9 +745,11 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     const slotOrder: Record<string, number> = { slot1: 1, slot2: 2, slot3: 3, eod: 4 };
     Object.values(groups).forEach(g => g.sort((a,b) => (slotOrder[a.slot] || 99) - (slotOrder[b.slot] || 99)));
     
+    const rosterMap = new Map(roster.map(r => [r.id, r]));
+
     let result = Object.keys(groups).map(empId => {
       const empEntries = groups[empId];
-      const linked = roster.find(r => r.id === empId);
+      const linked = rosterMap.get(empId);
       const empName = empEntries.length > 0 ? empEntries[0].employeeName : (linked ? linked.name : empId);
       const role = empEntries.length > 0 ? empEntries[0].role : (linked ? linked.role : "Unknown");
       const team = empEntries.length > 0 ? empEntries[0].team : (linked ? linked.team || "HQ" : "Unknown");
@@ -882,21 +884,33 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
     }
 
     const counts = {
-      highCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) >= 10)).length,
-      medCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9)).length,
-      lowCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4)).length,
-      noCalls: result.filter(g => g.regularEntries.some(e => e && (e.calls || 0) === 0)).length,
-      multipleTours: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) >= 2)).length,
-      singleTour: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) === 1)).length,
-      noTours: result.filter(g => g.regularEntries.some(e => e && (e.tours || 0) === 0)).length,
-      multipleClosures: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) >= 2)).length,
-      singleClosure: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) === 1)).length,
-      noClosures: result.filter(g => g.regularEntries.some(e => e && (e.closures || 0) === 0)).length,
-      hasBlockers: result.filter(g => g.regularEntries.some(e => e && !!e.blockers) || !!g.eodEntry?.blockers).length,
-      noBlockers: result.filter(g => g.regularEntries.some(e => e && !e.blockers) || (g.eodEntry && !g.eodEntry.blockers)).length,
-      hasMedia: result.filter(g => g.regularEntries.some(e => e && e.mediaUrls && e.mediaUrls.length > 0) || (g.eodEntry && g.eodEntry.mediaUrls && g.eodEntry.mediaUrls.length > 0)).length,
-      noMedia: result.filter(g => g.regularEntries.some(e => e && (!e.mediaUrls || e.mediaUrls.length === 0)) || (g.eodEntry && (!g.eodEntry.mediaUrls || g.eodEntry.mediaUrls.length === 0))).length,
+      highCalls: 0, medCalls: 0, lowCalls: 0, noCalls: 0,
+      multipleTours: 0, singleTour: 0, noTours: 0,
+      multipleClosures: 0, singleClosure: 0, noClosures: 0,
+      hasBlockers: 0, noBlockers: 0,
+      hasMedia: 0, noMedia: 0,
     };
+
+    for (const g of result) {
+      if (g.regularEntries.some(e => e && (e.calls || 0) >= 10)) counts.highCalls++;
+      if (g.regularEntries.some(e => e && (e.calls || 0) >= 5 && (e.calls || 0) <= 9)) counts.medCalls++;
+      if (g.regularEntries.some(e => e && (e.calls || 0) >= 1 && (e.calls || 0) <= 4)) counts.lowCalls++;
+      if (g.regularEntries.some(e => e && (e.calls || 0) === 0)) counts.noCalls++;
+
+      if (g.regularEntries.some(e => e && (e.tours || 0) >= 2)) counts.multipleTours++;
+      if (g.regularEntries.some(e => e && (e.tours || 0) === 1)) counts.singleTour++;
+      if (g.regularEntries.some(e => e && (e.tours || 0) === 0)) counts.noTours++;
+
+      if (g.regularEntries.some(e => e && (e.closures || 0) >= 2)) counts.multipleClosures++;
+      if (g.regularEntries.some(e => e && (e.closures || 0) === 1)) counts.singleClosure++;
+      if (g.regularEntries.some(e => e && (e.closures || 0) === 0)) counts.noClosures++;
+
+      if (g.regularEntries.some(e => e && !!e.blockers) || !!g.eodEntry?.blockers) counts.hasBlockers++;
+      if (g.regularEntries.some(e => e && !e.blockers) || (g.eodEntry && !g.eodEntry.blockers)) counts.noBlockers++;
+
+      if (g.regularEntries.some(e => e && e.mediaUrls && e.mediaUrls.length > 0) || (g.eodEntry && g.eodEntry.mediaUrls && g.eodEntry.mediaUrls.length > 0)) counts.hasMedia++;
+      if (g.regularEntries.some(e => e && (!e.mediaUrls || e.mediaUrls.length === 0)) || (g.eodEntry && (!g.eodEntry.mediaUrls || g.eodEntry.mediaUrls.length === 0))) counts.noMedia++;
+    }
 
     if (callsFilter === "highVolume") {
       result = result.map(g => ({ ...g, regularEntries: g.regularEntries.filter(e => e && (e.calls || 0) >= 10) })).filter(g => g.regularEntries.length > 0);
