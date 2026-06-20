@@ -512,7 +512,7 @@ function NewTaskModal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto pb-6">
           <div>
             <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Title
@@ -541,7 +541,7 @@ function NewTaskModal({
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-3">
             <div>
               <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 Priority

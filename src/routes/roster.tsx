@@ -244,8 +244,8 @@ function RosterPage() {
   };
 
   return (
-    <div className="p-8 space-y-6">
-      <header className="flex flex-col gap-6 bg-card p-6 rounded-2xl border border-border shadow-sm">
+    <div className="p-4 md:p-8 space-y-6">
+      <header className="flex flex-col gap-6 bg-card p-4 md:p-6 rounded-2xl border border-border shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="flex-1">
             <div className="text-[10px] uppercase tracking-widest text-primary font-mono mb-1">
@@ -591,11 +591,11 @@ function Tile({
 
   return (
     <Card 
-      className={`p-4 border ${cls} ${activeClass} ${clickableClass}`}
+      className={`p-3 md:p-4 border ${cls} ${activeClass} ${clickableClass}`}
       onClick={onClick}
     >
-      <div className="text-[10px] uppercase tracking-widest font-mono">{label}</div>
-      <div className="font-display text-3xl font-semibold tabular-nums mt-1">{value}</div>
+      <div className="text-[9px] md:text-[10px] uppercase tracking-wider md:tracking-widest font-mono truncate">{label}</div>
+      <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums mt-1">{value}</div>
     </Card>
   );
 }
