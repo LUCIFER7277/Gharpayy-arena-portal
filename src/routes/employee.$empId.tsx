@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { ArrowLeft, DownloadIcon } from "lucide-react";
+import { ArrowLeft, DownloadIcon, Upload, Camera } from "lucide-react";
 import { employeeById, employeeName, getRoster } from "@/lib/roster";
 import { type RosterEvent, summaryFromEvents } from "@/lib/attendance-store";
 import { useTasks, hydrateTasks, totalSpentMs, formatDuration } from "@/lib/task-store";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/employee/$empId")({
   component: EmployeeProfilePage,
@@ -71,12 +73,28 @@ function EmployeeProfilePage() {
   });
 
   // Basic date range states (defaults to last 30 days)
-  const [attStartDate, setAttStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().split("T")[0];
-  });
-  const [attEndDate, setAttEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [attStartDate, setAttStartDate] = useState(() => format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"));
+  const [attEndDate, setAttEndDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("File size exceeds 2MB limit.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === "string") {
+        setEditForm(prev => ({ ...prev, avatarSeed: event.target!.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // We can track the visually applied filters, so changes only happen when "Apply" is clicked
   const [appliedStartDate, setAppliedStartDate] = useState(attStartDate);
@@ -95,6 +113,37 @@ function EmployeeProfilePage() {
   const [appliedTaskStartDate, setAppliedTaskStartDate] = useState(taskStartDate);
   const [appliedTaskEndDate, setAppliedTaskEndDate] = useState(taskEndDate);
   const [appliedTaskFilter, setAppliedTaskFilter] = useState(taskFilter);
+
+  usePageTour("employee_profile_tour", [
+    {
+      popover: {
+        title: "Employee Profile",
+        description: "Welcome to the 360-degree employee profile view. Here you can see a complete history of an employee's performance.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-emp-profile",
+      popover: { title: "Profile Details", description: "View and edit employee details, such as their role, team, and reporting manager.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-emp-attendance",
+      popover: { title: "Attendance Overview", description: "See a quick snapshot of their punctuality and attendance health.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-emp-attendance-history",
+      popover: { title: "Attendance History", description: "Review their daily attendance history, apply date filters, and download reports to Excel.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-emp-tasks",
+      popover: { title: "Task Overview", description: "Check their overall task completion rates and late deliveries.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-emp-task-history",
+      popover: { title: "Task History", description: "View every single task assigned to them, including proof of work and completion status.", side: "top", align: "start" }
+    }
+  ]);
 
   useEffect(() => {
     if (!empId) return;
@@ -310,7 +359,7 @@ function EmployeeProfilePage() {
 
       <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full">
         {/* Profile Card */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 relative">
+        <div id="tour-emp-profile" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 relative">
           {!isEditingProfile && (
             <button
               onClick={() => {
@@ -321,7 +370,7 @@ function EmployeeProfilePage() {
                   zone: emp.zone || "",
                   managerId: emp.managerId || "",
                   birthday: emp.birthday || emp.birthdayMMDD || "",
-                  avatarSeed: emp.profile?.avatarSeed || emp.name,
+                  avatarSeed: emp.avatarSeed || emp.name,
                 });
                 setIsEditingProfile(true);
               }}
@@ -331,15 +380,73 @@ function EmployeeProfilePage() {
             </button>
           )}
 
-          <div className="flex items-center gap-4">
-            {isEditingProfile ? (
-              <div className="h-14 w-14 rounded-xl overflow-hidden shrink-0 border border-gray-200">
-                <img src={`https://api.dicebear.com/9.x/notionists/svg?seed=${editForm.avatarSeed || 'placeholder'}`} alt="Avatar" className="w-full h-full object-cover bg-gray-50" />
+          {isEditingProfile ? (
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              <div className="flex flex-col items-center gap-2">
+                <div 
+                  className="h-24 w-24 rounded-2xl overflow-hidden shrink-0 border border-gray-200 shadow-sm relative group cursor-pointer" 
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <img 
+                    src={editForm.avatarSeed?.startsWith("data:image/") ? editForm.avatarSeed : `https://api.dicebear.com/9.x/notionists/svg?seed=${editForm.avatarSeed || emp.name}`} 
+                    alt="Avatar" 
+                    className="w-full h-full object-cover bg-gray-50 group-hover:opacity-50 transition-opacity" 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                    <Upload className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleAvatarUpload} accept="image/*" className="hidden" />
+                <span className="text-[11px] text-gray-500 font-medium">Click to upload</span>
               </div>
-            ) : (
+              
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1.5 uppercase tracking-wide font-semibold block">Full Name</label>
+                  <Input 
+                    type="text" 
+                    value={editForm.name} 
+                    onChange={e => setEditForm(prev => ({...prev, name: e.target.value}))}
+                    className="text-[14px] font-medium"
+                    placeholder="Name"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1.5 uppercase tracking-wide font-semibold block flex items-center gap-2">
+                    Email Address <span className="lowercase text-[9px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">Non-editable</span>
+                  </label>
+                  <div className="flex h-9 w-full rounded-md border border-transparent bg-muted px-3 py-1 text-sm shadow-sm opacity-70">
+                    {emailStr}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1.5 uppercase tracking-wide font-semibold block">Job Role</label>
+                  <Input 
+                    type="text" 
+                    value={editForm.role} 
+                    onChange={e => setEditForm(prev => ({...prev, role: e.target.value}))}
+                    className="text-[14px] font-medium"
+                    placeholder="Role (e.g. Operator)"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1.5 uppercase tracking-wide font-semibold block">Avatar Seed / Initials</label>
+                  <Input 
+                    type="text" 
+                    value={editForm.avatarSeed?.startsWith("data:image/") ? "" : editForm.avatarSeed} 
+                    onChange={e => setEditForm(prev => ({...prev, avatarSeed: e.target.value}))}
+                    className="text-[14px] font-medium"
+                    placeholder={editForm.avatarSeed?.startsWith("data:image/") ? "Custom Image Uploaded" : "Initials or Seed"}
+                    disabled={editForm.avatarSeed?.startsWith("data:image/")}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-xl overflow-hidden shrink-0 border border-gray-200">
-                {emp.profile?.avatarSeed || emp.name ? (
-                  <img src={`https://api.dicebear.com/9.x/notionists/svg?seed=${emp.profile?.avatarSeed || emp.name}`} alt="Avatar" className="w-full h-full object-cover bg-gray-50" />
+                {emp.avatarSeed || emp.name ? (
+                  <img src={emp.avatarSeed?.startsWith("data:image/") ? emp.avatarSeed : `https://api.dicebear.com/9.x/notionists/svg?seed=${emp.avatarSeed || emp.name}`} alt="Avatar" className="w-full h-full object-cover bg-gray-50" />
                 ) : (
                   <div className="w-full h-full bg-[#FFCD29] flex items-center justify-center">
                     <span className="font-bold text-[8px] tracking-widest bg-white px-1.5 py-0.5 rounded text-black border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
@@ -348,55 +455,24 @@ function EmployeeProfilePage() {
                   </div>
                 )}
               </div>
-            )}
-            
-            <div className="flex-1">
-              {isEditingProfile ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="text" 
-                      value={editForm.name} 
-                      onChange={e => setEditForm(prev => ({...prev, name: e.target.value}))}
-                      className="border border-gray-300 rounded px-2 py-1 text-[16px] font-bold text-gray-900 w-1/3 focus:outline-none focus:border-blue-500"
-                      placeholder="Name"
-                    />
-                    <input 
-                      type="text" 
-                      value={editForm.avatarSeed} 
-                      onChange={e => setEditForm(prev => ({...prev, avatarSeed: e.target.value}))}
-                      className="border border-gray-300 rounded px-2 py-1 text-[13px] text-gray-700 w-1/3 focus:outline-none focus:border-blue-500"
-                      placeholder="Avatar Seed (e.g. John)"
-                    />
-                  </div>
-                  <div className="text-[13px] text-gray-500">{emailStr} <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded ml-1">Non-editable</span></div>
-                  <input 
-                    type="text" 
-                    value={editForm.role} 
-                    onChange={e => setEditForm(prev => ({...prev, role: e.target.value}))}
-                    className="border border-gray-300 rounded px-2 py-1 text-[12px] text-gray-700 w-1/3 focus:outline-none focus:border-blue-500"
-                    placeholder="Role (e.g. Operator)"
-                  />
-                </div>
-              ) : (
-                <>
-                  <h2 className="text-[20px] font-bold text-gray-900 leading-tight">{emp.name}</h2>
-                  <div className="text-[13px] text-gray-500 mt-0.5">{emailStr}</div>
-                  <div className="text-[12px] text-gray-400 mt-0.5">{emp.role}</div>
-                </>
-              )}
+              
+              <div className="flex-1">
+                <h2 className="text-[20px] font-bold text-gray-900 leading-tight">{emp.name}</h2>
+                <div className="text-[13px] text-gray-500 mt-0.5">{emailStr}</div>
+                <div className="text-[12px] text-gray-400 mt-0.5">{emp.role}</div>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-5 gap-6 mt-5 border-t border-gray-100 pt-5">
             <div>
               <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Team</div>
               {isEditingProfile ? (
-                <input 
+                <Input 
                   type="text" 
                   value={editForm.team} 
                   onChange={e => setEditForm(prev => ({...prev, team: e.target.value}))}
-                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                  className="text-[13px] font-medium"
                   placeholder="Team"
                 />
               ) : (
@@ -406,11 +482,11 @@ function EmployeeProfilePage() {
             <div>
               <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Office Zone</div>
               {isEditingProfile ? (
-                <input 
+                <Input 
                   type="text" 
                   value={editForm.zone} 
                   onChange={e => setEditForm(prev => ({...prev, zone: e.target.value}))}
-                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                  className="text-[13px] font-medium"
                   placeholder="Zone"
                 />
               ) : (
@@ -423,7 +499,7 @@ function EmployeeProfilePage() {
                 <select 
                   value={editForm.managerId} 
                   onChange={e => setEditForm(prev => ({...prev, managerId: e.target.value}))}
-                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm font-medium"
                 >
                   <option value="">None</option>
                   {getRoster().filter(r => r.id !== emp.id).map(r => (
@@ -437,11 +513,11 @@ function EmployeeProfilePage() {
             <div>
               <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Date of Birth</div>
               {isEditingProfile ? (
-                <input 
+                <Input 
                   type="text" 
                   value={editForm.birthday} 
                   onChange={e => setEditForm(prev => ({...prev, birthday: e.target.value}))}
-                  className="border border-gray-300 rounded px-2 py-1 text-[13px] font-medium text-gray-800 w-full focus:outline-none focus:border-blue-500"
+                  className="text-[13px] font-medium"
                   placeholder="DD MMM (e.g. 15 Aug)"
                 />
               ) : (
@@ -475,7 +551,7 @@ function EmployeeProfilePage() {
         </div>
 
         {/* Circular Progress Accuracy Card */}
-        <div className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 mb-4">
+        <div id="tour-emp-attendance" className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 mb-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[15px] font-bold text-gray-900">Attendance Overview</h3>
             <span className="text-[12px] text-gray-400 font-medium">{totalValidDays} day{totalValidDays !== 1 ? "s" : ""}</span>
@@ -489,7 +565,7 @@ function EmployeeProfilePage() {
         </div>
 
         {/* Attendance History Card */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div id="tour-emp-attendance-history" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <h3 className="text-[15px] font-bold text-gray-900">Attendance History</h3>
             
@@ -585,7 +661,7 @@ function EmployeeProfilePage() {
         </div>
 
         {/* Task Circular Progress Card */}
-        <div className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 mt-4 mb-4">
+        <div id="tour-emp-tasks" className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 mt-4 mb-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[15px] font-bold text-gray-900">Task Overview</h3>
             <span className="text-[12px] text-gray-400 font-medium">{totalTasksCount} task{totalTasksCount !== 1 ? "s" : ""}</span>
@@ -599,7 +675,7 @@ function EmployeeProfilePage() {
         </div>
 
         {/* Task History Card */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div id="tour-emp-task-history" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <h3 className="text-[15px] font-bold text-gray-900">Task History</h3>
 

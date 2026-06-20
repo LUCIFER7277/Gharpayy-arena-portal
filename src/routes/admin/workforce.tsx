@@ -168,12 +168,24 @@ function WorkforcePage() {
 
   usePageTour("workforce_tour", [
     {
-      element: "#tour-workforce-filters",
-      popover: { title: "Filters & Search", description: "Quickly find any employee or filter by their account status.", side: "bottom", align: "start" }
+      popover: {
+        title: "Workforce Management",
+        description: "Welcome to the Workforce Management dashboard. Manage operational roles, app access, and reporting hierarchies here.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-workforce-stats",
+      popover: { title: "Workforce Overview", description: "Quickly view your total headcount, active accounts, and pending approvals at a glance.", side: "bottom", align: "start" }
     },
     {
       element: "#tour-workforce-invite",
       popover: { title: "Invite Employee", description: "Bring new members onto the platform.", side: "left", align: "start" }
+    },
+    {
+      element: "#tour-workforce-filters",
+      popover: { title: "Filters & Search", description: "Quickly find any employee or filter by their account status.", side: "bottom", align: "start" }
     },
     {
       element: "#tour-workforce-table",
@@ -235,7 +247,7 @@ function WorkforcePage() {
         </div>
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <section id="tour-workforce-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Stat
           label="Workforce"
           value={rows.filter((r) => r.appRole !== "admin").length}

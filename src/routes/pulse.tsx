@@ -63,7 +63,40 @@ function PulsePage() {
 
   const [viewImages, setViewImages] = useState<string[] | null>(null);
 
-  usePageTour("pulse_tour", [
+  const tourSteps: any[] = canSeeAll ? [
+    {
+      popover: {
+        title: "Organization Pulses",
+        description: "Welcome to the Daily Pulse admin view. Here you can see a live feed of all daily pulses across the organization.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-admin-pulse-search",
+      popover: { title: "Search", description: "Search for specific employees, or keywords in their pulse texts.", side: "bottom" }
+    },
+    {
+      element: "#tour-admin-pulse-daterange",
+      popover: { title: "Date Range", description: "View pulses from yesterday, the last week, or any custom date range.", side: "bottom" }
+    },
+    {
+      element: "#tour-admin-pulse-filters",
+      popover: { title: "Advanced Filters", description: "Filter by role, team, slot, status, or even specific metrics like call volume.", side: "bottom" }
+    },
+    {
+      element: "#tour-admin-pulse-export",
+      popover: { title: "Export to Excel", description: "Copy the current view to your clipboard, perfectly formatted to paste into Excel.", side: "bottom" }
+    }
+  ] : [
+    {
+      popover: {
+        title: "Daily Pulse",
+        description: "Welcome to your Daily Pulse. This is where you log your daily progress, blockers, and proof of work.",
+        side: "over",
+        align: "center",
+      }
+    },
     {
       element: "#tour-pulse-slots",
       popover: { title: "Pulse Windows", description: "Your daily pulses are broken into windows. You can only submit a pulse when its window is open.", side: "bottom", align: "start" }
@@ -80,7 +113,9 @@ function PulsePage() {
       element: "#tour-pulse-compliance",
       popover: { title: "Compliance Score", description: "Keep your daily compliance at 100% to maintain a perfect score.", side: "left", align: "start" }
     }
-  ]);
+  ];
+
+  usePageTour(canSeeAll ? "admin_pulse_tour" : "pulse_tour", tourSteps);
 
   if (canSeeAll) {
     return <AdminPulseView />;
@@ -715,7 +750,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
       const linked = roster.find(r => r.id === empId);
       const empName = empEntries.length > 0 ? empEntries[0].employeeName : (linked ? linked.name : empId);
       const role = empEntries.length > 0 ? empEntries[0].role : (linked ? linked.role : "Unknown");
-      const team = empEntries.length > 0 ? empEntries[0].team : (linked ? linked.hubId || "HQ" : "Unknown");
+      const team = empEntries.length > 0 ? empEntries[0].team : (linked ? linked.team || "HQ" : "Unknown");
 
       if (isSingleDay) {
         const eodEntry = empEntries.find(e => e.slot === "eod");
@@ -1116,7 +1151,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
           </div>
           <div className="flex flex-col gap-4 w-full md:w-auto mt-4 md:mt-0">
             <div className="flex flex-wrap items-center gap-3 w-full justify-start md:justify-end">
-              <div className="relative w-full md:w-[240px]">
+              <div id="tour-admin-pulse-search" className="relative w-full md:w-[240px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
@@ -1127,7 +1162,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
                 />
               </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+              <div id="tour-admin-pulse-daterange" className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
                 <Select value={dateRangeOption} onValueChange={(val) => setDateRangeOption(val)}>
                   <SelectTrigger className="w-full md:w-[200px] h-10 bg-card">
                     <Calendar className="h-4 w-4 text-muted-foreground mr-2" />
@@ -1163,6 +1198,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
               </div>
 
               <button
+                id="tour-admin-pulse-filters"
                 onClick={() => setShowFilters(!showFilters)}
                 className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-all ${
                   showFilters 
@@ -1178,6 +1214,7 @@ export function AdminPulseView({ isEmbedded }: { isEmbedded?: boolean }) {
               </button>
 
               <button
+                id="tour-admin-pulse-export"
                 onClick={copyToClipboard}
                 className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
               >

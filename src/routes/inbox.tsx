@@ -8,6 +8,7 @@ import { tierOf } from "@/lib/permissions";
 import { Avatar } from "@/components/Avatar";
 import { Send, CheckCircle2, XCircle, MessageSquare, ArrowLeft, Search, Filter } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/inbox")({
   component: InboxPage,
@@ -27,6 +28,29 @@ function InboxPage() {
   const { actor } = useAttendanceState();
   const threads = useThreads(actor.id);
   
+  usePageTour("inbox_tour", [
+    {
+      popover: {
+        title: "Inbox",
+        description: "Welcome to your inbox. This is where you can securely message your colleagues, managers, and HR team.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-inbox-filters",
+      popover: { title: "Find Messages", description: "Filter by unread messages or quickly search for a specific colleague.", side: "bottom", align: "start" }
+    },
+    {
+      element: "#tour-inbox-colleagues",
+      popover: { title: "Colleagues", description: "Select a colleague to open the chat window.", side: "right", align: "start" }
+    },
+    {
+      element: "#tour-inbox-chat",
+      popover: { title: "Chat Window", description: "Type your message or leave requests here. If you're messaging HR, they can approve or reject leave requests directly from this chat.", side: "left", align: "start" }
+    }
+  ]);
+
   // Default active tab: first active thread or empty
   const [activeTabId, setActiveTabId] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -87,7 +111,7 @@ function InboxPage() {
     <div className="flex h-[calc(100vh-3.5rem)] md:h-[calc(100vh-3.5rem)] overflow-hidden bg-background">
       
       <div className={`w-full md:w-80 border-r border-border bg-card flex flex-col ${activeTabId && window.innerWidth < 768 ? 'hidden md:flex' : 'flex'}`}>
-        <div className="p-4 border-b border-border shrink-0">
+        <div id="tour-inbox-filters" className="p-4 border-b border-border shrink-0">
           <h1 className="font-display text-xl font-semibold mb-3">Messages</h1>
           <div className="flex gap-2 items-center">
             <div className="w-[140px] shrink-0">
@@ -114,7 +138,7 @@ function InboxPage() {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div id="tour-inbox-colleagues" className="flex-1 overflow-y-auto p-2 space-y-1">
 
           {/* Colleague List */}
           {filteredColleagues.map(c => {
@@ -147,7 +171,7 @@ function InboxPage() {
       </div>
 
       {/* Right Pane (Chat View) */}
-      <div className={`flex-1 flex flex-col bg-background relative ${!activeTabId ? 'hidden md:flex' : 'flex'}`}>
+      <div id="tour-inbox-chat" className={`flex-1 flex flex-col bg-background relative ${!activeTabId ? 'hidden md:flex' : 'flex'}`}>
         {selectedColleague ? (
           <ChatView 
             actorId={actor.id} 

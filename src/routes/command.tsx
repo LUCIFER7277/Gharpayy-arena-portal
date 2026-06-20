@@ -5,6 +5,7 @@ import { teamSummary } from "@/lib/team-metrics";
 import { getRoster } from "@/lib/roster";
 import { RoleGate } from "@/components/RoleGate";
 import { API_URL, getToken } from "@/lib/api-client";
+import { usePageTour } from "@/hooks/usePageTour";
 
 export const Route = createFileRoute("/command")({
   component: () => (
@@ -98,6 +99,25 @@ function CommandCenter() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  usePageTour("coach_ai_tour", [
+    {
+      popover: {
+        title: "Coach AI",
+        description: "Welcome to Coach AI. This is your intelligent operating assistant that analyzes your live team data and gives you actionable coaching advice.",
+        side: "over",
+        align: "center",
+      }
+    },
+    {
+      element: "#tour-coach-suggestions",
+      popover: { title: "Quick Prompts", description: "Click any of these generated prompts to instantly ask Coach AI to diagnose performance or analyze top performers.", side: "top", align: "start" }
+    },
+    {
+      element: "#tour-coach-input",
+      popover: { title: "Execute Query", description: "Type your own specific questions here. Try asking who is at risk of missing their KPI targets today.", side: "top", align: "center" }
+    }
+  ]);
 
   const dynamicSuggestions = useMemo(() => {
     const roster = getRoster();
@@ -276,7 +296,7 @@ function CommandCenter() {
               <p className="text-muted-foreground text-sm mb-8">
                 Direct. Measurable. Actionable. No fluff.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
+              <div id="tour-coach-suggestions" className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
                 {dynamicSuggestions.map((s) => (
                   <button
                     key={s}
@@ -321,6 +341,7 @@ function CommandCenter() {
 
       <div className="sticky bottom-0 z-20 w-full bg-gradient-to-t from-background via-background to-transparent pt-8 pb-4 md:pb-6 px-4 md:px-8">
         <form
+          id="tour-coach-input"
           onSubmit={(e) => {
             e.preventDefault();
             send(input);
