@@ -26,7 +26,14 @@ const router = Router();
 const BCRYPT_ROUNDS = 12;
 const adminOnly = [requireAuth, requireRole("admin")];
 
-router.use(...adminOnly);
+router.use(requireAuth);
+router.use((req, res, next) => {
+  if (req.user.role === "admin") return next();
+  if (req.method === "PATCH" && req.path.match(/^\/employees\/[^\/]+$/)) {
+    return next();
+  }
+  return res.status(403).json({ error: "Admin access required" });
+});
 
 async function hashPassword(plain) {
   return bcrypt.hash(plain, BCRYPT_ROUNDS);
@@ -231,13 +238,26 @@ const PatchEmployeeSchema = z.object({
   experience: z.enum(["New", "Mid", "Core"]).optional(),
   shift: z.string().max(80).optional(),
   birthday: z.string().max(20).optional(),
-  avatarSeed: z.string().max(100).optional(),
+  avatarSeed: z.string().optional(),
 });
 
 router.patch(
   "/employees/:employeeId",
   validate(PatchEmployeeSchema),
   asyncHandler(async (req, res) => {
+    if (req.user.role !== "admin" && req.user.employeeId !== req.params.employeeId) {
+      return res.status(403).json({ error: "Forbidden: You can only edit your own profile" });
+    }
+    if (req.user.role !== "admin") {
+      delete req.body.operationalRole;
+      delete req.body.appRole;
+      delete req.body.team;
+      delete req.body.zone;
+      delete req.body.managerId;
+      delete req.body.shift;
+      delete req.body.experience;
+    }
+
     const emp = await Employee.findOne({ id: req.params.employeeId });
     if (!emp) return res.status(404).json({ error: "Employee not found" });
 

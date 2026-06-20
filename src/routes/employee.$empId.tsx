@@ -8,6 +8,7 @@ import { useTasks, hydrateTasks, totalSpentMs, formatDuration } from "@/lib/task
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageTour } from "@/hooks/usePageTour";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/employee/$empId")({
   component: EmployeeProfilePage,
@@ -56,6 +57,7 @@ function CircularProgress({ percentage, color, label }: { percentage: number; co
 function EmployeeProfilePage() {
   const { empId } = Route.useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [attEvents, setAttEvents] = useState<RosterEvent[]>([]);
   const [attFilter, setAttFilter] = useState<"All Status" | "On Time" | "Late" | "Early" | "Absent">("All Status");
@@ -220,7 +222,7 @@ function EmployeeProfilePage() {
       window.location.reload();
     } catch (err) {
       console.error(err);
-      alert("Failed to save profile. Are you an admin?");
+      alert("Failed to save profile. Please check your network or permissions.");
     } finally {
       setIsSaving(false);
     }
@@ -351,19 +353,38 @@ function EmployeeProfilePage() {
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => window.history.length > 1 ? window.history.back() : navigate({ to: "/" })} 
+            onClick={() => ["admin", "hr", "manager", "leadership", "zone_leader"].includes(user?.role || "") ? navigate({ to: "/roster" }) : navigate({ to: "/" })} 
             className="text-gray-500 hover:text-gray-900 transition-colors p-1.5 -ml-1.5 rounded-full hover:bg-gray-100"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <h1 className="text-[16px] font-bold text-gray-900">Employee Profile</h1>
         </div>
+
+        {["admin", "hr", "manager"].includes(user?.role || "") && (
+          <div className="relative">
+            <select
+              className="appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[13px] bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+              value={empId}
+              onChange={(e) => navigate({ to: `/employee/${e.target.value}`, replace: true })}
+            >
+              {getRoster().sort((a, b) => a.name.localeCompare(b.name)).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full">
         {/* Profile Card */}
         <div id="tour-emp-profile" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 relative">
-          {!isEditingProfile && (
+          {!isEditingProfile && (user?.role === "admin" || user?.employeeId === emp.id) && (
             <button
               onClick={() => {
                 setEditForm({
@@ -430,6 +451,7 @@ function EmployeeProfilePage() {
                     onChange={e => setEditForm(prev => ({...prev, role: e.target.value}))}
                     className="text-[14px] font-medium"
                     placeholder="Role (e.g. Operator)"
+                    disabled={user?.role !== "admin"}
                   />
                 </div>
                 <div>
@@ -477,6 +499,7 @@ function EmployeeProfilePage() {
                   onChange={e => setEditForm(prev => ({...prev, team: e.target.value}))}
                   className="text-[13px] font-medium"
                   placeholder="Team"
+                  disabled={user?.role !== "admin"}
                 />
               ) : (
                 <div className="text-[13px] font-medium text-gray-800">{emp.team || "Not provided"}</div>
@@ -491,6 +514,7 @@ function EmployeeProfilePage() {
                   onChange={e => setEditForm(prev => ({...prev, zone: e.target.value}))}
                   className="text-[13px] font-medium"
                   placeholder="Zone"
+                  disabled={user?.role !== "admin"}
                 />
               ) : (
                 <div className="text-[13px] font-medium text-gray-800">{emp.zone || "Not provided"}</div>
@@ -503,6 +527,7 @@ function EmployeeProfilePage() {
                   value={editForm.managerId} 
                   onChange={e => setEditForm(prev => ({...prev, managerId: e.target.value}))}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm font-medium"
+                  disabled={user?.role !== "admin"}
                 >
                   <option value="">None</option>
                   {getRoster().filter(r => r.id !== emp.id).map(r => (

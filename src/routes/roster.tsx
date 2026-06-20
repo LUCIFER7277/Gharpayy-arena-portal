@@ -17,7 +17,7 @@ import {
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   MapPin,
@@ -428,6 +428,10 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
     >
       <div className="flex items-start gap-4">
         <Avatar className="h-14 w-14 shrink-0 border-2 border-background shadow-sm ring-1 ring-border">
+          <AvatarImage 
+            src={row.emp?.avatarSeed?.startsWith("data:image/") ? row.emp.avatarSeed : (row.emp?.avatarSeed ? `https://api.dicebear.com/9.x/notionists/svg?seed=${row.emp.avatarSeed}` : undefined)} 
+            className="object-cover"
+          />
           <AvatarFallback className={`${row.status === "Off" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"} font-medium`}>
             {row.empName
               .split(" ")

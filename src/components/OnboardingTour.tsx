@@ -39,6 +39,18 @@ export function OnboardingTour() {
         }
       ];
 
+      if (tier !== "leadership" && actor.appRole !== "admin") {
+        steps.push({
+          element: `#tour-nav-employee${actor.id.replace(/-/g, "")}`,
+          popover: {
+            title: "My Profile",
+            description: "View your personal attendance history, completed tasks, and edit your details.",
+            side: "right",
+            align: "start",
+          },
+        });
+      }
+
       if (isFeatureEnabled("/fly")) {
         steps.push({
           element: "#tour-nav-fly",
