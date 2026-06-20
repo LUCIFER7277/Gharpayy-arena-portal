@@ -384,7 +384,7 @@ function RosterPage() {
             </div>
           )}
 
-          <div id="tour-roster-cards" className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div id="tour-roster-cards" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5 w-full">
             {rows.map((row) => (
               <RosterCard 
                 key={row.empId} 
@@ -424,10 +424,10 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
   return (
     <Card 
       onClick={() => navigate({ to: `/employee/${row.empId}` })}
-      className={`p-5 flex flex-col h-full border ${row.status === "Off" ? "border-destructive/20 bg-destructive/5" : "border-border shadow-sm bg-card hover:border-primary/20 hover:shadow-md transition-all"} cursor-pointer`}
+      className={`p-3 md:p-5 flex flex-col h-full border ${row.status === "Off" ? "border-destructive/20 bg-destructive/5" : "border-border shadow-sm bg-card hover:border-primary/20 hover:shadow-md transition-all"} cursor-pointer w-full overflow-hidden`}
     >
-      <div className="flex items-start gap-3 md:gap-4">
-        <Avatar className="h-12 w-12 md:h-14 md:w-14 shrink-0 border-2 border-background shadow-sm ring-1 ring-border">
+      <div className="flex items-start gap-2 md:gap-4 w-full">
+        <Avatar className="h-10 w-10 md:h-14 md:w-14 shrink-0 border-2 border-background shadow-sm ring-1 ring-border">
           <AvatarImage 
             src={row.emp?.avatarSeed?.startsWith("data:image/") ? row.emp.avatarSeed : (row.emp?.avatarSeed ? `https://api.dicebear.com/9.x/notionists/svg?seed=${row.emp.avatarSeed}` : undefined)} 
             className="object-cover"
@@ -441,10 +441,10 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1 pt-0 md:pt-0.5">
-          <div className="flex items-start justify-between gap-1.5 md:gap-2">
-            <div className="min-w-0">
-              <div className="font-semibold text-[14px] md:text-[15px] truncate text-foreground">{row.empName}</div>
-              <div className="text-[10px] md:text-xs text-muted-foreground truncate mt-0.5 font-medium">
+          <div className="flex items-start justify-between gap-1.5 md:gap-2 w-full">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-[13px] md:text-[15px] truncate text-foreground">{row.empName}</div>
+              <div className="text-[9px] md:text-xs text-muted-foreground truncate mt-0.5 font-medium">
                 {subtitleParts.join(" · ")}
               </div>
             </div>
