@@ -12,7 +12,7 @@ if (isBrowser) {
   }
 } else {
   // Server‑side rendering: use only the env variable (no window access)
-  API_URL = import.meta.env.VITE_API_URL as string | undefined;
+  API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:4000/api";
 }
 const TOKEN_KEY = "arena_token";
 const USER_KEY = "arena_user";

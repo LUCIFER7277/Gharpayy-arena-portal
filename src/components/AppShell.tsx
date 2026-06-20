@@ -514,16 +514,7 @@ export function AppShell() {
                 <Settings className="h-4 w-4" />
               </Link>
             )}
-            <button
-              onClick={() => {
-                if (window.activeTourFn) window.activeTourFn();
-                else window.dispatchEvent(new Event("start-tour"));
-              }}
-              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
-              title="Page Guide / Help"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

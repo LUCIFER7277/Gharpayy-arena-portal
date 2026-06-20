@@ -49,7 +49,7 @@ export async function requestNotificationPermissionAndGetToken() {
       });
 
       if (token) {
-        console.log("[fcm] Token generated:", token);
+        console.log("[fcm] Token generated successfully (hidden for security).");
         // Send the token to the server to save it
         await api.post("/fcm/register", { token });
         return token;

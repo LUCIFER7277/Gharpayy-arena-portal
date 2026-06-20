@@ -207,7 +207,7 @@ router.post(
     if (isDev) {
       console.log(`[DEV-AUTH] Invited user email: ${email}`);
       console.log(`[DEV-AUTH] Password initialized successfully`);
-      console.log(`[DEV-AUTH] Hash generation step complete: ${passwordHash.substring(0, 15)}...`);
+      // Log removed for security
     }
     const user = await User.create({
       email,
