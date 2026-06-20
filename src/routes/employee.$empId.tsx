@@ -350,9 +350,12 @@ function EmployeeProfilePage() {
       {/* Top Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <Link to="/roster" className="text-gray-500 hover:text-gray-900 transition-colors p-1.5 -ml-1.5 rounded-full hover:bg-gray-100">
+          <button 
+            onClick={() => window.history.length > 1 ? window.history.back() : navigate({ to: "/" })} 
+            className="text-gray-500 hover:text-gray-900 transition-colors p-1.5 -ml-1.5 rounded-full hover:bg-gray-100"
+          >
             <ArrowLeft className="w-4 h-4" />
-          </Link>
+          </button>
           <h1 className="text-[16px] font-bold text-gray-900">Employee Profile</h1>
         </div>
       </div>

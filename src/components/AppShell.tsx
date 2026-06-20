@@ -34,6 +34,7 @@ import {
   LogOut,
   Target,
   HelpCircle,
+  User,
 } from "lucide-react";
 import { playbookFor } from "@/lib/playbooks-store";
 import { shieldNow } from "@/lib/console-store";
@@ -201,6 +202,14 @@ export function AppShell() {
   const isFeatureEnabled = useRoleFeature();
 
   const visibleNav = NAV.filter((item) => isFeatureEnabled(item.to));
+  if (tier !== "leadership" && actor.appRole !== "admin") {
+    visibleNav.splice(1, 0, {
+      to: `/employee/${actor.id}`,
+      label: "My Profile",
+      icon: User as any,
+      tiers: ALL,
+    });
+  }
 
   const mobileNav = (
     tier === "partner"
