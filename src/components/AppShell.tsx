@@ -40,7 +40,7 @@ import { playbookFor } from "@/lib/playbooks-store";
 import { shieldNow } from "@/lib/console-store";
 import { useAttendanceState } from "@/hooks/useAttendance";
 import { liveStatusFor } from "@/lib/attendance-store";
-import { unreadCount, unreadInboxCount } from "@/lib/notification-store";
+import { useNotifications } from "@/lib/notification-store";
 import { bootArena } from "@/lib/seed-init";
 import { can, tierOf, TIER_LABEL, type Tier } from "@/lib/permissions";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -195,8 +195,9 @@ export function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [kudoOpen, setKudoOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const unread = unreadCount(actor.id);
-  const unreadInbox = unreadInboxCount(actor.id);
+  const notifications = useNotifications(actor.id);
+  const unread = notifications.filter((n) => !n.read && n.actionTo !== "/inbox").length;
+  const unreadInbox = notifications.filter((n) => !n.read && n.actionTo === "/inbox").length;
   const tier = tierOf(actor);
 
   const isFeatureEnabled = useRoleFeature();

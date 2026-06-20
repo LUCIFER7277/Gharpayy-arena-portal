@@ -460,7 +460,7 @@ function SubmitCard({ slot, employeeId }: { slot: SlotDef; employeeId: string })
             {polishing ? (slot.key === "eod" ? "Generating..." : "Polishing...") : (slot.key === "eod" ? "Auto-fill EOD" : "AI Polish")}
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NumberField label="Calls" value={calls} onChange={setCalls} />
           <NumberField label="Tours" value={tours} onChange={setTours} />
           <NumberField label="Closures" value={closures} onChange={setClosures} />
