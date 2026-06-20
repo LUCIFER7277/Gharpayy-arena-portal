@@ -69,26 +69,26 @@ async function buildWorkforceRows() {
     };
   });
 
-  // Find pending users who don't have a linked Employee record yet
+  // Find users who don't have a linked Employee record yet (pending or approved admins/hr)
   for (const u of users) {
     const derivedStatus = accountStatus(u);
     const isLinked = u.employeeId && nameById.has(u.employeeId);
-    if (derivedStatus === "pending" && !isLinked) {
+    if (!isLinked) {
       rows.push({
-        employeeId: u.employeeId || `pending_${u._id}`,
+        employeeId: u.employeeId || String(u._id),
         name: u.name || u.email.split("@")[0],
-        operationalRole: "Operator",
-        appRole: "employee",
+        operationalRole: u.role === "admin" ? "Admin" : u.role === "hr" ? "HR" : "Operator",
+        appRole: u.role || "employee",
         team: "HQ",
         zone: "All",
         managerId: null,
         managerName: null,
-        experience: "New",
+        experience: "Core",
         shift: "9:00 AM - 6:00 PM",
         email: u.email,
         user: publicAuthUser(u),
-        accountStatus: "pending",
-        approvalStatus: "pending",
+        accountStatus: derivedStatus,
+        approvalStatus: u.isApproved ? "approved" : "pending",
       });
     }
   }

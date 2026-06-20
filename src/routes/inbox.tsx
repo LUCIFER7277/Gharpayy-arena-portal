@@ -72,6 +72,10 @@ function InboxPage() {
   const colleagues = getRoster().filter(e => {
     if (e.id === actor.id) return false;
     
+    // Always show the user in the inbox if there's an active conversation with them
+    const hasThread = threads.some(t => t.participantIds.includes(e.id));
+    if (hasThread) return true;
+
     const eRoleStr = String(e.role || "").toUpperCase().trim();
     const eAppRoleStr = String(e.appRole || "").toUpperCase().trim();
     
