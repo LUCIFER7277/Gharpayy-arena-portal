@@ -381,7 +381,7 @@ function EmployeeProfilePage() {
         )}
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full">
+      <div className="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden max-w-6xl mx-auto w-full">
         {/* Profile Card */}
         <div id="tour-emp-profile" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 relative">
           {!isEditingProfile && (user?.role === "admin" || user?.employeeId === emp.id) && (
@@ -597,7 +597,7 @@ function EmployeeProfilePage() {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <h3 className="text-[15px] font-bold text-gray-900">Attendance History</h3>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <select 
                   className="appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20"
@@ -707,7 +707,7 @@ function EmployeeProfilePage() {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <h3 className="text-[15px] font-bold text-gray-900">Task History</h3>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <select 
                   className="appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/20"

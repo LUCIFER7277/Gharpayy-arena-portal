@@ -35,3 +35,6 @@ dist-ssr
 .env.development
 .env.local
 firebase-service-account.json
+.lovable
+.gemini
+artifacts/

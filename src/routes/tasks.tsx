@@ -11,7 +11,7 @@ import {
   activeTimer,
 } from "@/lib/task-store";
 import { useAttendanceState } from "@/hooks/useAttendance";
-import { type AppTask, type TaskPriority, type TaskStatus } from "@/types/hr";
+import { type AppTask, type TaskPriority, type TaskStatus, type Employee } from "@/types/hr";
 import { getRoster } from "@/lib/roster";
 import { Avatar } from "@/components/Avatar";
 import { TaskDetailSheet } from "@/components/TaskDetailSheet";

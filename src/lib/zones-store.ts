@@ -9,7 +9,7 @@ export type Zone = {
   pods: number;
   leaderId: string;
   properties: number;
-  type?: string;
+  type?: "PG" | "Flat";
 };
 
 export type Property = {
