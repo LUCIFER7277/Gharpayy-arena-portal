@@ -13,7 +13,7 @@ export async function seedAdmins() {
     if (!existing) {
       const passwordHash = await bcrypt.hash("Admin123!", 10);
       await User.create({
-        email: admin.email,
+        email: admin.email, 
         name: admin.name,
         role: admin.role,
         passwordHash,

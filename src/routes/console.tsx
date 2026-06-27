@@ -695,7 +695,7 @@ function CommWindows({
                   )}
 
                   {isLeadership && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 mt-2">
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
@@ -993,7 +993,7 @@ function EodGenerator({
           </div>
         ))}
       </div>
-      <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+      <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-3 border-t border-border">
         <button
           onClick={() => setPreviewText((v) => (v === null ? generateDraft() : null))}
           className="flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded border border-border hover:bg-secondary text-xs"
@@ -1163,7 +1163,7 @@ function CheckInResponseForm({ task }: { task: AppTask }) {
         placeholder="Paste your completed check-in here..."
         className="w-full text-xs bg-secondary/40 border border-border rounded p-3 min-h-[80px] resize-y"
       />
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <button
           onClick={handleAIPolish}
           disabled={!text.trim() || polishing || submitting}
@@ -1235,7 +1235,7 @@ function CommunicationWindow({ actor, currentUserEmployeeId }: { actor: ReturnTy
             </div>
             
             {hasConsoleCapability(actor, "manage_workforce_interventions") && currentUserEmployeeId && currentUserEmployeeId !== task.assigneeId && (
-              <div className="flex items-center gap-2 mt-auto pt-4 border-t border-destructive/10">
+              <div className="flex flex-col sm:flex-row gap-2 mt-auto pt-4 border-t border-destructive/10">
                 <button
                   onClick={() => requestTaskReason(task.id, currentUserEmployeeId)}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"

@@ -432,7 +432,7 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
             src={row.emp?.avatarSeed?.startsWith("data:image/") ? row.emp.avatarSeed : (row.emp?.avatarSeed ? `https://api.dicebear.com/9.x/notionists/svg?seed=${row.emp.avatarSeed}` : undefined)} 
             className="object-cover"
           />
-          <AvatarFallback className={`${row.status === "Off" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"} font-medium`}>
+          <AvatarFallback className={`${row.status === "Off" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"} font-medium text-xs md:text-sm`}>
             {row.empName
               .split(" ")
               .map((s: string) => s[0])
@@ -440,7 +440,11 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
               .join("")}
           </AvatarFallback>
         </Avatar>
+<<<<<<< HEAD
         <div className="min-w-0 flex-1 pt-0.5">
+=======
+        <div className="min-w-0 flex-1 pt-0 md:pt-0.5">
+>>>>>>> f51ee1c64d5d1af7d9428a894b8e0c39a2f44300
           <div className="flex items-start justify-between gap-1.5 md:gap-2 w-full">
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-[13px] md:text-[15px] truncate text-foreground">{row.empName}</div>
@@ -451,8 +455,8 @@ function RosterCard({ row, isToday }: { row: RosterRow; isToday: boolean }) {
             <StatusBadge status={row.status} />
           </div>
 
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex gap-2">
+          <div className="mt-2.5 md:mt-3 flex items-center justify-between">
+            <div className="flex gap-1 md:gap-2 w-full">
               <Mini label="Work" value={fmtDuration(row.workMs)} active={row.status === "Clocked In"} />
               <Mini label="Break" value={fmtDuration(row.breakMs)} active={row.status === "On Break"} />
               <Mini label="Field" value={fmtDuration(row.fieldMs)} active={row.status === "In Field"} />
@@ -591,20 +595,20 @@ function Tile({
 
   return (
     <Card 
-      className={`p-4 border ${cls} ${activeClass} ${clickableClass}`}
+      className={`p-3 md:p-4 border ${cls} ${activeClass} ${clickableClass}`}
       onClick={onClick}
     >
-      <div className="text-[10px] uppercase tracking-widest font-mono">{label}</div>
-      <div className="font-display text-3xl font-semibold tabular-nums mt-1">{value}</div>
+      <div className="text-[9px] md:text-[10px] uppercase tracking-wider md:tracking-widest font-mono truncate">{label}</div>
+      <div className="font-display text-2xl md:text-3xl font-semibold tabular-nums mt-1">{value}</div>
     </Card>
   );
 }
 
 function Mini({ label, value, active }: { label: string; value: string; active?: boolean }) {
   return (
-    <div className={`rounded-md border px-2.5 py-1.5 text-center flex-1 ${active ? "bg-primary/10 border-primary/30" : "bg-muted/30 border-border/60"}`}>
-      <div className={`text-[9px] uppercase tracking-wider font-semibold ${active ? "text-primary" : "text-muted-foreground"}`}>{label}</div>
-      <div className={`text-xs font-mono tabular-nums mt-0.5 ${active ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{value}</div>
+    <div className={`rounded-md border px-1 md:px-2.5 py-1 md:py-1.5 text-center flex-1 min-w-0 ${active ? "bg-primary/10 border-primary/30" : "bg-muted/30 border-border/60"}`}>
+      <div className={`text-[8px] md:text-[9px] uppercase tracking-wider font-semibold truncate ${active ? "text-primary" : "text-muted-foreground"}`}>{label}</div>
+      <div className={`text-[10px] md:text-xs font-mono tabular-nums mt-0.5 truncate ${active ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{value}</div>
     </div>
   );
 }

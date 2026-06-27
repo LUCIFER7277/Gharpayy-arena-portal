@@ -489,7 +489,7 @@ function EmployeeProfilePage() {
             </div>
           )}
 
-          <div className="grid grid-cols-5 gap-6 mt-5 border-t border-gray-100 pt-5">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 mt-5 border-t border-gray-100 pt-5">
             <div>
               <div className="text-[11px] text-gray-400 mb-1 uppercase tracking-wide">Team</div>
               {isEditingProfile ? (
@@ -584,7 +584,7 @@ function EmployeeProfilePage() {
             <h3 className="text-[15px] font-bold text-gray-900">Attendance Overview</h3>
             <span className="text-[12px] text-gray-400 font-medium">{totalValidDays} day{totalValidDays !== 1 ? "s" : ""}</span>
           </div>
-          <div className="flex items-center justify-around">
+          <div className="flex flex-wrap md:flex-nowrap items-center justify-around gap-4 md:gap-0">
             <CircularProgress percentage={totalValidDays > 0 ? Math.round((onTimeDays / totalValidDays) * 100) : 0} color="#10B981" label="On Time" />
             <CircularProgress percentage={totalValidDays > 0 ? Math.round((lateDays / totalValidDays) * 100) : 0} color="#F59E0B" label="Late" />
             <CircularProgress percentage={totalValidDays > 0 ? Math.round((earlyDays / totalValidDays) * 100) : 0} color="#3B82F6" label="Early" />
@@ -669,18 +669,20 @@ function EmployeeProfilePage() {
               dailySummaries.map((day, idx) => (
                 <div 
                   key={day.dateStr} 
-                  className={`flex items-center rounded-lg px-4 py-2.5 ${idx % 2 === 0 ? 'bg-[#F9FAFB]' : 'bg-white border border-gray-100'}`}
+                  className={`flex flex-col md:flex-row md:items-center rounded-lg px-4 py-3 gap-2 md:gap-0 ${idx % 2 === 0 ? 'bg-[#F9FAFB]' : 'bg-white border border-gray-100'}`}
                 >
-                  <div className="w-[110px] font-semibold text-gray-900 text-[12px]">{day.dateStr}</div>
-                  <div className="w-[80px] text-[12px] font-medium text-gray-500">
-                    {day.statusLabel}
+                  <div className="flex justify-between md:justify-start w-full md:w-auto md:gap-4 items-center">
+                    <div className="w-auto md:w-[110px] font-semibold text-gray-900 text-[12px]">{day.dateStr}</div>
+                    <div className="w-auto md:w-[80px] text-[12px] font-medium text-gray-500 text-right md:text-left">
+                      {day.statusLabel}
+                    </div>
                   </div>
                   
-                  <div className="flex flex-1 justify-between text-[12px] text-gray-500 ml-4">
-                    <div className="w-1/4">Work: {formatHm(day.workMs)}</div>
-                    <div className="w-1/4">Break: {formatHm(day.breakMs)}</div>
-                    <div className="w-1/4">Late: {formatHm(day.lateMs, true)}</div>
-                    <div className="w-1/4">Early: {formatHm(day.earlyMs, true)}</div>
+                  <div className="grid grid-cols-2 md:flex md:flex-1 md:justify-between text-[11px] md:text-[12px] text-gray-500 md:ml-4 gap-1 md:gap-0 mt-1 md:mt-0 w-full">
+                    <div className="w-full md:w-1/4">Work: {formatHm(day.workMs)}</div>
+                    <div className="w-full md:w-1/4">Break: {formatHm(day.breakMs)}</div>
+                    <div className="w-full md:w-1/4">Late: {formatHm(day.lateMs, true)}</div>
+                    <div className="w-full md:w-1/4">Early: {formatHm(day.earlyMs, true)}</div>
                   </div>
                 </div>
               ))
@@ -694,7 +696,7 @@ function EmployeeProfilePage() {
             <h3 className="text-[15px] font-bold text-gray-900">Task Overview</h3>
             <span className="text-[12px] text-gray-400 font-medium">{totalTasksCount} task{totalTasksCount !== 1 ? "s" : ""}</span>
           </div>
-          <div className="flex items-center justify-around">
+          <div className="flex flex-wrap md:flex-nowrap items-center justify-around gap-4 md:gap-0">
             <CircularProgress percentage={totalTasksCount > 0 ? Math.round((tasksCompletedCount / totalTasksCount) * 100) : 0} color="#10B981" label="Completed" />
             <CircularProgress percentage={totalTasksCount > 0 ? Math.round((tasksPendingCount / totalTasksCount) * 100) : 0} color="#6B7280" label="Pending" />
             <CircularProgress percentage={totalTasksCount > 0 ? Math.round((tasksEarlyCount / totalTasksCount) * 100) : 0} color="#3B82F6" label="Early" />
@@ -816,26 +818,33 @@ function EmployeeProfilePage() {
                 return (
                   <div 
                     key={task.id} 
-                    className={`flex items-center rounded-lg px-4 py-3 ${idx % 2 === 0 ? 'bg-[#F9FAFB]' : 'bg-white border border-gray-100'}`}
+                    className={`flex flex-col md:flex-row md:items-center rounded-lg px-4 py-3 gap-2 md:gap-0 ${idx % 2 === 0 ? 'bg-[#F9FAFB]' : 'bg-white border border-gray-100'}`}
                   >
-                    <div className="flex-1 min-w-[180px]">
+                    <div className="flex justify-between items-start w-full md:hidden mb-1">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${statusColor}`}>
+                        {statusBadge}
+                      </span>
+                      <div className="text-[11px] text-gray-500">{format(new Date(task.createdAt), "dd MMM yy")}</div>
+                    </div>
+
+                    <div className="flex-1 min-w-0 md:min-w-[180px]">
                       <div className="font-semibold text-gray-900 text-[13px] truncate">{task.title}</div>
                       <div className="text-[11px] text-gray-500 mt-0.5">Assigned by: {assignedByName}</div>
                     </div>
                     
-                    <div className="w-[90px] text-[12px] text-gray-500">
+                    <div className="hidden md:block w-[90px] text-[12px] text-gray-500">
                       {format(new Date(task.createdAt), "dd MMM yy")}
                     </div>
                     
-                    <div className="w-[80px] text-[12px] text-gray-500">
+                    <div className="w-full md:w-[80px] text-[12px] text-gray-500 mt-1 md:mt-0">
                       Dur: {durationStr}
                     </div>
                     
-                    <div className="w-[120px] text-[12px] text-gray-500 truncate" title={proofOfWork}>
+                    <div className="w-full md:w-[120px] text-[12px] text-gray-500 truncate mt-0.5 md:mt-0" title={proofOfWork}>
                       Proof: {proofOfWork}
                     </div>
 
-                    <div className="w-[110px] flex justify-end">
+                    <div className="hidden md:flex w-[110px] justify-end">
                       <span className={`px-2 py-1 rounded text-[11px] font-medium ${statusColor}`}>
                         {statusBadge}
                       </span>
