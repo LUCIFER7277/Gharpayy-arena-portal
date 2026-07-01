@@ -321,7 +321,7 @@ async function connectDb() {
     await mongoose.connect(MONGO);
     isDbConnected = true;
     console.log("[api] mongo connected");
-    // await seedAdmins();
+    await seedAdmins();
     await runWorkforceMigrations();
     try {
       // await seedKpis();
@@ -349,7 +349,7 @@ async function connectDb() {
         await mongoose.connect(uri);
         isDbConnected = true;
         console.log("[api] in‑memory MongoDB connected");
-        // await seedAdmins();
+        await seedAdmins();
         await runWorkforceMigrations();
         try {
           // await seedKpis();
