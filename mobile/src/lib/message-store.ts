@@ -3,7 +3,7 @@ import { createApiListStore } from "./api-list-store";
 import type { ChatMessage, ChatThread } from "@/types/hr";
 import { pushNotification } from "./notification-store";
 import { getRoster } from "./roster";
-import { notifyChat } from "./socket-client";
+import { notifyChat, registerHydrateMessages } from "./socket-client";
 
 const messageStore = createApiListStore<ChatMessage>({
   legacyKey: "gp_chat_messages_v1",
@@ -21,6 +21,10 @@ export function hydrateMessages() {
   messageStore.hydrateFromApi();
   return threadStore.hydrateFromApi();
 }
+
+// Register our hydrate function with socket-client to avoid a circular import.
+// socket-client imports nothing from us; we tell it what to call on chat_update.
+registerHydrateMessages(hydrateMessages);
 
 export function useThreads(actorId: string): ChatThread[] {
   const all = useSyncExternalStore(

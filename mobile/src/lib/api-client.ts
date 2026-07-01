@@ -1,18 +1,22 @@
-// HTTP client for the self-hosted Arena API (VITE_API_URL, e.g. http://localhost:4000/api).
+// HTTP client for the self-hosted Arena API (EXPO_PUBLIC_API_URL, e.g. http://192.168.x.x:4000/api).
+import { Platform } from "react-native";
 
 export let API_URL: string | undefined;
-const isBrowser = typeof window !== "undefined";
-if (isBrowser) {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL as string | undefined;
+
+const envUrl = process.env.EXPO_PUBLIC_API_URL as string | undefined;
+
+if (Platform.OS === "web" && typeof window !== "undefined" && window.location) {
+  // Web: can use window.location to auto-detect host when env points to localhost
   if (envUrl && envUrl.includes('localhost')) {
-    // Replace localhost with the current hostname to support LAN access
     API_URL = envUrl.replace('localhost', window.location.hostname);
   } else {
     API_URL = envUrl ?? `${window.location.protocol}//${window.location.hostname}:4000/api`;
   }
 } else {
-  // Server‑side rendering: use only the env variable (no window access)
-  API_URL = process.env.EXPO_PUBLIC_API_URL || "http://127.0.0.1:4000/api";
+  // Native (iOS/Android) or SSR: use env var directly.
+  // For physical devices, set EXPO_PUBLIC_API_URL to your machine's LAN IP,
+  // e.g. http://192.168.1.x:4000/api — localhost won't work on a real device.
+  API_URL = envUrl || "http://127.0.0.1:4000/api";
 }
 const TOKEN_KEY = "arena_token";
 const USER_KEY = "arena_user";
@@ -145,8 +149,10 @@ export async function impersonate(employeeId: string) {
   const currentToken = getToken();
   const currentUser = getCachedUser();
   if (currentToken && currentUser && currentUser.role === "admin") {
-    window.localStorage.setItem("arena_original_token", currentToken);
-    window.localStorage.setItem("arena_original_user", JSON.stringify(currentUser));
+    // Use the localStorage abstraction (polyfilled via AsyncStorage on native)
+    const ls = (typeof window !== "undefined" ? window.localStorage : globalThis.localStorage) as Storage;
+    ls?.setItem("arena_original_token", currentToken);
+    ls?.setItem("arena_original_user", JSON.stringify(currentUser));
   }
 
   const res = await api.post<{ token: string; user: ApiUser }>("/auth/impersonate", { employeeId });
@@ -156,8 +162,9 @@ export async function impersonate(employeeId: string) {
 }
 
 export function revertImpersonation() {
-  const originalToken = window.localStorage.getItem("arena_original_token");
-  const originalUser = window.localStorage.getItem("arena_original_user");
+  const ls = (typeof window !== "undefined" ? window.localStorage : globalThis.localStorage) as Storage;
+  const originalToken = ls?.getItem("arena_original_token");
+  const originalUser = ls?.getItem("arena_original_user");
   if (originalToken && originalUser) {
     setToken(originalToken);
     try {
@@ -165,8 +172,8 @@ export function revertImpersonation() {
     } catch {
       setCachedUser(null);
     }
-    window.localStorage.removeItem("arena_original_token");
-    window.localStorage.removeItem("arena_original_user");
+    ls?.removeItem("arena_original_token");
+    ls?.removeItem("arena_original_user");
   }
 }
 

@@ -191,19 +191,24 @@ export function OnboardingTour() {
       driverObj.drive();
     };
 
-    // Auto-start for first-time users
+    // Always listen for manual replay triggers (Replay Tour button)
+    window.addEventListener("start-tour", startTour);
+
+    // Auto-start only for first-time users
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     if (!hasSeenTour) {
       // Delay slightly to allow the app to fully render
-      const timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         startTour();
       }, 1000);
-      return () => clearTimeout(timeout);
     }
 
-    // Listen for manual triggers from the UI
-    window.addEventListener("start-tour", startTour);
-    return () => window.removeEventListener("start-tour", startTour);
-  }, [user]);
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      window.removeEventListener("start-tour", startTour);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, tier, isFeatureEnabled]);
 
   return null;
 }

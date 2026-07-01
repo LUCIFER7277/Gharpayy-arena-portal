@@ -2,59 +2,38 @@ import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Keyframe, Easing } from 'react-native-reanimated';
 
-import classes from './animated-icon.module.css';
+// CSS Modules are not supported by Metro — styles inlined below instead.
 const DURATION = 300;
 
 export function AnimatedSplashOverlay() {
   return null;
 }
 
-const keyframe = new Keyframe({
-  0: {
-    transform: [{ scale: 0 }],
-  },
-  60: {
-    transform: [{ scale: 1.2 }],
-    easing: Easing.elastic(1.2),
-  },
-  100: {
-    transform: [{ scale: 1 }],
-    easing: Easing.elastic(1.2),
-  },
-});
-
-const logoKeyframe = new Keyframe({
-  0: {
-    opacity: 0,
-  },
-  60: {
-    transform: [{ scale: 1.2 }],
-    opacity: 0,
-    easing: Easing.elastic(1.2),
-  },
-  100: {
-    transform: [{ scale: 1 }],
-    opacity: 1,
-    easing: Easing.elastic(1.2),
-  },
-});
-
-const glowKeyframe = new Keyframe({
-  0: {
-    transform: [{ rotateZ: '-180deg' }, { scale: 0.8 }],
-    opacity: 0,
-  },
-  [DURATION / 1000]: {
-    transform: [{ rotateZ: '0deg' }, { scale: 1 }],
-    opacity: 1,
-    easing: Easing.elastic(0.7),
-  },
-  100: {
-    transform: [{ rotateZ: '7200deg' }],
-  },
-});
-
 export function AnimatedIcon() {
+  // Keyframes must be created inside the component, not at module level,
+  // to avoid crashes during SSR where document/window are not defined.
+  const keyframe = new Keyframe({
+    0: { transform: [{ scale: 0 }] },
+    60: { transform: [{ scale: 1.2 }], easing: Easing.elastic(1.2) },
+    100: { transform: [{ scale: 1 }], easing: Easing.elastic(1.2) },
+  });
+
+  const logoKeyframe = new Keyframe({
+    0: { opacity: 0 },
+    60: { transform: [{ scale: 1.2 }], opacity: 0, easing: Easing.elastic(1.2) },
+    100: { transform: [{ scale: 1 }], opacity: 1, easing: Easing.elastic(1.2) },
+  });
+
+  const glowKeyframe = new Keyframe({
+    0: { transform: [{ rotateZ: '-180deg' }, { scale: 0.8 }], opacity: 0 },
+    [DURATION / 1000]: {
+      transform: [{ rotateZ: '0deg' }, { scale: 1 }],
+      opacity: 1,
+      easing: Easing.elastic(0.7),
+    },
+    100: { transform: [{ rotateZ: '7200deg' }] },
+  });
+
   return (
     <View style={styles.iconContainer}>
       <Animated.View entering={glowKeyframe.duration(60 * 1000 * 4)} style={styles.glow}>
@@ -62,7 +41,7 @@ export function AnimatedIcon() {
       </Animated.View>
 
       <Animated.View style={styles.background} entering={keyframe.duration(DURATION)}>
-        <div className={classes.expoLogoBackground} />
+        <View style={styles.expoLogoBackground} />
       </Animated.View>
 
       <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
@@ -71,6 +50,7 @@ export function AnimatedIcon() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -104,5 +84,11 @@ const styles = StyleSheet.create({
     width: 128,
     height: 128,
     position: 'absolute',
+  },
+  expoLogoBackground: {
+    width: 128,
+    height: 128,
+    borderRadius: 40,
+    backgroundColor: '#0274df',
   },
 });

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 export const localStoragePolyfill = {
   _cache: new Map<string, string>(),
@@ -30,10 +31,28 @@ export const localStoragePolyfill = {
   }
 };
 
-// Apply polyfill
-if (typeof window !== "undefined") {
-  (window as any).localStorage = localStoragePolyfill;
-} else if (typeof globalThis !== "undefined") {
-  (globalThis as any).window = { localStorage: localStoragePolyfill };
-  (globalThis as any).localStorage = localStoragePolyfill;
+// Apply polyfill.
+// On native: window.localStorage doesn't exist, set via globalThis.
+// On web: window.localStorage is a read-only getter on Window.prototype,
+//         so direct assignment throws — use Object.defineProperty instead.
+if (Platform.OS !== "web") {
+  // Native (iOS / Android)
+  if (typeof globalThis !== "undefined") {
+    (globalThis as any).localStorage = localStoragePolyfill;
+    if (typeof window === "undefined") {
+      (globalThis as any).window = { localStorage: localStoragePolyfill };
+    }
+  }
+} else if (typeof window !== "undefined") {
+  // Web
+  try {
+    Object.defineProperty(window, "localStorage", {
+      value: localStoragePolyfill,
+      writable: true,
+      configurable: true,
+    });
+  } catch {
+    // If defineProperty also fails (e.g. already locked), fall back silently.
+    (window as any).localStorage = localStoragePolyfill;
+  }
 }

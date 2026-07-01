@@ -1,4 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
+import { Alert } from "react-native";
 import { createApiListStore } from "./api-list-store";
 import type { AppNotif, NotifKind } from "@/types/hr";
 import { employeeName } from "./roster";
@@ -8,8 +9,6 @@ const store = createApiListStore<AppNotif>({
   apiPath: "/notifications",
   seed: [],
 });
-
-import { Alert } from "react-native";
 
 export async function hydrateNotifications() {
   const oldIds = new Set(store.getServerSnapshot().map(n => n.id)); // Before hydrate
